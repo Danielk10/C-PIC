@@ -45,11 +45,61 @@ public class MainActivity extends AppCompatActivity {
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
+        setSupportActionBar(binding.toolbar);
+
         gpUtils = new GpUtilsExecutor(this);
         binding.editAsm.setText(DEFAULT_ASM);
 
         setupListeners();
         initResources();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(android.view.Menu menu) {
+        getMenuInflater().inflate(R.menu.main_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(android.view.MenuItem item) {
+        int id = item.getItemId();
+        if (id == R.id.action_clear_logs) {
+            binding.textLogs.setText("Logs limpiados.");
+            return true;
+        } else if (id == R.id.action_clear_editor) {
+            confirmClearEditor();
+            return true;
+        } else if (id == R.id.action_about) {
+            showAboutDialog();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void confirmClearEditor() {
+        new AlertDialog.Builder(this)
+                .setTitle("Limpiar Editor")
+                .setMessage("¿Estás seguro de que deseas borrar todo el código?")
+                .setPositiveButton("Sí, borrar", (dialog, which) -> binding.editAsm.setText(""))
+                .setNegativeButton("Cancelar", null)
+                .show();
+    }
+
+    private void showAboutDialog() {
+        String message = "<b>C-PIC Assembler</b><br><br>" +
+                "Esta aplicación es una interfaz para el conjunto de herramientas <b>GPUTILS</b>.<br><br>" +
+                "<b>Licencia:</b><br>" +
+                "Este proyecto y los binarios incluidos de GPUTILS están bajo la licencia <b>GNU GPL v3.0</b>.<br><br>"
+                +
+                "GPUTILS es un conjunto de herramientas de código abierto para microcontroladores Microchip PIC.<br><br>"
+                +
+                "Puedes encontrar el código fuente de GPUTILS en: <a href='https://gputils.sourceforge.io/'>gputils.sourceforge.io</a>";
+
+        new AlertDialog.Builder(this)
+                .setTitle("Acerca de / Licencia")
+                .setMessage(android.text.Html.fromHtml(message, android.text.Html.FROM_HTML_MODE_COMPACT))
+                .setPositiveButton("Cerrar", null)
+                .show();
     }
 
     private void setupListeners() {
@@ -145,12 +195,27 @@ public class MainActivity extends AppCompatActivity {
 
             mainHandler.post(() -> {
                 if (hexSuccess) {
-                    Toast.makeText(this, "Archivos exportados a Descargas/C-PIC", Toast.LENGTH_LONG).show();
+                    new AlertDialog.Builder(this)
+                            .setTitle("Exportación Exitosa")
+                            .setMessage("Archivos guardados en Descargas/C-PIC.\n\n¿Deseas abrir la carpeta?")
+                            .setPositiveButton("Abrir Carpeta", (dialog, which) -> openDownloadsFolder())
+                            .setNegativeButton("Cerrar", null)
+                            .show();
                 } else {
                     Toast.makeText(this, "No hay archivos para exportar (Ensambla primero)", Toast.LENGTH_SHORT).show();
                 }
             });
         });
+    }
+
+    private void openDownloadsFolder() {
+        android.content.Intent intent = new android.content.Intent(android.app.DownloadManager.ACTION_VIEW_DOWNLOADS);
+        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+        try {
+            startActivity(intent);
+        } catch (Exception e) {
+            Toast.makeText(this, "No se pudo abrir el administrador de archivos", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void updateLogs(String text) {
