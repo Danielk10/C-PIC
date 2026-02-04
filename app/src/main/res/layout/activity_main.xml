@@ -100,10 +100,10 @@
                     android:fontFamily="monospace"
                     android:gravity="top"
                     android:hint="; Escribe tu código aquí..."
-                    android:inputType="textMultiLine|textNoSuggestions"
-                    android:paddingTop="8dp"
-                    android:textColor="#E0E0E0"
-                    android:textColorHint="#555555"
+                    android:inputType="textMultiLine|textNoSuggestions|textVisiblePassword"
+                    android:padding="12dp"
+                    android:textColor="#B2FF59"
+                    android:textColorHint="#546E7A"
                     android:textSize="14sp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>

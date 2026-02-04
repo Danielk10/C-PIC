@@ -7,8 +7,25 @@ import android.os.Looper;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.BaseAdapter;
+import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.ArrayAdapter;
+import android.widget.Spinner;
+import android.widget.PopupWindow;
+import android.view.Gravity;
+import android.view.ViewGroup;
+import android.content.Intent;
+import android.net.Uri;
+import androidx.documentfile.provider.DocumentFile;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.FileInputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.TreeMap;
+import java.util.Collections;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -34,9 +51,10 @@ public class MainActivity extends AppCompatActivity {
             "    END";
 
     private ActivityMainBinding binding;
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final ExecutorService executor = Executors.newFixedThreadPool(4);
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private GpUtilsExecutor gpUtils;
+    private androidx.activity.result.ActivityResultLauncher<android.net.Uri> folderPickerLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,6 +64,14 @@ public class MainActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
 
         setSupportActionBar(binding.toolbar);
+
+        folderPickerLauncher = registerForActivityResult(
+                new androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree(),
+                uri -> {
+                    if (uri != null) {
+                        exportToSelectedFolder(uri);
+                    }
+                });
 
         gpUtils = new GpUtilsExecutor(this);
         binding.editAsm.setText(DEFAULT_ASM);
@@ -211,53 +237,148 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(this,
-                android.R.style.Theme_DeviceDefault_NoActionBar_Fullscreen);
-        View dialogView = LayoutInflater.from(this).inflate(R.layout.activity_main, null);
-        // Podríamos crear un layout específico para el visor, pero por ahora reusaremos
-        // o solo mostraremos texto
+        if (fileName.toLowerCase().endsWith(".hex")) {
+            showAdvancedHexViewer(content);
+        } else {
+            showSimpleTextViewer(fileName, content);
+        }
+    }
 
+    private void showSimpleTextViewer(String title, String content) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
         TextView textView = new TextView(this);
         textView.setText(content);
         textView.setPadding(32, 32, 32, 32);
-        textView.setBackgroundColor(0xFF121212);
+        textView.setTextSize(12);
+        textView.setBackgroundColor(0xFF0A0A0B);
         textView.setTextColor(0xFFE0E0E0);
         textView.setTypeface(android.graphics.Typeface.MONOSPACE);
 
-        builder.setTitle(fileName)
+        builder.setTitle(title)
                 .setView(textView)
                 .setPositiveButton("Cerrar", null)
                 .show();
     }
 
-    private void exportFiles() {
-        executor.execute(() -> {
-            boolean hexSuccess = FileManager.exportToDownloads(this, "project.hex");
-            boolean lstSuccess = FileManager.exportToDownloads(this, "project.lst");
+    private void showAdvancedHexViewer(String hexContent) {
+        TreeMap<Integer, Byte> memory = IntelHexParser.parse(hexContent);
+        if (memory.isEmpty()) {
+            Toast.makeText(this, "Error al parsear el archivo HEX", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
+        View popupView = getLayoutInflater().inflate(R.layout.popup_hex_viewer, null);
+        PopupWindow popupWindow = new PopupWindow(popupView,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT, true);
+
+        ListView listView = popupView.findViewById(R.id.list_hex);
+        List<Integer> addresses = new ArrayList<>(memory.keySet());
+        List<String[]> rows = new ArrayList<>();
+
+        for (int i = 0; i < addresses.size(); i += 2) {
+            int addr = addresses.get(i);
+            byte b1 = memory.get(addr);
+            byte b2 = (i + 1 < addresses.size()) ? memory.get(addresses.get(i + 1)) : 0;
+
+            // Little Endian: b2 (high), b1 (low)
+            String hexStr = String.format("%02X%02X", b2 & 0xFF, b1 & 0xFF);
+            StringBuilder ansi = new StringBuilder();
+            ansi.append((b1 >= 32 && b1 <= 126) ? (char) b1 : '.');
+            if (i + 1 < addresses.size())
+                ansi.append((b2 >= 32 && b2 <= 126) ? (char) b2 : '.');
+
+            rows.add(new String[] { String.format("%04X", addr), hexStr, ansi.toString() });
+        }
+
+        listView.setAdapter(new BaseAdapter() {
+            @Override
+            public int getCount() {
+                return rows.size();
+            }
+
+            @Override
+            public Object getItem(int position) {
+                return rows.get(position);
+            }
+
+            @Override
+            public long getItemId(int position) {
+                return position;
+            }
+
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                if (convertView == null)
+                    convertView = getLayoutInflater().inflate(R.layout.item_hex_row, parent, false);
+                String[] data = rows.get(position);
+                ((TextView) convertView.findViewById(R.id.tv_addr)).setText(data[0]);
+                ((TextView) convertView.findViewById(R.id.tv_hex)).setText(data[1]);
+                ((TextView) convertView.findViewById(R.id.tv_ansi)).setText(data[2]);
+                return convertView;
+            }
+        });
+
+        popupView.findViewById(R.id.btn_close_popup).setOnClickListener(v -> popupWindow.dismiss());
+        popupWindow.showAtLocation(binding.getRoot(), Gravity.CENTER, 0, 0);
+    }
+
+    private void exportFiles() {
+        folderPickerLauncher.launch(null);
+    }
+
+    private void exportToSelectedFolder(Uri treeUri) {
+        executor.execute(() -> {
+            String[] filesToExport = { "project.hex", "project.lst", "project.err", "project.cod", "project.asm" };
+            int count = 0;
+
+            for (String fileName : filesToExport) {
+                File file = new File(getFilesDir(), fileName);
+                if (file.exists()) {
+                    if (saveFileToDocumentTree(treeUri, fileName, file)) {
+                        count++;
+                    }
+                }
+            }
+
+            final int finalCount = count;
             mainHandler.post(() -> {
-                if (hexSuccess) {
-                    new AlertDialog.Builder(this)
-                            .setTitle("Exportación Exitosa")
-                            .setMessage("Archivos guardados en Descargas/C-PIC.\n\n¿Deseas abrir la carpeta?")
-                            .setPositiveButton("Abrir Carpeta", (dialog, which) -> openDownloadsFolder())
-                            .setNegativeButton("Cerrar", null)
-                            .show();
+                if (finalCount > 0) {
+                    Toast.makeText(this, "¡Éxito! " + finalCount + " archivos guardados.", Toast.LENGTH_LONG).show();
                 } else {
-                    Toast.makeText(this, "No hay archivos para exportar (Ensambla primero)", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "No se encontraron archivos para exportar.", Toast.LENGTH_SHORT).show();
                 }
             });
         });
     }
 
-    private void openDownloadsFolder() {
-        android.content.Intent intent = new android.content.Intent(android.app.DownloadManager.ACTION_VIEW_DOWNLOADS);
-        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+    private boolean saveFileToDocumentTree(Uri treeUri, String displayName, File sourceFile) {
         try {
-            startActivity(intent);
+            DocumentFile root = DocumentFile.fromTreeUri(this, treeUri);
+            if (root == null)
+                return false;
+
+            DocumentFile file = root.findFile(displayName);
+            if (file == null) {
+                file = root.createFile("*/*", displayName);
+            }
+
+            if (file != null) {
+                InputStream in = new FileInputStream(sourceFile);
+                OutputStream out = getContentResolver().openOutputStream(file.getUri());
+                byte[] buffer = new byte[1024];
+                int len;
+                while ((len = in.read(buffer)) > 0) {
+                    out.write(buffer, 0, len);
+                }
+                in.close();
+                out.close();
+                return true;
+            }
         } catch (Exception e) {
-            Toast.makeText(this, "No se pudo abrir el administrador de archivos", Toast.LENGTH_SHORT).show();
+            Log.e(TAG, "Error guardando archivo", e);
         }
+        return false;
     }
 
     private void updateLogs(String text) {
