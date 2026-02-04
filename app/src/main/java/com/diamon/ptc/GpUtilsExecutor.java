@@ -67,8 +67,9 @@ public class GpUtilsExecutor {
      */
     public String executeBinary(String binaryName, String... args) {
         // La ruta al binario .so en el directorio nativeLibrary
+        // Android requiere prefijo 'lib' para reconocer archivos .so en jniLibs
         String nativeLibPath = context.getApplicationInfo().nativeLibraryDir;
-        File binaryFile = new File(nativeLibPath, binaryName + ".so");
+        File binaryFile = new File(nativeLibPath, "lib" + binaryName + ".so");
 
         if (!binaryFile.exists()) {
             return "Error: No se encontro el binario " + binaryFile.getAbsolutePath();
