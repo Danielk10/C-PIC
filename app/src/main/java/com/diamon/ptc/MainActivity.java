@@ -1,28 +1,42 @@
 package com.diamon.ptc;
 
-import androidx.appcompat.app.AppCompatActivity;
-
+import android.app.AlertDialog;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
 
 import com.diamon.ptc.databinding.ActivityMainBinding;
 
+import java.io.File;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
-
-    // Ruta de los assets a extraer (relativa a assets/)
     private static final String ASSETS_PATH = "data/data/com.diamon.ptc/files/usr/share";
+    private static final String DEFAULT_ASM = "; Código de prueba para PIC\n" +
+            "    PROCESSOR 16F84A\n" +
+            "    INCLUDE \"P16F84A.INC\"\n" +
+            "\n" +
+            "    ORG 0x00\n" +
+            "START:\n" +
+            "    MOVLW 0xFF\n" +
+            "    MOVWF PORTB\n" +
+            "    GOTO START\n" +
+            "    END";
 
     private ActivityMainBinding binding;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private GpUtilsExecutor gpUtils;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,47 +45,119 @@ public class MainActivity extends AppCompatActivity {
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        TextView tv = binding.sampleText;
-        tv.setText("Iniciando GPUTILS...");
+        gpUtils = new GpUtilsExecutor(this);
+        binding.editAsm.setText(DEFAULT_ASM);
 
-        // Ejecutar en hilo secundario para no bloquear la UI
+        setupListeners();
+        initResources();
+    }
+
+    private void setupListeners() {
+        binding.btnAssemble.setOnClickListener(v -> assembleCode());
+        binding.btnViewHex.setOnClickListener(v -> viewGeneratedFile("project.hex"));
+        binding.btnExport.setOnClickListener(v -> exportFiles());
+    }
+
+    private void initResources() {
         executor.execute(() -> {
-            // Paso 1: Extraer assets si es necesario
             if (!AssetExtractor.areAssetsExtracted(this)) {
-                Log.d(TAG, "Extrayendo assets de GPUTILS...");
-                updateUI("Extrayendo recursos de GPUTILS...");
-
+                updateLogs("Preparando recursos de GPUTILS (esto solo ocurre una vez)...");
                 boolean success = AssetExtractor.extractAssets(
                         this,
                         ASSETS_PATH,
-                        new java.io.File(getFilesDir(), "usr/share"));
+                        new File(getFilesDir(), "usr/share"));
 
-                if (!success) {
-                    updateUI("Error: No se pudieron extraer los recursos");
-                    return;
+                if (success) {
+                    updateLogs("Recursos listos.");
+                } else {
+                    updateLogs("Error al preparar recursos.");
                 }
-                Log.d(TAG, "Assets extraidos correctamente");
             } else {
-                Log.d(TAG, "Assets ya extraidos previamente");
+                updateLogs("Sistema listo. GPUTILS cargado correctamente.");
             }
-
-            // Paso 2: Ejecutar gpasm -v para obtener version
-            Log.d(TAG, "Ejecutando gpasm -v...");
-            updateUI("Ejecutando gpasm -v...");
-
-            GpUtilsExecutor gpUtils = new GpUtilsExecutor(this);
-            String result = gpUtils.executeGpasm("-v");
-
-            Log.d(TAG, "Resultado: " + result);
-            updateUI("GPASM Version:\n" + result);
         });
     }
 
-    /**
-     * Actualiza el TextView en el hilo principal
-     */
-    private void updateUI(String text) {
-        mainHandler.post(() -> binding.sampleText.setText(text));
+    private void assembleCode() {
+        String code = binding.editAsm.getText().toString();
+        if (code.trim().isEmpty()) {
+            Toast.makeText(this, "Escribe código primero", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        updateLogs("Iniciando ensamblado...");
+        executor.execute(() -> {
+            // 1. Guardar archivo ASM
+            if (FileManager.writeInternalFile(this, "project.asm", code)) {
+                // 2. Ejecutar GPASM
+                // Argumentos: -c (crear objeto), -p (procesador), etc.
+                // Usamos el nombre del archivo directamente
+                String result = gpUtils.executeGpasm("project.asm");
+
+                updateLogs("Log de compilación:\n" + result);
+
+                // Verificar si se generó el hex
+                File hexFile = new File(getFilesDir(), "project.hex");
+                if (hexFile.exists()) {
+                    mainHandler.post(
+                            () -> Toast.makeText(MainActivity.this, "¡Ensamblado exitoso!", Toast.LENGTH_LONG).show());
+                } else {
+                    mainHandler.post(() -> Toast
+                            .makeText(MainActivity.this, "Ensamblado fallido. Revisa los logs.", Toast.LENGTH_LONG)
+                            .show());
+                }
+            } else {
+                updateLogs("Error: No se pudo guardar el archivo ASM.");
+            }
+        });
+    }
+
+    private void viewGeneratedFile(String fileName) {
+        String content = FileManager.readInternalFile(this, fileName);
+        if (content.isEmpty()) {
+            Toast.makeText(this, "Archivo no encontrado o vacío.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this,
+                android.R.style.Theme_DeviceDefault_NoActionBar_Fullscreen);
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.activity_main, null);
+        // Podríamos crear un layout específico para el visor, pero por ahora reusaremos
+        // o solo mostraremos texto
+
+        TextView textView = new TextView(this);
+        textView.setText(content);
+        textView.setPadding(32, 32, 32, 32);
+        textView.setBackgroundColor(0xFF121212);
+        textView.setTextColor(0xFFE0E0E0);
+        textView.setTypeface(android.graphics.Typeface.MONOSPACE);
+
+        builder.setTitle(fileName)
+                .setView(textView)
+                .setPositiveButton("Cerrar", null)
+                .show();
+    }
+
+    private void exportFiles() {
+        executor.execute(() -> {
+            boolean hexSuccess = FileManager.exportToDownloads(this, "project.hex");
+            boolean lstSuccess = FileManager.exportToDownloads(this, "project.lst");
+
+            mainHandler.post(() -> {
+                if (hexSuccess) {
+                    Toast.makeText(this, "Archivos exportados a Descargas/C-PIC", Toast.LENGTH_LONG).show();
+                } else {
+                    Toast.makeText(this, "No hay archivos para exportar (Ensambla primero)", Toast.LENGTH_SHORT).show();
+                }
+            });
+        });
+    }
+
+    private void updateLogs(String text) {
+        mainHandler.post(() -> {
+            String current = binding.textLogs.getText().toString();
+            binding.textLogs.setText(current + "\n> " + text);
+        });
     }
 
     @Override
