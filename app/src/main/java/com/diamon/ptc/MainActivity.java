@@ -119,12 +119,51 @@ public class MainActivity extends AppCompatActivity {
 
                 if (success) {
                     updateLogs("Recursos listos.");
+                    loadPicList();
                 } else {
                     updateLogs("Error al preparar recursos.");
                 }
             } else {
                 updateLogs("Sistema listo. GPUTILS cargado correctamente.");
+                loadPicList();
             }
+        });
+    }
+
+    private void loadPicList() {
+        File headerDir = new File(getFilesDir(), "usr/share/gputils/header");
+        if (!headerDir.exists())
+            return;
+
+        String[] files = headerDir.list();
+        java.util.List<String> pics = new java.util.ArrayList<>();
+
+        if (files != null) {
+            for (String file : files) {
+                if (file.toLowerCase().endsWith(".inc")) {
+                    String name = file.substring(0, file.length() - 4);
+                    if (name.toLowerCase().startsWith("p")) {
+                        name = name.substring(1);
+                    }
+                    pics.add(name.toUpperCase());
+                }
+            }
+            java.util.Collections.sort(pics);
+        }
+
+        if (pics.isEmpty()) {
+            pics.add("16F84A");
+        }
+
+        mainHandler.post(() -> {
+            android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(
+                    this, android.R.layout.simple_spinner_item, pics);
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            binding.spinnerPic.setAdapter(adapter);
+
+            int index = pics.indexOf("16F84A");
+            if (index != -1)
+                binding.spinnerPic.setSelection(index);
         });
     }
 
@@ -135,14 +174,17 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        updateLogs("Iniciando ensamblado...");
+        String selectedPic = binding.spinnerPic.getSelectedItem() != null
+                ? binding.spinnerPic.getSelectedItem().toString()
+                : "16F84A";
+
+        updateLogs("Iniciando ensamblado para " + selectedPic + "...");
         executor.execute(() -> {
             // 1. Guardar archivo ASM
             if (FileManager.writeInternalFile(this, "project.asm", code)) {
-                // 2. Ejecutar GPASM
-                // Argumentos: -c (crear objeto), -p (procesador), etc.
-                // Usamos el nombre del archivo directamente
-                String result = gpUtils.executeGpasm("project.asm");
+                // 2. Ejecutar GPASM con el procesador seleccionado
+                // -p: processor
+                String result = gpUtils.executeGpasm("-p", selectedPic.toLowerCase(), "project.asm");
 
                 updateLogs("Log de compilación:\n" + result);
 
