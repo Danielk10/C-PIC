@@ -55,18 +55,11 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(TAG, "Assets ya extraidos previamente");
             }
 
-            // Paso 2: Extraer binarios del APK
-            GpUtilsExecutor gpUtils = new GpUtilsExecutor(this);
-            updateUI("Extrayendo binarios de GPUTILS...");
-            if (!gpUtils.extractBinaries()) {
-                updateUI("Error: No se pudieron extraer los binarios");
-                return;
-            }
-
-            // Paso 3: Ejecutar gpasm -v para obtener version
+            // Paso 2: Ejecutar gpasm -v para obtener version
             Log.d(TAG, "Ejecutando gpasm -v...");
             updateUI("Ejecutando gpasm -v...");
 
+            GpUtilsExecutor gpUtils = new GpUtilsExecutor(this);
             String result = gpUtils.executeGpasm("-v");
 
             Log.d(TAG, "Resultado: " + result);
