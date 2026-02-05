@@ -16,6 +16,11 @@
         <!-- Menu and Popup visibility fixes -->
         <item name="actionMenuTextColor">#FFFFFF</item>
         <item name="android:actionMenuTextColor">#FFFFFF</item>
+        
+        <!-- Force dark background and white text for popups -->
         <item name="actionBarPopupTheme">@style/ThemeOverlay.AppCompat.Dark</item>
+        <item name="popupTheme">@style/ThemeOverlay.AppCompat.Dark</item>
+        <item name="android:itemBackground">@color/surface</item>
+        <item name="android:textColor">#FFFFFF</item>
     </style>
 </resources>
