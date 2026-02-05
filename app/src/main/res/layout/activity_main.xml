@@ -18,6 +18,7 @@
             android:layout_height="?attr/actionBarSize"
             app:title="C PIC Compiler"
             app:titleTextColor="#FFFFFF"
+            android:theme="@style/ToolbarTheme"
             app:popupTheme="@style/CustomPopupTheme" />
 
     </com.google.android.material.appbar.AppBarLayout>
