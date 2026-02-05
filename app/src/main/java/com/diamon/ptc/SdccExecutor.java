@@ -165,15 +165,21 @@ public class SdccExecutor {
             createSymlink(new File(binDir, "gpasm"), libgpasm);
             createSymlink(new File(binDir, "gplink"), libgplink);
 
-            // Enlace para libz.so.1 (cc1 la necesita)
+            // Enlaces para librerias del sistema (cc1 las necesita con nombres de Linux
+            // estandar)
             File libDir = new File(usrDir, "lib");
             if (!libDir.exists())
                 libDir.mkdirs();
-            createSymlink(new File(libDir, "libz.so.1"), "/system/lib64/libz.so");
-            // Por si acaso es un sistema de 32 bits (aunque el binario es arm64)
-            if (!new File("/system/lib64/libz.so").exists()) {
-                createSymlink(new File(libDir, "libz.so.1"), "/system/lib/libz.so");
-            }
+
+            // libz.so.1
+            String targetZ = new File("/system/lib64/libz.so").exists() ? "/system/lib64/libz.so"
+                    : "/system/lib/libz.so";
+            createSymlink(new File(libDir, "libz.so.1"), targetZ);
+
+            // libzstd.so.1
+            String targetZstd = new File("/system/lib64/libzstd.so").exists() ? "/system/lib64/libzstd.so"
+                    : "/system/lib/libzstd.so";
+            createSymlink(new File(libDir, "libzstd.so.1"), targetZstd);
 
         } catch (Exception e) {
             Log.e(TAG, "Error al configurar symlinks: " + e.getMessage());
