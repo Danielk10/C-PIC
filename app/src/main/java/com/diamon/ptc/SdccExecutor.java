@@ -69,12 +69,18 @@ public class SdccExecutor {
 
         Log.d(TAG, "Ejecutando SDCC: " + String.join(" ", command));
 
+        setupSymlinks();
+
         try {
             ProcessBuilder pb = new ProcessBuilder(command);
             pb.directory(workDir);
             pb.redirectErrorStream(true);
 
             Map<String, String> env = pb.environment();
+
+            // Configurar SDCC_HOME para que encuentre libexec/ y bin/
+            env.put("SDCC_HOME", new File(workDir, "usr").getAbsolutePath());
+
             // SDCC usa internamente cc1 (libcc1.so)
             // Necesitamos que el sistema encuentre las librerias nativas
             env.put("LD_LIBRARY_PATH", nativeLibDir.getAbsolutePath());
@@ -85,7 +91,8 @@ public class SdccExecutor {
 
             // Intentar agregar jniLibs al PATH para que SDCC encuentre sus componentes
             String path = env.get("PATH");
-            env.put("PATH", nativeLibDir.getAbsolutePath() + (path != null ? ":" + path : ""));
+            String binPath = new File(workDir, "usr/bin").getAbsolutePath();
+            env.put("PATH", binPath + ":" + nativeLibDir.getAbsolutePath() + (path != null ? ":" + path : ""));
 
             Process process = pb.start();
 
@@ -106,6 +113,48 @@ public class SdccExecutor {
         } catch (Exception e) {
             Log.e(TAG, "Error ejecutando SDCC: " + e.getMessage());
             return "Error: " + e.getMessage();
+        }
+    }
+
+    /**
+     * Crea enlaces simbolicos para que SDCC encuentre sus componentes internos
+     * (cc1, sdcpp)
+     * que han sido renombrados a lib*.so.
+     */
+    private void setupSymlinks() {
+        try {
+            File usrDir = new File(workDir, "usr");
+            File libexecBase = new File(usrDir, "libexec/sdcc/aarch64-unknown-linux-gnu/12.1.0");
+            if (!libexecBase.exists()) {
+                if (!libexecBase.mkdirs()) {
+                    Log.e(TAG, "No se pudo crear directorio libexec: " + libexecBase.getAbsolutePath());
+                }
+            }
+
+            // Enlace para cc1
+            File cc1Symlink = new File(libexecBase, "cc1");
+            if (!cc1Symlink.exists()) {
+                android.system.Os.symlink(
+                        new File(nativeLibDir, "libcc1.so").getAbsolutePath(),
+                        cc1Symlink.getAbsolutePath());
+                Log.d(TAG, "Symlink creado: cc1 -> libcc1.so");
+            }
+
+            // Enlace para sdcpp en usr/bin
+            File binDir = new File(usrDir, "bin");
+            if (!binDir.exists())
+                binDir.mkdirs();
+
+            File sdcppSymlink = new File(binDir, "sdcpp");
+            if (!sdcppSymlink.exists()) {
+                android.system.Os.symlink(
+                        new File(nativeLibDir, "libsdcpp.so").getAbsolutePath(),
+                        sdcppSymlink.getAbsolutePath());
+                Log.d(TAG, "Symlink creado: sdcpp -> libsdcpp.so");
+            }
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error al configurar symlinks: " + e.getMessage());
         }
     }
 }
