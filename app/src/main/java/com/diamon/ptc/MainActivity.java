@@ -425,19 +425,29 @@ public class MainActivity extends AppCompatActivity {
         List<Integer> addresses = new ArrayList<>(memory.keySet());
         List<String[]> rows = new ArrayList<>();
 
-        for (int i = 0; i < addresses.size(); i += 2) {
-            int addr = addresses.get(i);
-            byte b1 = memory.get(addr);
-            byte b2 = (i + 1 < addresses.size()) ? memory.get(addresses.get(i + 1)) : 0;
+        if (!addresses.isEmpty()) {
+            int currentStartAddr = addresses.get(0);
+            List<Byte> currentBytes = new ArrayList<>();
 
-            // Little Endian: b2 (high), b1 (low)
-            String hexStr = String.format("%02X%02X", b2 & 0xFF, b1 & 0xFF);
-            StringBuilder ansi = new StringBuilder();
-            ansi.append((b1 >= 32 && b1 <= 126) ? (char) b1 : '.');
-            if (i + 1 < addresses.size())
-                ansi.append((b2 >= 32 && b2 <= 126) ? (char) b2 : '.');
+            for (int i = 0; i < addresses.size(); i++) {
+                int addr = addresses.get(i);
+                byte val = memory.get(addr);
 
-            rows.add(new String[] { String.format("%04X", addr), hexStr, ansi.toString() });
+                // Si hay un salto en la memoria (no consecutivo) o ya tenemos 8 bytes
+                if (addr != currentStartAddr + currentBytes.size() || currentBytes.size() >= 8) {
+                    // Agregar fila actual
+                    rows.add(formatHexRow(currentStartAddr, currentBytes));
+
+                    // Iniciar nueva fila
+                    currentStartAddr = addr;
+                    currentBytes.clear();
+                }
+                currentBytes.add(val);
+            }
+            // Agregar última fila si queda algo
+            if (!currentBytes.isEmpty()) {
+                rows.add(formatHexRow(currentStartAddr, currentBytes));
+            }
         }
 
         listView.setAdapter(new BaseAdapter() {
@@ -470,6 +480,23 @@ public class MainActivity extends AppCompatActivity {
 
         popupView.findViewById(R.id.btn_close_popup).setOnClickListener(v -> popupWindow.dismiss());
         popupWindow.showAtLocation(binding.getRoot(), Gravity.CENTER, 0, 0);
+    }
+
+    private String[] formatHexRow(int startAddr, java.util.List<Byte> bytes) {
+        StringBuilder hexStr = new StringBuilder();
+        StringBuilder ansi = new StringBuilder();
+
+        for (byte b : bytes) {
+            hexStr.append(String.format("%02X ", b));
+            ansi.append((b >= 32 && b <= 126) ? (char) b : '.');
+        }
+
+        // Rellenar espacios vacios si la fila tiene menos de 8 bytes
+        while (hexStr.length() < 24) { // 8 bytes * 3 chars (2 hex + 1 space)
+            hexStr.append("   ");
+        }
+
+        return new String[] { String.format("%04X:", startAddr), hexStr.toString().trim(), ansi.toString() };
     }
 
     private void exportFiles() {

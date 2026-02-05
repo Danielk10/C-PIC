@@ -104,6 +104,9 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="ASM (GPUTILS)"
+                            android:textSize="11sp"
+                            android:lines="1"
+                            android:ellipsize="end"
                             android:textColor="#FFFFFF" />
 
                         <com.google.android.material.button.MaterialButton
@@ -113,6 +116,9 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="C (SDCC)"
+                            android:textSize="11sp"
+                            android:lines="1"
+                            android:ellipsize="end"
                             android:textColor="#FFFFFF" />
                     </com.google.android.material.button.MaterialButtonToggleGroup>
                 </LinearLayout>
@@ -148,11 +154,13 @@
                             android:id="@+id/edit_project_name"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:background="@null"
+                            android:background="#CCCCCC"
                             android:hint="nombre_del_proyecto"
                             android:inputType="text"
                             android:padding="8dp"
-                            android:textColor="@color/secondary"
+                            android:lines="1"
+                            android:textColor="#000000"
+                            android:textColorHint="#555555"
                             android:textSize="14sp" />
                     </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>

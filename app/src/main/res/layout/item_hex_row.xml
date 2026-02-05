@@ -19,9 +19,9 @@
         android:id="@+id/tv_hex"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_weight="2"
+        android:layout_weight="6"
         android:fontFamily="monospace"
-        android:text="FFFF FFFF"
+        android:text="FF FF FF FF FF FF FF FF"
         android:textColor="@color/accent_green"
         android:textSize="12sp" />
 
@@ -29,9 +29,9 @@
         android:id="@+id/tv_ansi"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
+        android:layout_weight="2"
         android:fontFamily="monospace"
-        android:text="...."
+        android:text="........"
         android:textColor="@color/primary"
         android:textSize="12sp" />
 </LinearLayout>
