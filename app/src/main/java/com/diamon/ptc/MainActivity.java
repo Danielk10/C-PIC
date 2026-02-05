@@ -290,8 +290,6 @@ public class MainActivity extends AppCompatActivity {
             binding.editProjectName.setText(projectName);
         }
 
-        boolean isC = binding.toggleLanguage.getCheckedButtonId() == R.id.btn_lang_c;
-
         if (isC) {
             compileCCode(code, selectedPic, projectName);
         } else {
