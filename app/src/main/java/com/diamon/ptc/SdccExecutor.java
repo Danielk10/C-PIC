@@ -59,6 +59,10 @@ public class SdccExecutor {
         command.add("-L" + new File(sdccShareDir, "lib").getAbsolutePath());
         command.add("-L" + new File(sdccShareDir, "non-free/lib").getAbsolutePath());
 
+        // Apuntar a los binarios de GPUTILS que ahora se llaman lib*.so
+        command.add("--asm=" + new File(nativeLibDir, "libgpasm.so").getAbsolutePath());
+        command.add("--aslink=" + new File(nativeLibDir, "libgplink.so").getAbsolutePath());
+
         for (String arg : args) {
             command.add(arg);
         }

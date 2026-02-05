@@ -174,7 +174,11 @@ public class MainActivity extends AppCompatActivity {
                 String libPath = "data/data/com.diamon.ptc/files/usr/lib";
                 boolean s2 = AssetExtractor.extractAssets(this, libPath, new File(getFilesDir(), "usr/lib"));
 
-                if (s1) {
+                // Extraer usr/bin (archivos .el de SDCC)
+                String binPath = "data/data/com.diamon.ptc/files/usr/bin";
+                boolean s3 = AssetExtractor.extractAssets(this, binPath, new File(getFilesDir(), "bin"));
+
+                if (s1 && s3) {
                     updateLogs("Recursos extraídos correctamente.");
                     loadPicList();
                 } else {
