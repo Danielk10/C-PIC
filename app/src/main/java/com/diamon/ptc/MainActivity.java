@@ -200,6 +200,7 @@ public class MainActivity extends AppCompatActivity {
         executor.execute(() -> {
             boolean extracted = AssetExtractor.areAssetsExtracted(this);
             if (!extracted) {
+                mainHandler.post(() -> binding.loadingOverlay.setVisibility(android.view.View.VISIBLE));
                 updateLogs("Preparando recursos (GPUTILS + SDCC)...");
 
                 // Extraer estructura usr completa (bin, libexec, share)
@@ -211,6 +212,8 @@ public class MainActivity extends AppCompatActivity {
                 if (oldBin.exists()) {
                     deleteRecursive(oldBin);
                 }
+
+                mainHandler.post(() -> binding.loadingOverlay.setVisibility(android.view.View.GONE));
 
                 if (success) {
                     updateLogs("Recursos extraídos correctamente.");
