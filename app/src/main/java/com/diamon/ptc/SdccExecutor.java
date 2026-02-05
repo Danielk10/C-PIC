@@ -59,10 +59,6 @@ public class SdccExecutor {
         command.add("-L" + new File(sdccShareDir, "lib").getAbsolutePath());
         command.add("-L" + new File(sdccShareDir, "non-free/lib").getAbsolutePath());
 
-        // Apuntar a los binarios de GPUTILS que ahora se llaman lib*.so
-        command.add("--asm=" + new File(nativeLibDir, "libgpasm.so").getAbsolutePath());
-        command.add("--aslink=" + new File(nativeLibDir, "libgplink.so").getAbsolutePath());
-
         for (String arg : args) {
             command.add(arg);
         }
@@ -148,15 +144,22 @@ public class SdccExecutor {
 
             String libcc1 = new File(nativeLibDir, "libcc1.so").getAbsolutePath();
             String libsdcpp = new File(nativeLibDir, "libsdcpp.so").getAbsolutePath();
+            String libgpasm = new File(nativeLibDir, "libgpasm.so").getAbsolutePath();
+            String libgplink = new File(nativeLibDir, "libgplink.so").getAbsolutePath();
 
             // Enlaces para cc1 (probamos varias ubicaciones comunes)
             createSymlink(new File(libexecBase, "cc1"), libcc1);
             createSymlink(new File(libexecGeneric, "cc1"), libcc1);
+            createSymlink(new File(binDir, "cc1"), libcc1); // <-- Muy importante para PATH
             createSymlink(new File(binDir, "sdcc-cc1"), libcc1);
 
             // Enlaces para sdcpp
             createSymlink(new File(binDir, "sdcpp"), libsdcpp);
             createSymlink(new File(binDir, "sdcc-sdcpp"), libsdcpp);
+
+            // Enlaces para GPUTILS (necesarios si SDCC los busca por nombre en el PATH)
+            createSymlink(new File(binDir, "gpasm"), libgpasm);
+            createSymlink(new File(binDir, "gplink"), libgplink);
 
         } catch (Exception e) {
             Log.e(TAG, "Error al configurar symlinks: " + e.getMessage());
