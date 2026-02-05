@@ -55,7 +55,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="PIC:"
-                        android:textColor="#BB86FC"
+                        android:textColor="@color/secondary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
 
@@ -83,7 +83,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="LENGUAJE:"
-                        android:textColor="#BB86FC"
+                        android:textColor="@color/secondary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
 
@@ -130,7 +130,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="PROYECTO:"
-                        android:textColor="#BB86FC"
+                        android:textColor="@color/secondary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
 
@@ -256,7 +256,7 @@
                     android:layout_weight="1.2"
                     android:layout_marginEnd="4dp"
                     android:text="ENSAMBLAR"
-                    app:backgroundTint="#6200EE"
+                    app:backgroundTint="@color/primary"
                     app:cornerRadius="8dp" />
 
                 <com.google.android.material.button.MaterialButton
@@ -266,7 +266,7 @@
                     android:layout_weight="0.8"
                     android:layout_marginStart="4dp"
                     android:text="VER HEX"
-                    app:backgroundTint="#018786"
+                    app:backgroundTint="@color/secondary"
                     app:cornerRadius="8dp" />
             </LinearLayout>
 
@@ -276,7 +276,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:text="EXPORTAR ARCHIVOS GENERADOS"
-                app:backgroundTint="#3700B3"
+                app:backgroundTint="@color/primary_variant"
                 app:cornerRadius="8dp" />
 
         </LinearLayout>

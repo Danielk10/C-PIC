@@ -141,11 +141,14 @@ public class MainActivity extends AppCompatActivity {
                 +
                 "Puedes encontrar el código fuente de GPUTILS en: <a href='https://gputils.sourceforge.io/'>gputils.sourceforge.io</a>";
 
-        new AlertDialog.Builder(this)
-                .setTitle("Acerca de / Licencia")
-                .setMessage(android.text.Html.fromHtml(message, android.text.Html.FROM_HTML_MODE_COMPACT))
-                .setPositiveButton("Cerrar", null)
-                .show();
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Acerca de / Licencia");
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            builder.setMessage(android.text.Html.fromHtml(message, android.text.Html.FROM_HTML_MODE_COMPACT));
+        } else {
+            builder.setMessage(android.text.Html.fromHtml(message));
+        }
+        builder.setPositiveButton("Cerrar", null).show();
     }
 
     private void setupListeners() {
