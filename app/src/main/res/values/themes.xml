@@ -25,7 +25,8 @@
     <style name="CustomPopupTheme" parent="ThemeOverlay.AppCompat.Dark">
         <item name="android:windowBackground">@color/surface</item>
         <item name="android:colorBackground">@color/surface</item>
-        <item name="android:itemBackground">@color/surface</item>
+        <item name="android:background">#1E1E1E</item>
+        <item name="android:itemBackground">#1E1E1E</item>
         <item name="android:textColor">#FFFFFF</item>
     </style>
 </resources>

@@ -196,7 +196,14 @@ public class SdccExecutor {
     private void createSymlink(File symlink, String targetPath) {
         try {
             // Eliminar cualquier archivo o enlace previo para evitar EEXIST
-            if (symlink.exists() || Files.isSymbolicLink(symlink.toPath())) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                if (symlink.exists() || Files.isSymbolicLink(symlink.toPath())) {
+                    symlink.delete();
+                }
+            } else {
+                // Para versiones anteriores, intentamos borrar directamente.
+                // File.exists() puede devolver false para symlinks rotos, pero delete() suele
+                // funcionar.
                 symlink.delete();
             }
             android.system.Os.symlink(targetPath, symlink.getAbsolutePath());
