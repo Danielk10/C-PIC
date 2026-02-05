@@ -146,8 +146,9 @@ public class MainActivity extends AppCompatActivity {
                 "Compilador de C para microcontroladores de 8 bits.<br>" +
                 "Sitio web: <a href='https://sourceforge.net/projects/sdcc/'>sourceforge.net/projects/sdcc/</a><br><br>"
                 +
-                "<b>Licencia:</b><br>" +
-                "Este proyecto y los binarios incluidos están bajo la licencia <b>GNU GPL v3.0</b>.";
+                "<b>Licencia del Proyecto:</b><br>" +
+                "C-PIC-Compiler es software libre y está bajo la licencia <b>GNU GPL v3.0</b>.<br><br>" +
+                "Los binarios incluidos de GPUTILS y SDCC también se distribuyen bajo sus propias licencias GPL.";
 
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("Acerca de / Licencias")

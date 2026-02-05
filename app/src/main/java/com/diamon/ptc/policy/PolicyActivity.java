@@ -31,7 +31,7 @@ public class PolicyActivity extends AppCompatActivity {
         settings.setDomStorageEnabled(true);
 
         binding.webView.setWebViewClient(new WebViewClient());
-        binding.webView.loadUrl("https://saborvenezolanoandroid.blogspot.com/");
+        binding.webView.loadUrl("https://cpiccompiler.blogspot.com/");
     }
 
     @Override
