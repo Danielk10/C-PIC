@@ -229,7 +229,7 @@ public class MainActivity extends AppCompatActivity {
     private void assembleCode() {
         String code = binding.editAsm.getText().toString();
         if (code.trim().isEmpty()) {
-            Toast.makeText(this, "Escribe código primero", Toast.LENGTH_SHORT).show();
+            updateLogs("Error: Escribe código primero");
             return;
         }
 
@@ -291,9 +291,9 @@ public class MainActivity extends AppCompatActivity {
         File file = new File(getFilesDir(), fileName);
         mainHandler.post(() -> {
             if (file.exists()) {
-                Toast.makeText(this, "¡Operación exitosa!", Toast.LENGTH_LONG).show();
+                updateLogs("¡Operación exitosa! Archivo generado: " + fileName);
             } else {
-                Toast.makeText(this, "Fallido. Revisa los logs.", Toast.LENGTH_LONG).show();
+                updateLogs("Compilación/Ensamblado fallido. Revisa los logs.");
             }
         });
     }
@@ -301,7 +301,7 @@ public class MainActivity extends AppCompatActivity {
     private void viewGeneratedFile(String fileName) {
         String content = FileManager.readInternalFile(this, fileName);
         if (content.isEmpty()) {
-            Toast.makeText(this, "Archivo no encontrado o vacío.", Toast.LENGTH_SHORT).show();
+            updateLogs("Error: Archivo no encontrado o vacío: " + fileName);
             return;
         }
 
@@ -331,7 +331,7 @@ public class MainActivity extends AppCompatActivity {
     private void showAdvancedHexViewer(String hexContent) {
         TreeMap<Integer, Byte> memory = IntelHexParser.parse(hexContent);
         if (memory.isEmpty()) {
-            Toast.makeText(this, "Error al parsear el archivo HEX", Toast.LENGTH_SHORT).show();
+            updateLogs("Error: No se pudo parsear el archivo HEX o está mal formado.");
             return;
         }
 
@@ -412,9 +412,9 @@ public class MainActivity extends AppCompatActivity {
             final int finalCount = count;
             mainHandler.post(() -> {
                 if (finalCount > 0) {
-                    Toast.makeText(this, "¡Éxito! " + finalCount + " archivos guardados.", Toast.LENGTH_LONG).show();
+                    updateLogs("¡Exportación exitosa! " + finalCount + " archivos guardados.");
                 } else {
-                    Toast.makeText(this, "No se encontraron archivos para exportar.", Toast.LENGTH_SHORT).show();
+                    updateLogs("No se encontraron archivos para exportar.");
                 }
             });
         });
