@@ -114,6 +114,7 @@ public class AssetExtractor {
     public static boolean areAssetsExtracted(Context context) {
         File gpUtilsDir = new File(context.getFilesDir(), "usr/share/gputils");
         File sdccDir = new File(context.getFilesDir(), "usr/share/sdcc");
-        return gpUtilsDir.exists() && sdccDir.exists();
+        File binDir = new File(context.getFilesDir(), "usr/bin");
+        return gpUtilsDir.exists() && sdccDir.exists() && binDir.exists();
     }
 }

@@ -171,6 +171,12 @@ public class MainActivity extends AppCompatActivity {
                 String usrAssetsPath = "data/data/com.diamon.ptc/files/usr";
                 boolean success = AssetExtractor.extractAssets(this, usrAssetsPath, new File(getFilesDir(), "usr"));
 
+                // Limpieza: eliminar bín antiguo si existe (está ahora en usr/bin)
+                File oldBin = new File(getFilesDir(), "bin");
+                if (oldBin.exists()) {
+                    deleteRecursive(oldBin);
+                }
+
                 if (success) {
                     updateLogs("Recursos extraídos correctamente.");
                     loadPicList();
@@ -455,5 +461,14 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         executor.shutdown();
+    }
+
+    private void deleteRecursive(File fileOrDirectory) {
+        if (fileOrDirectory.isDirectory()) {
+            for (File child : fileOrDirectory.listFiles()) {
+                deleteRecursive(child);
+            }
+        }
+        fileOrDirectory.delete();
     }
 }
