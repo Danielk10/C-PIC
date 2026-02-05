@@ -12,5 +12,10 @@
         <item name="android:navigationBarColor">@color/background</item>
         
         <item name="android:textColorPrimary">@color/on_surface</item>
+        
+        <!-- Menu and Popup visibility fixes -->
+        <item name="actionMenuTextColor">#FFFFFF</item>
+        <item name="android:actionMenuTextColor">#FFFFFF</item>
+        <item name="actionBarPopupTheme">@style/ThemeOverlay.AppCompat.Dark</item>
     </style>
 </resources>

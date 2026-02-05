@@ -64,7 +64,8 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String PREFS_NAME = "CPicPrefs";
     private static final String KEY_EXPORT_URI = "export_uri";
-    private static final String KEY_PROJECT_COUNTER = "project_counter";
+    private static final String KEY_ASM_COUNTER = "asm_counter";
+    private static final String KEY_C_COUNTER = "c_counter";
 
     private ActivityMainBinding binding;
     private final ExecutorService executor = Executors.newFixedThreadPool(4);
@@ -159,13 +160,18 @@ public class MainActivity extends AppCompatActivity {
 
         binding.toggleLanguage.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
             if (isChecked) {
+                String currentName = binding.editProjectName.getText().toString();
                 if (checkedId == R.id.btn_lang_asm) {
                     binding.editAsm.setText(DEFAULT_ASM);
                     binding.btnAssemble.setText("ENSAMBLAR");
+                    if (currentName.startsWith("c_project"))
+                        binding.editProjectName.setText("");
                     updateLogs("Modo: Ensamblador (ASM)");
                 } else if (checkedId == R.id.btn_lang_c) {
                     binding.editAsm.setText(DEFAULT_C);
                     binding.btnAssemble.setText("COMPILAR");
+                    if (currentName.startsWith("asm_project"))
+                        binding.editProjectName.setText("");
                     updateLogs("Modo: Lenguaje C (SDCC)");
                 }
             }
@@ -268,13 +274,19 @@ public class MainActivity extends AppCompatActivity {
                 : "16F84A";
 
         String projectName = binding.editProjectName.getText().toString().trim();
+        boolean isC = binding.toggleLanguage.getCheckedButtonId() == R.id.btn_lang_c;
+
         if (projectName.isEmpty()) {
-            int counter = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getInt(KEY_PROJECT_COUNTER, 0) + 1;
-            projectName = "project" + counter;
-            // No guardamos el contador aqui, lo hacemos solo si la compilacion tiene exito
-            // o al iniciar?
-            // Mejor lo incrementamos en cada intento para evitar colisiones.
-            getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().putInt(KEY_PROJECT_COUNTER, counter).apply();
+            android.content.SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+            if (isC) {
+                int counter = prefs.getInt(KEY_C_COUNTER, 0) + 1;
+                projectName = "c_project" + counter;
+                prefs.edit().putInt(KEY_C_COUNTER, counter).apply();
+            } else {
+                int counter = prefs.getInt(KEY_ASM_COUNTER, 0) + 1;
+                projectName = "asm_project" + counter;
+                prefs.edit().putInt(KEY_ASM_COUNTER, counter).apply();
+            }
             binding.editProjectName.setText(projectName);
         }
 

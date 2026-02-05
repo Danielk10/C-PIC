@@ -16,7 +16,7 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:title="C-PIC Assembler"
+            app:title="C-PIC-Compiler"
             app:titleTextColor="#FFFFFF" />
 
     </com.google.android.material.appbar.AppBarLayout>
@@ -71,7 +71,6 @@
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginTop="8dp"
-                    android:layout_marginBottom="8dp"
                     android:background="#333333" />
 
                 <LinearLayout
@@ -149,7 +148,6 @@
                             android:hint="nombre_del_proyecto"
                             android:inputType="text"
                             android:padding="8dp"
-                            android:text="project"
                             android:textColor="#FFFFFF"
                             android:textSize="14sp" />
                     </com.google.android.material.textfield.TextInputLayout>
@@ -181,7 +179,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="EDITOR ASM"
+                    android:text="EDITOR"
                     android:textColor="#BB86FC"
                     android:textSize="12sp"
                     android:textStyle="bold" />
@@ -229,52 +227,57 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:fontFamily="monospace"
-                    android:text="Esperando compilación..."
+                    android:text="Esperando operación..."
                     android:textColor="#03DAC5"
                     android:textSize="12sp" />
             </ScrollView>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Action Buttons -->
+        <!-- Action Buttons Section -->
         <LinearLayout
             android:id="@+id/button_layout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
+            android:orientation="vertical"
             android:padding="8dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent">
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_assemble"
-                android:layout_width="0dp"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="ENSAMBLAR"
-                app:cornerRadius="8dp"
-                android:layout_marginEnd="4dp"
-                app:backgroundTint="#6200EE" />
+                android:orientation="horizontal">
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_view_hex"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="VER HEX"
-                app:cornerRadius="8dp"
-                android:layout_marginHorizontal="4dp"
-                app:backgroundTint="#018786" />
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_assemble"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1.2"
+                    android:layout_marginEnd="4dp"
+                    android:text="ENSAMBLAR"
+                    app:backgroundTint="#6200EE"
+                    app:cornerRadius="8dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_view_hex"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="0.8"
+                    android:layout_marginStart="4dp"
+                    android:text="VER HEX"
+                    app:backgroundTint="#018786"
+                    app:cornerRadius="8dp" />
+            </LinearLayout>
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_export"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="EXPORTAR"
-                app:cornerRadius="8dp"
-                android:layout_marginStart="4dp"
-                app:backgroundTint="#3700B3" />
+                android:layout_marginTop="4dp"
+                android:text="EXPORTAR ARCHIVOS GENERADOS"
+                app:backgroundTint="#3700B3"
+                app:cornerRadius="8dp" />
 
         </LinearLayout>
 
