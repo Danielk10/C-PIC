@@ -27,7 +27,7 @@
 
 ### Software
 - Android **API Level 23** (Android 6.0 Marshmallow) o superior
-- Soportado hasta **API Level 36** (Android 17)
+- Soportado hasta **API Level 36** (Android 16)
 
 > ⚠️ **Nota importante**: Esta aplicación **solo** es compatible con dispositivos Android ARM64 de 64 bits. No funciona en dispositivos de 32 bits ni en otras arquitecturas.
 
