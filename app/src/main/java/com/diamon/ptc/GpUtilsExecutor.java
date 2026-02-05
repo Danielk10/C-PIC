@@ -105,14 +105,26 @@ public class GpUtilsExecutor {
             // Ruta a los linker scripts (.lkr files)
             env.put("GPUTILS_LKR_PATH", new File(gpUtilsShareDir, "lkr").getAbsolutePath());
 
+            // Asegurar que encuentre sus propias librerias y dependencias
+            env.put("LD_LIBRARY_PATH",
+                    nativeLibDir.getAbsolutePath() + ":" + new File(workDir, "usr/lib").getAbsolutePath());
+
+            // PATH para subprocesos si los hubiera
+            String path = env.get("PATH");
+            String binPath = new File(workDir, "usr/bin").getAbsolutePath();
+            env.put("PATH", binPath + ":" + nativeLibDir.getAbsolutePath() + (path != null ? ":" + path : ""));
+
             Process process = pb.start();
 
             StringBuilder output = new StringBuilder();
+            // Lector con try-with-resources para asegurar el cierre
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream()))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     output.append(line).append("\n");
+                    // Log en tiempo real para visibilidad
+                    Log.d(TAG, binaryName + " > " + line);
                 }
             }
 

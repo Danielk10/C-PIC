@@ -62,6 +62,10 @@ public class MainActivity extends AppCompatActivity {
             "    }\n" +
             "}";
 
+    private static final String PREFS_NAME = "CPicPrefs";
+    private static final String KEY_EXPORT_URI = "export_uri";
+    private static final String KEY_PROJECT_COUNTER = "project_counter";
+
     private ActivityMainBinding binding;
     private final ExecutorService executor = Executors.newFixedThreadPool(4);
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -82,6 +86,7 @@ public class MainActivity extends AppCompatActivity {
                 new androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree(),
                 uri -> {
                     if (uri != null) {
+                        saveExportUri(uri);
                         exportToSelectedFolder(uri);
                     }
                 });
@@ -144,20 +149,45 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupListeners() {
         binding.btnAssemble.setOnClickListener(v -> assembleCode());
-        binding.btnViewHex.setOnClickListener(v -> viewGeneratedFile("project.hex"));
+        binding.btnViewHex.setOnClickListener(v -> {
+            String projectName = binding.editProjectName.getText().toString().trim();
+            if (projectName.isEmpty())
+                projectName = "project";
+            viewGeneratedFile(projectName + ".hex");
+        });
         binding.btnExport.setOnClickListener(v -> exportFiles());
 
         binding.toggleLanguage.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
             if (isChecked) {
                 if (checkedId == R.id.btn_lang_asm) {
                     binding.editAsm.setText(DEFAULT_ASM);
+                    binding.btnAssemble.setText("ENSAMBLAR");
                     updateLogs("Modo: Ensamblador (ASM)");
                 } else if (checkedId == R.id.btn_lang_c) {
                     binding.editAsm.setText(DEFAULT_C);
+                    binding.btnAssemble.setText("COMPILAR");
                     updateLogs("Modo: Lenguaje C (SDCC)");
                 }
             }
         });
+    }
+
+    private void saveExportUri(android.net.Uri uri) {
+        getContentResolver().takePersistableUriPermission(uri,
+                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION |
+                        android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                .edit()
+                .putString(KEY_EXPORT_URI, uri.toString())
+                .apply();
+    }
+
+    private android.net.Uri getSavedExportUri() {
+        String uriString = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getString(KEY_EXPORT_URI, null);
+        if (uriString != null) {
+            return android.net.Uri.parse(uriString);
+        }
+        return null;
     }
 
     private void initResources() {
@@ -237,50 +267,68 @@ public class MainActivity extends AppCompatActivity {
                 ? binding.spinnerPic.getSelectedItem().toString()
                 : "16F84A";
 
+        String projectName = binding.editProjectName.getText().toString().trim();
+        if (projectName.isEmpty()) {
+            int counter = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getInt(KEY_PROJECT_COUNTER, 0) + 1;
+            projectName = "project" + counter;
+            // No guardamos el contador aqui, lo hacemos solo si la compilacion tiene exito
+            // o al iniciar?
+            // Mejor lo incrementamos en cada intento para evitar colisiones.
+            getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().putInt(KEY_PROJECT_COUNTER, counter).apply();
+            binding.editProjectName.setText(projectName);
+        }
+
         boolean isC = binding.toggleLanguage.getCheckedButtonId() == R.id.btn_lang_c;
 
         if (isC) {
-            compileCCode(code, selectedPic);
+            compileCCode(code, selectedPic, projectName);
         } else {
-            runGpasm(code, selectedPic);
+            runGpasm(code, selectedPic, projectName);
         }
     }
 
-    private void runGpasm(String code, String selectedPic) {
+    private void runGpasm(String code, String selectedPic, String projectName) {
         updateLogs("Iniciando ensamblado ASM para " + selectedPic + "...");
+        final String finalProjectName = projectName;
         executor.execute(() -> {
+            String fileName = finalProjectName + ".asm";
+            String hexName = finalProjectName + ".hex";
+
             // 1. Guardar archivo ASM
-            if (FileManager.writeInternalFile(this, "project.asm", code)) {
+            if (FileManager.writeInternalFile(this, fileName, code)) {
                 // 2. Ejecutar GPASM
-                String result = gpUtils.executeGpasm("-p", selectedPic.toLowerCase(), "project.asm");
+                String result = gpUtils.executeGpasm("-p", selectedPic.toLowerCase(), fileName);
                 updateLogs("Log de GPASM:\n" + result);
 
-                checkGenerationSuccess("project.hex");
+                checkGenerationSuccess(hexName);
             } else {
                 updateLogs("Error: No se pudo guardar el archivo ASM.");
             }
         });
     }
 
-    private void compileCCode(String code, String selectedPic) {
+    private void compileCCode(String code, String selectedPic, String projectName) {
         updateLogs("Iniciando compilación C (SDCC) para " + selectedPic + "...");
+        final String finalProjectName = projectName;
         executor.execute(() -> {
+            String fileName = finalProjectName + ".c";
+            String hexName = finalProjectName + ".hex";
+
             // 1. Guardar archivo C
-            if (FileManager.writeInternalFile(this, "project.c", code)) {
+            if (FileManager.writeInternalFile(this, fileName, code)) {
                 // 2. Determinar arquitectura (pic14 para 16F, pic16 para 18F)
                 String arch = selectedPic.toUpperCase().startsWith("18") ? "pic16" : "pic14";
 
                 // 3. Ejecutar SDCC
-                // --use-non-free es necesario para muchos PICs en SDCC
                 String result = sdcc.executeSdcc(
                         "-m" + arch,
                         "-p" + selectedPic.toLowerCase(),
                         "--use-non-free",
-                        "project.c");
+                        fileName);
 
                 updateLogs("Log de SDCC:\n" + result);
 
-                checkGenerationSuccess("project.hex");
+                checkGenerationSuccess(hexName);
             } else {
                 updateLogs("Error: No se pudo guardar el archivo C.");
             }
@@ -392,15 +440,25 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void exportFiles() {
-        folderPickerLauncher.launch(null);
+        android.net.Uri savedUri = getSavedExportUri();
+        if (savedUri != null) {
+            exportToSelectedFolder(savedUri);
+        } else {
+            folderPickerLauncher.launch(null);
+        }
     }
 
-    private void exportToSelectedFolder(Uri treeUri) {
+    private void exportToSelectedFolder(android.net.Uri treeUri) {
         executor.execute(() -> {
-            String[] filesToExport = { "project.hex", "project.lst", "project.err", "project.cod", "project.asm" };
+            String projectName = binding.editProjectName.getText().toString().trim();
+            if (projectName.isEmpty())
+                projectName = "project";
+
+            String[] extensions = { ".hex", ".lst", ".err", ".cod", ".asm", ".c" };
             int count = 0;
 
-            for (String fileName : filesToExport) {
+            for (String ext : extensions) {
+                String fileName = projectName + ext;
                 File file = new File(getFilesDir(), fileName);
                 if (file.exists()) {
                     if (saveFileToDocumentTree(treeUri, fileName, file)) {
