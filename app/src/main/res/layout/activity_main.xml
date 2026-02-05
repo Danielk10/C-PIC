@@ -90,8 +90,9 @@
 
                     <com.google.android.material.button.MaterialButtonToggleGroup
                         android:id="@+id/toggle_language"
-                        android:layout_width="wrap_content"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
+                        android:layout_weight="1"
                         android:layout_marginStart="16dp"
                         app:checkedButton="@+id/btn_lang_asm"
                         app:singleSelection="true">
@@ -99,16 +100,18 @@
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_lang_asm"
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                            android:layout_width="wrap_content"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
+                            android:layout_weight="1"
                             android:text="ASM (GPUTILS)"
                             android:textColor="#FFFFFF" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_lang_c"
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                            android:layout_width="wrap_content"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
+                            android:layout_weight="1"
                             android:text="C (SDCC)"
                             android:textColor="#FFFFFF" />
                     </com.google.android.material.button.MaterialButtonToggleGroup>
