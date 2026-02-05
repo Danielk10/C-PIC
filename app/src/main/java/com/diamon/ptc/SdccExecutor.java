@@ -171,35 +171,17 @@ public class SdccExecutor {
             if (!libDir.exists())
                 libDir.mkdirs();
 
-            // libz.so.1
+            // libz.so.1 (Sigue apuntando al sistema por ahora, es mas comun)
             String targetZ = new File("/system/lib64/libz.so").exists() ? "/system/lib64/libz.so"
                     : "/system/lib/libz.so";
             createSymlink(new File(libDir, "libz.so.1"), targetZ);
 
-            // libzstd.so.1
-            File libzstd1 = new File(libDir, "libzstd.so.1");
-            if (!libzstd1.exists()) {
-                String[] potentialPaths = {
-                        "/system/lib64/libzstd.so",
-                        "/system/lib64/libzstd.so.1",
-                        "/apex/com.android.runtime/lib64/libzstd.so",
-                        "/apex/com.android.runtime/lib64/bionic/libzstd.so",
-                        "/vendor/lib64/libzstd.so",
-                        "/system/lib/libzstd.so",
-                        "/system/lib/libzstd.so.1"
-                };
-                String targetZstd = null;
-                for (String p : potentialPaths) {
-                    if (new File(p).exists()) {
-                        targetZstd = p;
-                        break;
-                    }
-                }
-                if (targetZstd != null) {
-                    createSymlink(libzstd1, targetZstd);
-                } else {
-                    Log.e(TAG, "No se encontró libzstd.so en ninguna ruta de sistema.");
-                }
+            // libzstd.so.1 (Ahora la tenemos en jniLibs gracias al usuario)
+            File localZstd = new File(nativeLibDir, "libzstd.so.1");
+            if (localZstd.exists()) {
+                createSymlink(new File(libDir, "libzstd.so.1"), localZstd.getAbsolutePath());
+            } else {
+                Log.e(TAG, "libzstd.so.1 no encontrada en jniLibs!");
             }
 
         } catch (Exception e) {
