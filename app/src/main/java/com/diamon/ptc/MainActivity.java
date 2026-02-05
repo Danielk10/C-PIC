@@ -170,10 +170,6 @@ public class MainActivity extends AppCompatActivity {
                 // Extraer todo lo que está en usr/share (incluye gputils y sdcc)
                 boolean s1 = AssetExtractor.extractAssets(this, ASSETS_PATH, new File(getFilesDir(), "usr/share"));
 
-                // Extraer usr/lib si existe (librerías de SDCC)
-                String libPath = "data/data/com.diamon.ptc/files/usr/lib";
-                boolean s2 = AssetExtractor.extractAssets(this, libPath, new File(getFilesDir(), "usr/lib"));
-
                 // Extraer usr/bin (archivos .el de SDCC)
                 String binPath = "data/data/com.diamon.ptc/files/usr/bin";
                 boolean s3 = AssetExtractor.extractAssets(this, binPath, new File(getFilesDir(), "bin"));
