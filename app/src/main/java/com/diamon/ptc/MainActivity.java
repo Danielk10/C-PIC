@@ -28,6 +28,7 @@ import java.util.TreeMap;
 import java.util.Collections;
 
 import androidx.appcompat.app.AppCompatActivity;
+import com.diamon.ptc.policy.PolicyActivity;
 
 import com.diamon.ptc.databinding.ActivityMainBinding;
 
@@ -119,7 +120,7 @@ public class MainActivity extends AppCompatActivity {
             showAboutDialog();
             return true;
         } else if (id == R.id.action_policy) {
-            startActivity(new android.content.Intent(this, com.diamon.ptc.policy.PolicyActivity.class));
+            startActivity(new Intent(this, PolicyActivity.class));
             return true;
         }
         return super.onOptionsItemSelected(item);

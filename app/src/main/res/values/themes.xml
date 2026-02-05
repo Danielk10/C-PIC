@@ -20,13 +20,11 @@
         <!-- Force dark background and white text for popups -->
         <item name="actionBarPopupTheme">@style/CustomPopupTheme</item>
         <item name="popupTheme">@style/CustomPopupTheme</item>
-        <item name="windowPopupBackground">@color/surface</item>
     </style>
 
     <style name="CustomPopupTheme" parent="ThemeOverlay.AppCompat.Dark">
         <item name="android:windowBackground">@color/surface</item>
         <item name="android:colorBackground">@color/surface</item>
-        <item name="windowPopupBackground">@color/surface</item>
         <item name="android:itemBackground">@color/surface</item>
         <item name="android:textColor">#FFFFFF</item>
     </style>
