@@ -154,10 +154,7 @@ public class MainActivity extends AppCompatActivity {
     private void setupListeners() {
         binding.btnAssemble.setOnClickListener(v -> assembleCode());
         binding.btnViewHex.setOnClickListener(v -> {
-            String projectName = binding.editProjectName.getText().toString().trim();
-            if (projectName.isEmpty())
-                projectName = "project";
-            viewGeneratedFile(projectName + ".hex");
+            viewGeneratedFile(getFinalProjectName() + ".hex");
         });
         binding.btnExport.setOnClickListener(v -> exportFiles());
 
@@ -276,10 +273,14 @@ public class MainActivity extends AppCompatActivity {
                 ? binding.spinnerPic.getSelectedItem().toString()
                 : "16F84A";
 
-        String projectName = binding.editProjectName.getText().toString().trim();
+        String projectName = getFinalProjectName();
+        binding.editProjectName.setText(projectName);
         boolean isC = binding.toggleLanguage.getCheckedButtonId() == binding.btnLangC.getId();
 
-        if (projectName.isEmpty()) {
+        // El nombre ya viene con prefijo desde getFinalProjectName() y se muestra en el
+        // UI
+        if (binding.editProjectName.getText().toString().trim().equals("asm_project") ||
+                binding.editProjectName.getText().toString().trim().equals("c_project")) {
             android.content.SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
             if (isC) {
                 int counter = prefs.getInt(KEY_C_COUNTER, 0) + 1;
@@ -463,9 +464,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void exportToSelectedFolder(android.net.Uri treeUri) {
         executor.execute(() -> {
-            String projectName = binding.editProjectName.getText().toString().trim();
-            if (projectName.isEmpty())
-                projectName = "project";
+            String projectName = getFinalProjectName();
 
             String[] extensions = { ".hex", ".lst", ".err", ".cod", ".asm", ".c" };
             int count = 0;
@@ -539,5 +538,27 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         fileOrDirectory.delete();
+    }
+
+    private String getFinalProjectName() {
+        String name = binding.editProjectName.getText().toString().trim();
+        if (name.isEmpty()) {
+            boolean isC = binding.toggleLanguage.getCheckedButtonId() == binding.btnLangC.getId();
+            return isC ? "c_project" : "asm_project";
+        }
+
+        boolean isC = binding.toggleLanguage.getCheckedButtonId() == binding.btnLangC.getId();
+        String prefix = isC ? "c_" : "asm_";
+
+        if (!name.startsWith(prefix)) {
+            // Eliminar prefijo contrario si existe
+            if (isC && name.startsWith("asm_"))
+                name = name.substring(4);
+            else if (!isC && name.startsWith("c_"))
+                name = name.substring(2);
+
+            name = prefix + name;
+        }
+        return name;
     }
 }
