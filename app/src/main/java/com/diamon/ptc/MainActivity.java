@@ -137,7 +137,7 @@ public class MainActivity extends AppCompatActivity {
 
     @SuppressWarnings("deprecation")
     private void showAboutDialog() {
-        String message = "<b>C-PIC-Compiler</b><br><br>" +
+        String message = "<b>C PIC Compiler</b><br><br>" +
                 "Esta aplicación es una interfaz gráfica (GUI) profesional para las herramientas <b>GPUTILS</b> y <b>SDCC</b>.<br><br>"
                 +
                 "<b>GPUTILS:</b><br>" +
