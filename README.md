@@ -155,7 +155,7 @@ Si encuentras algún problema o tienes sugerencias:
 
 ## Agradecimientos
 
-Gracias a los equipos de desarrollo de SDCC y GPUTILS por proporcionar estas excelentes herramientas de código abierto que hacen posible este proyecto.
+Gracias a los equipos de desarrollo de SDCC, GPUTILS y Termux por proporcionar estas excelentes herramientas de código abierto que hacen posible este proyecto.
 
 ---
 
