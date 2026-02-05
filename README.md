@@ -1,4 +1,4 @@
-# C-PIC - Compilador C/ASM para Microcontroladores PIC en Android
+# C PIC Compiler - Compilador C/ASM para Microcontroladores PIC en Android
 
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Android-green.svg)
@@ -7,7 +7,7 @@
 
 ## Descripción
 
-**C-PIC** es una aplicación Android nativa que permite compilar código ensamblador (ASM) y lenguaje C para microcontroladores PIC directamente desde tu dispositivo móvil. Esta herramienta está diseñada para desarrolladores de sistemas embebidos que desean programar microcontroladores PIC sin necesidad de una PC.
+**C-PIC Compiler** es una aplicación Android nativa que permite compilar código ensamblador (ASM) y lenguaje C para microcontroladores PIC directamente desde tu dispositivo móvil. Esta herramienta está diseñada para desarrolladores de sistemas embebidos que desean programar microcontroladores PIC sin necesidad de una PC.
 
 ## Características
 
