@@ -185,11 +185,7 @@ public class SdccExecutor {
             if (localZstd.exists()) {
                 createSymlink(new File(libDir, "libzstd.so.1"), localZstd.getAbsolutePath());
             } else {
-                // Fallback al sistema
-                String targetZstd = new File("/system/lib64/libzstd.so").exists() ? "/system/lib64/libzstd.so"
-                        : "/system/lib/libzstd.so";
-                createSymlink(new File(libDir, "libzstd.so.1"), targetZstd);
-                Log.d(TAG, "libzstd local no encontrada, usando sistema o symlink.");
+                Log.e(TAG, "ERROR CRITICO: libzstd local no encontrada en jniLibs.");
             }
 
         } catch (Exception e) {

@@ -432,16 +432,15 @@ public class MainActivity extends AppCompatActivity {
             }
 
             if (file != null) {
-                InputStream in = new FileInputStream(sourceFile);
-                OutputStream out = getContentResolver().openOutputStream(file.getUri());
-                byte[] buffer = new byte[1024];
-                int len;
-                while ((len = in.read(buffer)) > 0) {
-                    out.write(buffer, 0, len);
+                try (InputStream in = new FileInputStream(sourceFile);
+                        OutputStream out = getContentResolver().openOutputStream(file.getUri())) {
+                    byte[] buffer = new byte[1024];
+                    int len;
+                    while ((len = in.read(buffer)) > 0) {
+                        out.write(buffer, 0, len);
+                    }
+                    return true;
                 }
-                in.close();
-                out.close();
-                return true;
             }
         } catch (Exception e) {
             Log.e(TAG, "Error guardando archivo", e);
