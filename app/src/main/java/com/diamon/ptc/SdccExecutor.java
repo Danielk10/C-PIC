@@ -176,12 +176,12 @@ public class SdccExecutor {
                     : "/system/lib/libz.so";
             createSymlink(new File(libDir, "libz.so.1"), targetZ);
 
-            // libzstd.so.1 (Ahora la tenemos en jniLibs gracias al usuario)
-            File localZstd = new File(nativeLibDir, "libzstd.so.1");
+            // libzstd.so.1 (Ahora la tenemos en jniLibs como libzstd.so para empaquetado)
+            File localZstd = new File(nativeLibDir, "libzstd.so");
             if (localZstd.exists()) {
                 createSymlink(new File(libDir, "libzstd.so.1"), localZstd.getAbsolutePath());
             } else {
-                Log.e(TAG, "libzstd.so.1 no encontrada en jniLibs!");
+                Log.e(TAG, "libzstd.so no encontrada en jniLibs runtime!");
             }
 
         } catch (Exception e) {
