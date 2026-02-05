@@ -102,13 +102,19 @@ public class SdccExecutor {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     output.append(line).append("\n");
+                    Log.d(TAG, "SDCC > " + line);
                 }
             }
 
             int exitCode = process.waitFor();
             Log.d(TAG, "SDCC Exit Code: " + exitCode);
 
-            return output.toString().trim();
+            String result = output.toString().trim();
+            if (exitCode != 0 && result.isEmpty()) {
+                return "Error: SDCC termino con codigo " + exitCode + ". Revisa Logcat para mas detalles.";
+            }
+
+            return result;
 
         } catch (Exception e) {
             Log.e(TAG, "Error ejecutando SDCC: " + e.getMessage());
@@ -124,37 +130,47 @@ public class SdccExecutor {
     private void setupSymlinks() {
         try {
             File usrDir = new File(workDir, "usr");
+
+            // Ruta especifica que SDCC busca: libexec/sdcc/<arch>/<version>/cc1
             File libexecBase = new File(usrDir, "libexec/sdcc/aarch64-unknown-linux-gnu/12.1.0");
-            if (!libexecBase.exists()) {
-                if (!libexecBase.mkdirs()) {
-                    Log.e(TAG, "No se pudo crear directorio libexec: " + libexecBase.getAbsolutePath());
-                }
-            }
+            if (!libexecBase.exists())
+                libexecBase.mkdirs();
 
-            // Enlace para cc1
-            File cc1Symlink = new File(libexecBase, "cc1");
-            if (!cc1Symlink.exists()) {
-                android.system.Os.symlink(
-                        new File(nativeLibDir, "libcc1.so").getAbsolutePath(),
-                        cc1Symlink.getAbsolutePath());
-                Log.d(TAG, "Symlink creado: cc1 -> libcc1.so");
-            }
+            // Ruta generica: libexec/sdcc/cc1
+            File libexecGeneric = new File(usrDir, "libexec/sdcc");
+            if (!libexecGeneric.exists())
+                libexecGeneric.mkdirs();
 
-            // Enlace para sdcpp en usr/bin
+            // Directorio bin para sdcpp
             File binDir = new File(usrDir, "bin");
             if (!binDir.exists())
                 binDir.mkdirs();
 
-            File sdcppSymlink = new File(binDir, "sdcpp");
-            if (!sdcppSymlink.exists()) {
-                android.system.Os.symlink(
-                        new File(nativeLibDir, "libsdcpp.so").getAbsolutePath(),
-                        sdcppSymlink.getAbsolutePath());
-                Log.d(TAG, "Symlink creado: sdcpp -> libsdcpp.so");
-            }
+            String libcc1 = new File(nativeLibDir, "libcc1.so").getAbsolutePath();
+            String libsdcpp = new File(nativeLibDir, "libsdcpp.so").getAbsolutePath();
+
+            // Enlaces para cc1 (probamos varias ubicaciones comunes)
+            createSymlink(new File(libexecBase, "cc1"), libcc1);
+            createSymlink(new File(libexecGeneric, "cc1"), libcc1);
+            createSymlink(new File(binDir, "sdcc-cc1"), libcc1);
+
+            // Enlaces para sdcpp
+            createSymlink(new File(binDir, "sdcpp"), libsdcpp);
+            createSymlink(new File(binDir, "sdcc-sdcpp"), libsdcpp);
 
         } catch (Exception e) {
             Log.e(TAG, "Error al configurar symlinks: " + e.getMessage());
+        }
+    }
+
+    private void createSymlink(File symlink, String targetPath) {
+        try {
+            if (symlink.exists())
+                return;
+            android.system.Os.symlink(targetPath, symlink.getAbsolutePath());
+            Log.d(TAG, "Symlink creado: " + symlink.getName() + " -> " + targetPath);
+        } catch (Exception e) {
+            Log.e(TAG, "No se pudo crear symlink " + symlink.getAbsolutePath() + ": " + e.getMessage());
         }
     }
 }
