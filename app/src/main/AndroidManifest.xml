@@ -23,6 +23,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".policy.PolicyActivity"
+            android:exported="false"
+            android:label="Política de Privacidad"
+            android:theme="@style/Theme.AppCompat.DayNight.DarkActionBar" />
+
     </application>
 
 </manifest>

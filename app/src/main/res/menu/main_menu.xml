@@ -13,4 +13,8 @@
         android:id="@+id/action_about"
         android:title="Acerca de / Licencia"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/action_policy"
+        android:title="Política de Privacidad"
+        app:showAsAction="never" />
 </menu>

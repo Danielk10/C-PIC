@@ -118,6 +118,9 @@ public class MainActivity extends AppCompatActivity {
         } else if (id == R.id.action_about) {
             showAboutDialog();
             return true;
+        } else if (id == R.id.action_policy) {
+            startActivity(new android.content.Intent(this, com.diamon.ptc.policy.PolicyActivity.class));
+            return true;
         }
         return super.onOptionsItemSelected(item);
     }
@@ -132,23 +135,33 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showAboutDialog() {
-        String message = "<b>C-PIC Assembler</b><br><br>" +
-                "Esta aplicación es una interfaz para el conjunto de herramientas <b>GPUTILS</b>.<br><br>" +
+        String message = "<b>C-PIC-Compiler</b><br><br>" +
+                "Esta aplicación es una interfaz gráfica (GUI) profesional para las herramientas <b>GPUTILS</b> y <b>SDCC</b>.<br><br>"
+                +
+                "<b>GPUTILS:</b><br>" +
+                "Colección de herramientas de código abierto para microcontroladores Microchip PIC.<br>" +
+                "Sitio web: <a href='https://sourceforge.net/projects/gputils/'>sourceforge.net/projects/gputils/</a><br><br>"
+                +
+                "<b>SDCC (Small Device C Compiler):</b><br>" +
+                "Compilador de C para microcontroladores de 8 bits.<br>" +
+                "Sitio web: <a href='https://sourceforge.net/projects/sdcc/'>sourceforge.net/projects/sdcc/</a><br><br>"
+                +
                 "<b>Licencia:</b><br>" +
-                "Este proyecto y los binarios incluidos de GPUTILS están bajo la licencia <b>GNU GPL v3.0</b>.<br><br>"
-                +
-                "GPUTILS es un conjunto de herramientas de código abierto para microcontroladores Microchip PIC.<br><br>"
-                +
-                "Puedes encontrar el código fuente de GPUTILS en: <a href='https://gputils.sourceforge.io/'>gputils.sourceforge.io</a>";
+                "Este proyecto y los binarios incluidos están bajo la licencia <b>GNU GPL v3.0</b>.";
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Acerca de / Licencia");
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-            builder.setMessage(android.text.Html.fromHtml(message, android.text.Html.FROM_HTML_MODE_COMPACT));
-        } else {
-            builder.setMessage(android.text.Html.fromHtml(message));
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Acerca de / Licencias")
+                .setMessage(android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N
+                        ? android.text.Html.fromHtml(message, android.text.Html.FROM_HTML_MODE_COMPACT)
+                        : android.text.Html.fromHtml(message))
+                .setPositiveButton("Cerrar", null)
+                .show();
+
+        // Hacer que los enlaces sean clickeables
+        TextView textView = dialog.findViewById(android.R.id.message);
+        if (textView != null) {
+            textView.setMovementMethod(android.text.method.LinkMovementMethod.getInstance());
         }
-        builder.setPositiveButton("Cerrar", null).show();
     }
 
     private void setupListeners() {
