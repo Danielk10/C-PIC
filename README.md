@@ -127,9 +127,10 @@ Ver el archivo [LICENSE](LICENSE) para más detalles.
 
 ## Créditos
 
-- **Desarrollador**: Daniel (Danielk10)
+- **Desarrollador**: Daniel Diamon (Danielk10)
 - **Basado en**: SDCC y GPUTILS
-- **Inspiración**: Llevar el desarrollo de microcontroladores PIC a dispositivos móviles
+- **Inspiración**: Llevar el desarrollo de microcontroladores PIC a dispositivos móviles siguiendo los pasos de Termux del cuál hice usó para este proyecto
+
 
 ## Soporte
 
