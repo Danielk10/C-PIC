@@ -79,7 +79,11 @@ public class SdccExecutor {
 
             // SDCC usa internamente cc1 (libcc1.so)
             // Necesitamos que el sistema encuentre las librerias nativas
-            env.put("LD_LIBRARY_PATH", nativeLibDir.getAbsolutePath());
+            // Añadimos usr/lib para libz.so.1
+            File usrLibDir = new File(new File(workDir, "usr"), "lib");
+            if (!usrLibDir.exists())
+                usrLibDir.mkdirs();
+            env.put("LD_LIBRARY_PATH", usrLibDir.getAbsolutePath() + ":" + nativeLibDir.getAbsolutePath());
 
             // Tambien rutas de GPUTILS ya que SDCC las invoca
             env.put("GPUTILS_HEADER_PATH", new File(gpUtilsShareDir, "header").getAbsolutePath());
@@ -160,6 +164,16 @@ public class SdccExecutor {
             // Enlaces para GPUTILS (necesarios si SDCC los busca por nombre en el PATH)
             createSymlink(new File(binDir, "gpasm"), libgpasm);
             createSymlink(new File(binDir, "gplink"), libgplink);
+
+            // Enlace para libz.so.1 (cc1 la necesita)
+            File libDir = new File(usrDir, "lib");
+            if (!libDir.exists())
+                libDir.mkdirs();
+            createSymlink(new File(libDir, "libz.so.1"), "/system/lib64/libz.so");
+            // Por si acaso es un sistema de 32 bits (aunque el binario es arm64)
+            if (!new File("/system/lib64/libz.so").exists()) {
+                createSymlink(new File(libDir, "libz.so.1"), "/system/lib/libz.so");
+            }
 
         } catch (Exception e) {
             Log.e(TAG, "Error al configurar symlinks: " + e.getMessage());
