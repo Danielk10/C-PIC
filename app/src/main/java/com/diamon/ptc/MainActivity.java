@@ -136,21 +136,25 @@ public class MainActivity extends AppCompatActivity {
 
     private void initResources() {
         executor.execute(() -> {
-            if (!AssetExtractor.areAssetsExtracted(this)) {
-                updateLogs("Preparando recursos de GPUTILS (esto solo ocurre una vez)...");
-                boolean success = AssetExtractor.extractAssets(
-                        this,
-                        ASSETS_PATH,
-                        new File(getFilesDir(), "usr/share"));
+            boolean extracted = AssetExtractor.areAssetsExtracted(this);
+            if (!extracted) {
+                updateLogs("Preparando recursos (GPUTILS + SDCC)...");
 
-                if (success) {
-                    updateLogs("Recursos listos.");
+                // Extraer todo lo que está en usr/share (incluye gputils y sdcc)
+                boolean s1 = AssetExtractor.extractAssets(this, ASSETS_PATH, new File(getFilesDir(), "usr/share"));
+
+                // Extraer usr/lib si existe (librerías de SDCC)
+                String libPath = "data/data/com.diamon.ptc/files/usr/lib";
+                boolean s2 = AssetExtractor.extractAssets(this, libPath, new File(getFilesDir(), "usr/lib"));
+
+                if (s1) {
+                    updateLogs("Recursos extraídos correctamente.");
                     loadPicList();
                 } else {
-                    updateLogs("Error al preparar recursos.");
+                    updateLogs("Error al extraer recursos. Revisa el espacio en disco.");
                 }
             } else {
-                updateLogs("Sistema listo. GPUTILS cargado correctamente.");
+                updateLogs("Sistema listo. GPUTILS y SDCC cargados.");
                 loadPicList();
             }
         });
