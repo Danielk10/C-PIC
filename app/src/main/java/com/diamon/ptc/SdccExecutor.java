@@ -177,9 +177,30 @@ public class SdccExecutor {
             createSymlink(new File(libDir, "libz.so.1"), targetZ);
 
             // libzstd.so.1
-            String targetZstd = new File("/system/lib64/libzstd.so").exists() ? "/system/lib64/libzstd.so"
-                    : "/system/lib/libzstd.so";
-            createSymlink(new File(libDir, "libzstd.so.1"), targetZstd);
+            File libzstd1 = new File(libDir, "libzstd.so.1");
+            if (!libzstd1.exists()) {
+                String[] potentialPaths = {
+                        "/system/lib64/libzstd.so",
+                        "/system/lib64/libzstd.so.1",
+                        "/apex/com.android.runtime/lib64/libzstd.so",
+                        "/apex/com.android.runtime/lib64/bionic/libzstd.so",
+                        "/vendor/lib64/libzstd.so",
+                        "/system/lib/libzstd.so",
+                        "/system/lib/libzstd.so.1"
+                };
+                String targetZstd = null;
+                for (String p : potentialPaths) {
+                    if (new File(p).exists()) {
+                        targetZstd = p;
+                        break;
+                    }
+                }
+                if (targetZstd != null) {
+                    createSymlink(libzstd1, targetZstd);
+                } else {
+                    Log.e(TAG, "No se encontró libzstd.so en ninguna ruta de sistema.");
+                }
+            }
 
         } catch (Exception e) {
             Log.e(TAG, "Error al configurar symlinks: " + e.getMessage());
