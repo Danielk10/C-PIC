@@ -164,13 +164,13 @@ public class MainActivity extends AppCompatActivity {
         binding.toggleLanguage.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
             if (isChecked) {
                 String currentName = binding.editProjectName.getText().toString();
-                if (checkedId == R.id.btn_lang_asm) {
+                if (checkedId == binding.btnLangAsm.getId()) {
                     binding.editAsm.setText(DEFAULT_ASM);
                     binding.btnAssemble.setText("ENSAMBLAR");
                     if (currentName.startsWith("c_project"))
                         binding.editProjectName.setText("");
                     updateLogs("Modo: Ensamblador (ASM)");
-                } else if (checkedId == R.id.btn_lang_c) {
+                } else if (checkedId == binding.btnLangC.getId()) {
                     binding.editAsm.setText(DEFAULT_C);
                     binding.btnAssemble.setText("COMPILAR");
                     if (currentName.startsWith("asm_project"))
@@ -277,7 +277,7 @@ public class MainActivity extends AppCompatActivity {
                 : "16F84A";
 
         String projectName = binding.editProjectName.getText().toString().trim();
-        boolean isC = binding.toggleLanguage.getCheckedButtonId() == R.id.btn_lang_c;
+        boolean isC = binding.toggleLanguage.getCheckedButtonId() == binding.btnLangC.getId();
 
         if (projectName.isEmpty()) {
             android.content.SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
