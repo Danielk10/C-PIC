@@ -3,6 +3,7 @@ package com.diamon.ptc;
 import android.content.Context;
 import android.util.Log;
 
+import java.nio.file.Files;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
@@ -176,12 +177,19 @@ public class SdccExecutor {
                     : "/system/lib/libz.so";
             createSymlink(new File(libDir, "libz.so.1"), targetZ);
 
-            // libzstd.so.1 (Ahora la tenemos en jniLibs como libzstd.so para empaquetado)
+            // libzstd.so.1 (Prioridad local en jniLibs)
             File localZstd = new File(nativeLibDir, "libzstd.so");
+            if (!localZstd.exists())
+                localZstd = new File(nativeLibDir, "libzstd.so.1");
+
             if (localZstd.exists()) {
                 createSymlink(new File(libDir, "libzstd.so.1"), localZstd.getAbsolutePath());
             } else {
-                Log.e(TAG, "libzstd.so no encontrada en jniLibs runtime!");
+                // Fallback al sistema
+                String targetZstd = new File("/system/lib64/libzstd.so").exists() ? "/system/lib64/libzstd.so"
+                        : "/system/lib/libzstd.so";
+                createSymlink(new File(libDir, "libzstd.so.1"), targetZstd);
+                Log.d(TAG, "libzstd local no encontrada, usando sistema o symlink.");
             }
 
         } catch (Exception e) {
@@ -191,12 +199,14 @@ public class SdccExecutor {
 
     private void createSymlink(File symlink, String targetPath) {
         try {
-            if (symlink.exists())
-                return;
+            // Eliminar cualquier archivo o enlace previo para evitar EEXIST
+            if (symlink.exists() || Files.isSymbolicLink(symlink.toPath())) {
+                symlink.delete();
+            }
             android.system.Os.symlink(targetPath, symlink.getAbsolutePath());
             Log.d(TAG, "Symlink creado: " + symlink.getName() + " -> " + targetPath);
         } catch (Exception e) {
-            Log.e(TAG, "No se pudo crear symlink " + symlink.getAbsolutePath() + ": " + e.getMessage());
+            Log.e(TAG, "Error al crear enlace " + symlink.getName() + ": " + e.getMessage());
         }
     }
 }

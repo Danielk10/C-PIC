@@ -51,15 +51,14 @@ public class MainActivity extends AppCompatActivity {
             "    END";
 
     private static final String DEFAULT_C = "#include <pic14/pic16f84a.h>\n\n" +
-            "// Configuración para PIC16F84A\n" +
-            "__code java.util.Map<String, String> config = { \"_HS_OSC\": \"\", \"_WDT_OFF\": \"\" };\n\n" +
+            "// Ejemplo basico para PIC16F84A\n" +
             "void main(void) {\n" +
             "    TRISB = 0x00; // Puerto B como salida\n" +
             "    while(1) {\n" +
             "        PORTB = 0xFF;\n" +
-            "        for(long i=0; i<10000; i++); // Retardo simple\n" +
+            "        for(unsigned int i=0; i<1000; i++); // Retardo\n" +
             "        PORTB = 0x00;\n" +
-            "        for(long i=0; i<10000; i++);\n" +
+            "        for(unsigned int i=0; i<1000; i++);\n" +
             "    }\n" +
             "}";
 
