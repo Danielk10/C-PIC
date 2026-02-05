@@ -50,10 +50,24 @@ public class MainActivity extends AppCompatActivity {
             "    GOTO START\n" +
             "    END";
 
+    private static final String DEFAULT_C = "#include <pic14/pic16f84a.h>\n\n" +
+            "// Configuración para PIC16F84A\n" +
+            "__code java.util.Map<String, String> config = { \"_HS_OSC\": \"\", \"_WDT_OFF\": \"\" };\n\n" +
+            "void main(void) {\n" +
+            "    TRISB = 0x00; // Puerto B como salida\n" +
+            "    while(1) {\n" +
+            "        PORTB = 0xFF;\n" +
+            "        for(long i=0; i<10000; i++); // Retardo simple\n" +
+            "        PORTB = 0x00;\n" +
+            "        for(long i=0; i<10000; i++);\n" +
+            "    }\n" +
+            "}";
+
     private ActivityMainBinding binding;
     private final ExecutorService executor = Executors.newFixedThreadPool(4);
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private GpUtilsExecutor gpUtils;
+    private SdccExecutor sdcc;
     private androidx.activity.result.ActivityResultLauncher<android.net.Uri> folderPickerLauncher;
 
     @Override
@@ -74,6 +88,7 @@ public class MainActivity extends AppCompatActivity {
                 });
 
         gpUtils = new GpUtilsExecutor(this);
+        sdcc = new SdccExecutor(this);
         binding.editAsm.setText(DEFAULT_ASM);
 
         setupListeners();
@@ -132,6 +147,18 @@ public class MainActivity extends AppCompatActivity {
         binding.btnAssemble.setOnClickListener(v -> assembleCode());
         binding.btnViewHex.setOnClickListener(v -> viewGeneratedFile("project.hex"));
         binding.btnExport.setOnClickListener(v -> exportFiles());
+
+        binding.toggleLanguage.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
+            if (isChecked) {
+                if (checkedId == R.id.btn_lang_asm) {
+                    binding.editAsm.setText(DEFAULT_ASM);
+                    updateLogs("Modo: Ensamblador (ASM)");
+                } else if (checkedId == R.id.btn_lang_c) {
+                    binding.editAsm.setText(DEFAULT_C);
+                    updateLogs("Modo: Lenguaje C (SDCC)");
+                }
+            }
+        });
     }
 
     private void initResources() {
@@ -208,28 +235,63 @@ public class MainActivity extends AppCompatActivity {
                 ? binding.spinnerPic.getSelectedItem().toString()
                 : "16F84A";
 
-        updateLogs("Iniciando ensamblado para " + selectedPic + "...");
+        boolean isC = binding.toggleLanguage.getCheckedButtonId() == R.id.btn_lang_c;
+
+        if (isC) {
+            compileCCode(code, selectedPic);
+        } else {
+            runGpasm(code, selectedPic);
+        }
+    }
+
+    private void runGpasm(String code, String selectedPic) {
+        updateLogs("Iniciando ensamblado ASM para " + selectedPic + "...");
         executor.execute(() -> {
             // 1. Guardar archivo ASM
             if (FileManager.writeInternalFile(this, "project.asm", code)) {
-                // 2. Ejecutar GPASM con el procesador seleccionado
-                // -p: processor
+                // 2. Ejecutar GPASM
                 String result = gpUtils.executeGpasm("-p", selectedPic.toLowerCase(), "project.asm");
+                updateLogs("Log de GPASM:\n" + result);
 
-                updateLogs("Log de compilación:\n" + result);
-
-                // Verificar si se generó el hex
-                File hexFile = new File(getFilesDir(), "project.hex");
-                if (hexFile.exists()) {
-                    mainHandler.post(
-                            () -> Toast.makeText(MainActivity.this, "¡Ensamblado exitoso!", Toast.LENGTH_LONG).show());
-                } else {
-                    mainHandler.post(() -> Toast
-                            .makeText(MainActivity.this, "Ensamblado fallido. Revisa los logs.", Toast.LENGTH_LONG)
-                            .show());
-                }
+                checkGenerationSuccess("project.hex");
             } else {
                 updateLogs("Error: No se pudo guardar el archivo ASM.");
+            }
+        });
+    }
+
+    private void compileCCode(String code, String selectedPic) {
+        updateLogs("Iniciando compilación C (SDCC) para " + selectedPic + "...");
+        executor.execute(() -> {
+            // 1. Guardar archivo C
+            if (FileManager.writeInternalFile(this, "project.c", code)) {
+                // 2. Determinar arquitectura (pic14 para 16F, pic16 para 18F)
+                String arch = selectedPic.toUpperCase().startsWith("18") ? "pic16" : "pic14";
+
+                // 3. Ejecutar SDCC
+                // --use-non-free es necesario para muchos PICs en SDCC
+                String result = sdcc.executeSdcc(
+                        "-m" + arch,
+                        "-p" + selectedPic.toLowerCase(),
+                        "--use-non-free",
+                        "project.c");
+
+                updateLogs("Log de SDCC:\n" + result);
+
+                checkGenerationSuccess("project.hex");
+            } else {
+                updateLogs("Error: No se pudo guardar el archivo C.");
+            }
+        });
+    }
+
+    private void checkGenerationSuccess(String fileName) {
+        File file = new File(getFilesDir(), fileName);
+        mainHandler.post(() -> {
+            if (file.exists()) {
+                Toast.makeText(this, "¡Operación exitosa!", Toast.LENGTH_LONG).show();
+            } else {
+                Toast.makeText(this, "Fallido. Revisa los logs.", Toast.LENGTH_LONG).show();
             }
         });
     }
