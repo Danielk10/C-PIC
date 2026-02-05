@@ -7,7 +7,7 @@
 
 ## Descripción
 
-**C-PIC Compiler** es una aplicación Android nativa que permite compilar código ensamblador (ASM) y lenguaje C para microcontroladores PIC directamente desde tu dispositivo móvil. Esta herramienta está diseñada para desarrolladores de sistemas embebidos que desean programar microcontroladores PIC sin necesidad de una PC.
+**C-PIC Compiler** es una aplicación Android nativa que permite compilar código ensamblador (ASM) y código en lenguaje C para microcontroladores PIC directamente desde tu dispositivo móvil. Esta herramienta está diseñada para desarrolladores de sistemas embebidos que desean programar microcontroladores PIC sin necesidad de una PC.
 
 ## Características
 
