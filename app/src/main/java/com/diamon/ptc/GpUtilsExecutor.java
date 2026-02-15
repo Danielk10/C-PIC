@@ -11,80 +11,55 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Clase para ejecutar los binarios de GPUTILS (gpasm, gpdasm, gplink, etc.)
- * Los binarios .so estan en el directorio nativo de la app y se ejecutan via
- * ProcessBuilder.
- * 
- * Requiere: android:extractNativeLibs="true" en AndroidManifest.xml
+ * Clase para ejecutar los binarios de GPUTILS (gpasm, gpdasm, gplink, etc.).
  */
 public class GpUtilsExecutor {
     private static final String TAG = "GpUtilsExecutor";
 
-    private final Context context;
     private final File workDir;
     private final File nativeLibDir;
     private final File gpUtilsShareDir;
 
     public GpUtilsExecutor(Context context) {
-        this.context = context;
         this.workDir = context.getFilesDir();
         this.nativeLibDir = new File(context.getApplicationInfo().nativeLibraryDir);
         this.gpUtilsShareDir = new File(workDir, "usr/share/gputils");
     }
 
-    /**
-     * Ejecuta gpasm con los argumentos especificados.
-     * 
-     * @param args Argumentos para gpasm (ej: "-v", "-c", "archivo.asm")
-     * @return Salida del comando (stdout + stderr)
-     */
     public String executeGpasm(String... args) {
-        return executeBinary("gpasm", args);
+        return executeBinary(workDir, "gpasm", args);
     }
 
-    /**
-     * Ejecuta gpdasm con los argumentos especificados.
-     */
+    public String executeGpasm(File workingDir, String... args) {
+        return executeBinary(workingDir, "gpasm", args);
+    }
+
     public String executeGpdasm(String... args) {
-        return executeBinary("gpdasm", args);
+        return executeBinary(workDir, "gpdasm", args);
     }
 
-    /**
-     * Ejecuta gplink con los argumentos especificados.
-     */
     public String executeGplink(String... args) {
-        return executeBinary("gplink", args);
+        return executeBinary(workDir, "gplink", args);
     }
 
-    /**
-     * Ejecuta gplib con los argumentos especificados.
-     */
     public String executeGplib(String... args) {
-        return executeBinary("gplib", args);
+        return executeBinary(workDir, "gplib", args);
     }
 
-    /**
-     * Ejecuta un binario de GPUTILS.
-     *
-     * @param binaryName Nombre del binario (sin prefijo lib y sin extension .so)
-     * @param args       Argumentos del comando
-     * @return Salida del comando
-     */
     public String executeBinary(String binaryName, String... args) {
-        // Los binarios estan en nativeLibraryDir con prefijo "lib" y extension ".so"
+        return executeBinary(workDir, binaryName, args);
+    }
+
+    public String executeBinary(File workingDir, String binaryName, String... args) {
         File binaryFile = new File(nativeLibDir, "lib" + binaryName + ".so");
 
         if (!binaryFile.exists()) {
-            // Listar archivos disponibles para debug
             String[] files = nativeLibDir.list();
             String available = files != null ? String.join(", ", files) : "ninguno";
             Log.e(TAG, "Binario no encontrado: " + binaryFile.getAbsolutePath());
-            Log.e(TAG, "Archivos disponibles en " + nativeLibDir + ": " + available);
-            return "Error: No se encontro el binario " + binaryFile.getAbsolutePath() +
-                    "\nDisponibles: " + available;
+            return "Error: No se encontro el binario " + binaryFile.getAbsolutePath() + "\nDisponibles: " + available;
         }
 
-        // Construir comando
         List<String> command = new ArrayList<>();
         command.add(binaryFile.getAbsolutePath());
         for (String arg : args) {
@@ -95,35 +70,25 @@ public class GpUtilsExecutor {
 
         try {
             ProcessBuilder pb = new ProcessBuilder(command);
-            pb.directory(workDir);
+            pb.directory(workingDir);
             pb.redirectErrorStream(true);
 
-            // Configurar variables de entorno para GPUTILS
             Map<String, String> env = pb.environment();
-            // Ruta a los headers (.inc files)
             env.put("GPUTILS_HEADER_PATH", new File(gpUtilsShareDir, "header").getAbsolutePath());
-            // Ruta a los linker scripts (.lkr files)
             env.put("GPUTILS_LKR_PATH", new File(gpUtilsShareDir, "lkr").getAbsolutePath());
+            env.put("LD_LIBRARY_PATH", nativeLibDir.getAbsolutePath() + ":" + new File(workDir, "usr/lib").getAbsolutePath());
 
-            // Asegurar que encuentre sus propias librerias y dependencias
-            env.put("LD_LIBRARY_PATH",
-                    nativeLibDir.getAbsolutePath() + ":" + new File(workDir, "usr/lib").getAbsolutePath());
-
-            // PATH para subprocesos si los hubiera
             String path = env.get("PATH");
             String binPath = new File(workDir, "usr/bin").getAbsolutePath();
             env.put("PATH", binPath + ":" + nativeLibDir.getAbsolutePath() + (path != null ? ":" + path : ""));
 
             Process process = pb.start();
-
             StringBuilder output = new StringBuilder();
-            // Lector con try-with-resources para asegurar el cierre
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(process.getInputStream()))) {
+
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     output.append(line).append("\n");
-                    // Log en tiempo real para visibilidad
                     Log.d(TAG, binaryName + " > " + line);
                 }
             }
@@ -134,12 +99,25 @@ public class GpUtilsExecutor {
             if (output.length() == 0) {
                 return "Ejecutado con codigo de salida: " + exitCode;
             }
-
             return output.toString().trim();
 
         } catch (Exception e) {
             Log.e(TAG, "Error ejecutando " + binaryName + ": " + e.getMessage());
             return "Error: " + e.getMessage();
         }
+    }
+
+    public List<String> getSetupIssues() {
+        List<String> issues = new ArrayList<>();
+        if (!new File(nativeLibDir, "libgpasm.so").exists()) {
+            issues.add("Falta libgpasm.so en jniLibs");
+        }
+        if (!new File(gpUtilsShareDir, "header").exists()) {
+            issues.add("Falta carpeta de headers gputils (usr/share/gputils/header)");
+        }
+        if (!new File(gpUtilsShareDir, "lkr").exists()) {
+            issues.add("Falta carpeta lkr gputils (usr/share/gputils/lkr)");
+        }
+        return issues;
     }
 }

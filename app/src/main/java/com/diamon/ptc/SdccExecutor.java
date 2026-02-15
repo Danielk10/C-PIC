@@ -3,10 +3,10 @@ package com.diamon.ptc;
 import android.content.Context;
 import android.util.Log;
 
-import java.nio.file.Files;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -17,36 +17,32 @@ import java.util.Map;
 public class SdccExecutor {
     private static final String TAG = "SdccExecutor";
 
-    private final Context context;
     private final File workDir;
     private final File nativeLibDir;
     private final File sdccShareDir;
     private final File gpUtilsShareDir;
 
     public SdccExecutor(Context context) {
-        this.context = context;
         this.workDir = context.getFilesDir();
         this.nativeLibDir = new File(context.getApplicationInfo().nativeLibraryDir);
         this.sdccShareDir = new File(workDir, "usr/share/sdcc");
         this.gpUtilsShareDir = new File(workDir, "usr/share/gputils");
     }
 
-    /**
-     * Ejecuta sdcc con los argumentos especificados.
-     *
-     * @param args Argumentos para sdcc
-     * @return Salida del comando
-     */
     public String executeSdcc(String... args) {
-        return executeBinary("sdcc", args);
+        return executeBinary(workDir, "sdcc", args);
     }
 
-    /**
-     * Ejecuta un binario de SDCC.
-     */
-    public String executeBinary(String binaryName, String... args) {
-        File binaryFile = new File(nativeLibDir, "lib" + binaryName + ".so");
+    public String executeSdcc(File workingDir, String... args) {
+        return executeBinary(workingDir, "sdcc", args);
+    }
 
+    public String executeBinary(String binaryName, String... args) {
+        return executeBinary(workDir, binaryName, args);
+    }
+
+    public String executeBinary(File workingDir, String binaryName, String... args) {
+        File binaryFile = new File(nativeLibDir, "lib" + binaryName + ".so");
         if (!binaryFile.exists()) {
             return "Error: No se encontro el binario " + binaryFile.getAbsolutePath();
         }
@@ -54,52 +50,38 @@ public class SdccExecutor {
         List<String> command = new ArrayList<>();
         command.add(binaryFile.getAbsolutePath());
 
-        // Agregar rutas por defecto de SDCC si no estan
         command.add("-I" + new File(sdccShareDir, "include").getAbsolutePath());
         command.add("-I" + new File(sdccShareDir, "non-free/include").getAbsolutePath());
         command.add("-L" + new File(sdccShareDir, "lib").getAbsolutePath());
         command.add("-L" + new File(sdccShareDir, "non-free/lib").getAbsolutePath());
-
         for (String arg : args) {
             command.add(arg);
         }
-
-        Log.d(TAG, "Ejecutando SDCC: " + String.join(" ", command));
 
         setupSymlinks();
 
         try {
             ProcessBuilder pb = new ProcessBuilder(command);
-            pb.directory(workDir);
+            pb.directory(workingDir);
             pb.redirectErrorStream(true);
 
             Map<String, String> env = pb.environment();
-
-            // Configurar SDCC_HOME para que encuentre libexec/ y bin/
             env.put("SDCC_HOME", new File(workDir, "usr").getAbsolutePath());
 
-            // SDCC usa internamente cc1 (libcc1.so)
-            // Necesitamos que el sistema encuentre las librerias nativas
-            // Añadimos usr/lib para libz.so.1
             File usrLibDir = new File(new File(workDir, "usr"), "lib");
-            if (!usrLibDir.exists())
-                usrLibDir.mkdirs();
+            if (!usrLibDir.exists()) usrLibDir.mkdirs();
             env.put("LD_LIBRARY_PATH", usrLibDir.getAbsolutePath() + ":" + nativeLibDir.getAbsolutePath());
 
-            // Tambien rutas de GPUTILS ya que SDCC las invoca
             env.put("GPUTILS_HEADER_PATH", new File(gpUtilsShareDir, "header").getAbsolutePath());
             env.put("GPUTILS_LKR_PATH", new File(gpUtilsShareDir, "lkr").getAbsolutePath());
 
-            // Intentar agregar jniLibs al PATH para que SDCC encuentre sus componentes
             String path = env.get("PATH");
             String binPath = new File(workDir, "usr/bin").getAbsolutePath();
             env.put("PATH", binPath + ":" + nativeLibDir.getAbsolutePath() + (path != null ? ":" + path : ""));
 
             Process process = pb.start();
-
             StringBuilder output = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(process.getInputStream()))) {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     output.append(line).append("\n");
@@ -108,13 +90,10 @@ public class SdccExecutor {
             }
 
             int exitCode = process.waitFor();
-            Log.d(TAG, "SDCC Exit Code: " + exitCode);
-
             String result = output.toString().trim();
             if (exitCode != 0 && result.isEmpty()) {
                 return "Error: SDCC termino con codigo " + exitCode + ". Revisa Logcat para mas detalles.";
             }
-
             return result;
 
         } catch (Exception e) {
@@ -123,71 +102,58 @@ public class SdccExecutor {
         }
     }
 
+    public List<String> getSetupIssues() {
+        List<String> issues = new ArrayList<>();
+        if (!new File(nativeLibDir, "libsdcc.so").exists()) issues.add("Falta libsdcc.so en jniLibs");
+        if (!new File(nativeLibDir, "libcc1.so").exists()) issues.add("Falta libcc1.so en jniLibs");
+        if (!new File(nativeLibDir, "libsdcpp.so").exists()) issues.add("Falta libsdcpp.so en jniLibs");
+        if (!new File(sdccShareDir, "include").exists()) issues.add("Falta include de SDCC (usr/share/sdcc/include)");
+        if (!new File(sdccShareDir, "lib").exists()) issues.add("Falta lib de SDCC (usr/share/sdcc/lib)");
+        return issues;
+    }
+
     /**
-     * Crea enlaces simbolicos para que SDCC encuentre sus componentes internos
-     * (cc1, sdcpp)
-     * que han sido renombrados a lib*.so.
+     * Crea enlaces simbolicos para que SDCC encuentre sus componentes internos.
      */
     private void setupSymlinks() {
         try {
             File usrDir = new File(workDir, "usr");
-
-            // Ruta especifica que SDCC busca: libexec/sdcc/<arch>/<version>/cc1
             File libexecBase = new File(usrDir, "libexec/sdcc/aarch64-unknown-linux-gnu/12.1.0");
-            if (!libexecBase.exists())
-                libexecBase.mkdirs();
+            if (!libexecBase.exists()) libexecBase.mkdirs();
 
-            // Ruta generica: libexec/sdcc/cc1
             File libexecGeneric = new File(usrDir, "libexec/sdcc");
-            if (!libexecGeneric.exists())
-                libexecGeneric.mkdirs();
+            if (!libexecGeneric.exists()) libexecGeneric.mkdirs();
 
-            // Directorio bin para sdcpp
             File binDir = new File(usrDir, "bin");
-            if (!binDir.exists())
-                binDir.mkdirs();
+            if (!binDir.exists()) binDir.mkdirs();
 
             String libcc1 = new File(nativeLibDir, "libcc1.so").getAbsolutePath();
             String libsdcpp = new File(nativeLibDir, "libsdcpp.so").getAbsolutePath();
             String libgpasm = new File(nativeLibDir, "libgpasm.so").getAbsolutePath();
             String libgplink = new File(nativeLibDir, "libgplink.so").getAbsolutePath();
 
-            // Enlaces para cc1 (probamos varias ubicaciones comunes)
             createSymlink(new File(libexecBase, "cc1"), libcc1);
             createSymlink(new File(libexecGeneric, "cc1"), libcc1);
-            createSymlink(new File(binDir, "cc1"), libcc1); // <-- Muy importante para PATH
+            createSymlink(new File(binDir, "cc1"), libcc1);
             createSymlink(new File(binDir, "sdcc-cc1"), libcc1);
-
-            // Enlaces para sdcpp
             createSymlink(new File(binDir, "sdcpp"), libsdcpp);
             createSymlink(new File(binDir, "sdcc-sdcpp"), libsdcpp);
-
-            // Enlaces para GPUTILS (necesarios si SDCC los busca por nombre en el PATH)
             createSymlink(new File(binDir, "gpasm"), libgpasm);
             createSymlink(new File(binDir, "gplink"), libgplink);
 
-            // Enlaces para librerias del sistema (cc1 las necesita con nombres de Linux
-            // estandar)
             File libDir = new File(usrDir, "lib");
-            if (!libDir.exists())
-                libDir.mkdirs();
+            if (!libDir.exists()) libDir.mkdirs();
 
-            // libz.so.1 (Sigue apuntando al sistema por ahora, es mas comun)
-            String targetZ = new File("/system/lib64/libz.so").exists() ? "/system/lib64/libz.so"
-                    : "/system/lib/libz.so";
+            String targetZ = new File("/system/lib64/libz.so").exists() ? "/system/lib64/libz.so" : "/system/lib/libz.so";
             createSymlink(new File(libDir, "libz.so.1"), targetZ);
 
-            // libzstd.so.1 (Prioridad local en jniLibs)
             File localZstd = new File(nativeLibDir, "libzstd.so");
-            if (!localZstd.exists())
-                localZstd = new File(nativeLibDir, "libzstd.so.1");
-
+            if (!localZstd.exists()) localZstd = new File(nativeLibDir, "libzstd.so.1");
             if (localZstd.exists()) {
                 createSymlink(new File(libDir, "libzstd.so.1"), localZstd.getAbsolutePath());
             } else {
                 Log.e(TAG, "ERROR CRITICO: libzstd local no encontrada en jniLibs.");
             }
-
         } catch (Exception e) {
             Log.e(TAG, "Error al configurar symlinks: " + e.getMessage());
         }
@@ -195,15 +161,11 @@ public class SdccExecutor {
 
     private void createSymlink(File symlink, String targetPath) {
         try {
-            // Eliminar cualquier archivo o enlace previo para evitar EEXIST
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                 if (symlink.exists() || Files.isSymbolicLink(symlink.toPath())) {
                     symlink.delete();
                 }
             } else {
-                // Para versiones anteriores, intentamos borrar directamente.
-                // File.exists() puede devolver false para symlinks rotos, pero delete() suele
-                // funcionar.
                 symlink.delete();
             }
             android.system.Os.symlink(targetPath, symlink.getAbsolutePath());
