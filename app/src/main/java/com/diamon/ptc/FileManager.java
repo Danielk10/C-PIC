@@ -111,4 +111,28 @@ public class FileManager {
         }
         return false;
     }
+
+
+    public static boolean writeToFile(File file, String content) {
+        try (FileOutputStream fos = new FileOutputStream(file)) {
+            fos.write(content.getBytes(StandardCharsets.UTF_8));
+            return true;
+        } catch (IOException e) {
+            Log.e(TAG, "Error escribiendo archivo: " + file.getAbsolutePath(), e);
+            return false;
+        }
+    }
+
+    public static String readFile(File file) {
+        if (!file.exists()) return "";
+        try (FileInputStream fis = new FileInputStream(file)) {
+            byte[] data = new byte[(int) file.length()];
+            if (fis.read(data) < 0) return "";
+            return new String(data, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            Log.e(TAG, "Error leyendo archivo: " + file.getAbsolutePath(), e);
+            return "";
+        }
+    }
+
 }

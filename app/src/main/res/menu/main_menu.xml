@@ -14,6 +14,10 @@
         android:title="Acerca de / Licencia"
         app:showAsAction="never" />
     <item
+        android:id="@+id/action_change_export_folder"
+        android:title="Cambiar carpeta de exportación"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_policy"
         android:title="Política de Privacidad"
         app:showAsAction="never" />

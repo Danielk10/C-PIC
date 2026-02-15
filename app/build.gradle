@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace 'com.diamon.ptc'
+    namespace = 'com.diamon.ptc'
     compileSdk {
         version = release(36)
     }
@@ -34,11 +34,11 @@ android {
     externalNativeBuild {
         cmake {
             path file('src/main/cpp/CMakeLists.txt')
-            version '3.22.1'
+            version = '3.22.1'
         }
     }
     buildFeatures {
-        viewBinding true
+        viewBinding = true
     }
 
     packaging {
