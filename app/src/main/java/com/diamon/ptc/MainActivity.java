@@ -85,8 +85,11 @@ public class MainActivity extends AppCompatActivity {
             "    }\n" +
             "}\n";
 
-    private static final Pattern C_PATTERN = Pattern.compile("\\b(#include|void|int|char|unsigned|if|else|while|for|return|static|const|define|struct|switch|case|break)\\b");
-    private static final Pattern ASM_PATTERN = Pattern.compile("\\b(PROCESSOR|INCLUDE|ORG|END|MOVLW|MOVWF|GOTO|CALL|CLRF|BSF|BCF|BANKSEL|EQU|CONFIG)\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern C_PATTERN = Pattern.compile("\\b(void|int|char|unsigned|if|else|while|for|return|static|const|struct|switch|case|break|volatile|typedef|enum|union|signed|long|short)\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern C_PREPROCESSOR_PATTERN = Pattern.compile("(?m)^\\s*#\\s*(include|define|ifdef|ifndef|if|elif|else|endif|pragma|error|warning|undef)\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern C_COMMENT_PATTERN = Pattern.compile("//.*$|/\\*.*?\\*/", Pattern.MULTILINE | Pattern.DOTALL);
+    private static final Pattern ASM_PATTERN = Pattern.compile("\\b(PROCESSOR|INCLUDE|ORG|END|MOVLW|MOVWF|GOTO|CALL|CLRF|BSF|BCF|BANKSEL|EQU|CONFIG|__CONFIG|TRIS[A-E]?|PORT[A-E]?)\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern ASM_COMMENT_PATTERN = Pattern.compile(";.*$", Pattern.MULTILINE);
 
     private static class ModuleState {
         final LinkedHashMap<String, String> files = new LinkedHashMap<>();
@@ -104,6 +107,7 @@ public class MainActivity extends AppCompatActivity {
     private final ModuleState asmState = new ModuleState();
     private final ModuleState cState = new ModuleState();
     private boolean isApplyingHighlight;
+    private boolean currentModeIsC;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -116,6 +120,7 @@ public class MainActivity extends AppCompatActivity {
         sdcc = new SdccExecutor(this);
 
         initModuleStates();
+        currentModeIsC = binding.toggleLanguage.getCheckedButtonId() == binding.btnLangC.getId();
         setupFolderPicker();
         setupListeners();
         renderCurrentModule();
@@ -191,7 +196,11 @@ public class MainActivity extends AppCompatActivity {
 
         binding.toggleLanguage.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
             if (!isChecked) return;
-            saveActiveEditorContent();
+            boolean targetIsC = checkedId == binding.btnLangC.getId();
+            if (targetIsC == currentModeIsC) return;
+
+            saveActiveEditorContentForMode(currentModeIsC);
+            currentModeIsC = targetIsC;
             renderCurrentModule();
             updateLogs(isCurrentCMode() ? "Modo C (SDCC)" : "Modo ASM (GPUTILS)");
         });
@@ -353,7 +362,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void saveActiveEditorContent() {
-        ModuleState state = getCurrentState();
+        saveActiveEditorContentForMode(currentModeIsC);
+    }
+
+    private void saveActiveEditorContentForMode(boolean isCMode) {
+        ModuleState state = isCMode ? cState : asmState;
         if (state.activeFile != null) {
             state.files.put(state.activeFile, binding.editAsm.getText().toString());
         }
@@ -369,7 +382,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateLineNumbers() {
-        int lines = Math.max(1, binding.editAsm.getLineCount());
+        String text = binding.editAsm.getText() == null ? "" : binding.editAsm.getText().toString();
+        int lines = 1;
+        for (int i = 0; i < text.length(); i++) {
+            if (text.charAt(i) == '\n') lines++;
+        }
+
         StringBuilder sb = new StringBuilder();
         for (int i = 1; i <= lines; i++) {
             sb.append(i).append('\n');
@@ -392,11 +410,26 @@ public class MainActivity extends AppCompatActivity {
                 spannable.removeSpan(span);
             }
 
-            Pattern pattern = isCurrentCMode() ? C_PATTERN : ASM_PATTERN;
+            Pattern keywordPattern = isCurrentCMode() ? C_PATTERN : ASM_PATTERN;
+            Pattern commentPattern = isCurrentCMode() ? C_COMMENT_PATTERN : ASM_COMMENT_PATTERN;
             @ColorInt int keywordColor = 0xFF80CBC4;
-            Matcher matcher = pattern.matcher(spannable.toString());
-            while (matcher.find()) {
-                spannable.setSpan(new ForegroundColorSpan(keywordColor), matcher.start(), matcher.end(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+            @ColorInt int commentColor = 0xFF7F8C8D;
+
+            Matcher keywordMatcher = keywordPattern.matcher(spannable.toString());
+            while (keywordMatcher.find()) {
+                spannable.setSpan(new ForegroundColorSpan(keywordColor), keywordMatcher.start(), keywordMatcher.end(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+            }
+
+            if (isCurrentCMode()) {
+                Matcher preprocessorMatcher = C_PREPROCESSOR_PATTERN.matcher(spannable.toString());
+                while (preprocessorMatcher.find()) {
+                    spannable.setSpan(new ForegroundColorSpan(keywordColor), preprocessorMatcher.start(), preprocessorMatcher.end(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                }
+            }
+
+            Matcher commentMatcher = commentPattern.matcher(spannable.toString());
+            while (commentMatcher.find()) {
+                spannable.setSpan(new ForegroundColorSpan(commentColor), commentMatcher.start(), commentMatcher.end(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
             }
 
             editable.replace(0, editable.length(), spannable);
@@ -409,7 +442,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private boolean isCurrentCMode() {
-        return binding.toggleLanguage.getCheckedButtonId() == binding.btnLangC.getId();
+        return currentModeIsC;
     }
 
     private void initResources() {
@@ -753,6 +786,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void exportFiles() {
+        saveActiveEditorContent();
         Uri uri = getSavedExportUri();
         if (uri == null || !hasPersistedPermission(uri)) {
             launchFolderPicker(false);
@@ -765,14 +799,33 @@ public class MainActivity extends AppCompatActivity {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
                 | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+                | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+                | Intent.FLAG_GRANT_PREFIX_URI_PERMISSION);
+        intent.putExtra("android.provider.extra.SHOW_ADVANCED", true);
 
-        if (!forceChange) {
-            Uri downloadsRoot = DocumentsContract.buildRootUri("com.android.externalstorage.documents", "primary");
-            intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, downloadsRoot);
+        if (forceChange) {
+            clearSavedExportUri();
+        }
+
+        Uri initialUri = resolveInitialFolderUri();
+        if (initialUri != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, initialUri);
         }
 
         folderPickerLauncher.launch(intent);
+    }
+
+    private Uri resolveInitialFolderUri() {
+        Uri saved = getSavedExportUri();
+        if (saved != null) {
+            return saved;
+        }
+
+        try {
+            return DocumentsContract.buildTreeDocumentUri("com.android.externalstorage.documents", "primary:Download");
+        } catch (Exception ignore) {
+            return null;
+        }
     }
 
     private void exportToSelectedFolder(Uri treeUri) {
@@ -782,8 +835,10 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
+        File projectDir = getProjectDir(projectName);
+        persistCurrentModuleSources(projectDir);
+
         executor.execute(() -> {
-            File projectDir = getProjectDir(projectName);
             File[] files = projectDir.listFiles();
             if (files == null || files.length == 0) {
                 updateLogs("No hay archivos en el proyecto para exportar.");
@@ -817,7 +872,7 @@ public class MainActivity extends AppCompatActivity {
             if (file == null) return false;
 
             try (InputStream in = new FileInputStream(sourceFile);
-                 OutputStream out = getContentResolver().openOutputStream(file.getUri(), "wt")) {
+                 OutputStream out = getContentResolver().openOutputStream(file.getUri(), "w")) {
                 if (out == null) return false;
                 byte[] buffer = new byte[8192];
                 int len;
@@ -829,6 +884,7 @@ public class MainActivity extends AppCompatActivity {
         } catch (SecurityException sec) {
             Log.e(TAG, "Permiso SAF perdido", sec);
             clearSavedExportUri();
+            updateLogs("Permiso de carpeta perdido. Selecciona nuevamente una carpeta de destino.");
             mainHandler.post(() -> launchFolderPicker(false));
             return false;
         } catch (Exception e) {
@@ -839,22 +895,53 @@ public class MainActivity extends AppCompatActivity {
 
     private String getMimeType(String fileName) {
         String lower = fileName.toLowerCase(Locale.ROOT);
-        if (lower.endsWith(".c") || lower.endsWith(".h") || lower.endsWith(".asm") || lower.endsWith(".inc") || lower.endsWith(".lst") || lower.endsWith(".err")) {
+        if (lower.endsWith(".c") || lower.endsWith(".h") || lower.endsWith(".asm") || lower.endsWith(".inc") || lower.endsWith(".lst") || lower.endsWith(".err") || lower.endsWith(".map") || lower.endsWith(".sym") || lower.endsWith(".adb") || lower.endsWith(".mem")) {
             return "text/plain";
         }
-        if (lower.endsWith(".hex") || lower.endsWith(".cod")) {
+        if (lower.endsWith(".hex") || lower.endsWith(".cod") || lower.endsWith(".o") || lower.endsWith(".obj") || lower.endsWith(".ihx") || lower.endsWith(".rel") || lower.endsWith(".lib") || lower.endsWith(".bin")) {
             return "application/octet-stream";
         }
         return "*/*";
     }
 
+    private void persistCurrentModuleSources(File projectDir) {
+        if (!projectDir.exists() && !projectDir.mkdirs()) {
+            updateLogs("No se pudo preparar directorio para exportación.");
+            return;
+        }
+
+        ModuleState state = getCurrentState();
+        LinkedHashMap<String, String> snapshotFiles = new LinkedHashMap<>(state.files);
+        for (String fileName : snapshotFiles.keySet()) {
+            boolean saved = FileManager.writeToFile(new File(projectDir, fileName), snapshotFiles.get(fileName));
+            if (!saved) {
+                updateLogs("No se pudo guardar fuente para exportar: " + fileName);
+            }
+        }
+    }
+
     private void saveExportUri(Uri uri) {
-        getContentResolver().takePersistableUriPermission(uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-        getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-                .edit()
-                .putString(KEY_EXPORT_URI, uri.toString())
-                .apply();
+        try {
+            Uri previous = getSavedExportUri();
+            if (previous != null && !previous.equals(uri)) {
+                try {
+                    getContentResolver().releasePersistableUriPermission(previous,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                } catch (Exception ignored) {
+                    // Some providers may reject releasing old permissions; continue with new one.
+                }
+            }
+
+            getContentResolver().takePersistableUriPermission(uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                    .edit()
+                    .putString(KEY_EXPORT_URI, uri.toString())
+                    .apply();
+        } catch (SecurityException sec) {
+            Log.e(TAG, "No se pudo persistir permiso SAF", sec);
+            updateLogs("No se pudo guardar permiso de carpeta. Vuelve a seleccionarla.");
+        }
     }
 
     private Uri getSavedExportUri() {
@@ -872,6 +959,16 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void clearSavedExportUri() {
+        Uri previous = getSavedExportUri();
+        if (previous != null) {
+            try {
+                getContentResolver().releasePersistableUriPermission(previous,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            } catch (Exception ignored) {
+                // Ignore release failures from provider quirks.
+            }
+        }
+
         getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
                 .edit()
                 .remove(KEY_EXPORT_URI)
