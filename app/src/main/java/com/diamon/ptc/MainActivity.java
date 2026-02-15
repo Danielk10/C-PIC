@@ -807,7 +807,11 @@ public class MainActivity extends AppCompatActivity {
                 | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+          
+            Uri downloadsDir = DocumentsContract.buildTreeDocumentUri("com.android.externalstorage.documents", "primary:Download");
+
             Uri downloadsDir = DocumentsContract.buildDocumentUri("com.android.externalstorage.documents", "primary:Download");
+
             intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, downloadsDir);
         }
 
@@ -879,6 +883,7 @@ public class MainActivity extends AppCompatActivity {
         } catch (SecurityException sec) {
             Log.e(TAG, "Permiso SAF perdido", sec);
             clearSavedExportUri();
+            updateLogs("Permiso de carpeta perdido. Selecciona nuevamente una carpeta de destino.");
             mainHandler.post(() -> launchFolderPicker(false));
             return false;
         } catch (Exception e) {
