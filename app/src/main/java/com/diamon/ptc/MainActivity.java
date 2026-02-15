@@ -141,6 +141,11 @@ public class MainActivity extends AppCompatActivity {
                 result -> {
                     if (result.getResultCode() == RESULT_OK && result.getData() != null && result.getData().getData() != null) {
                         Uri uri = result.getData().getData();
+                        if (!isTreeSelectionUsable(uri)) {
+                            updateLogs("Esa carpeta no se puede usar. Elige una subcarpeta como Download o crea una nueva.");
+                            launchFolderPicker(true);
+                            return;
+                        }
                         saveExportUri(uri);
                         updateLogs("Carpeta de exportación actualizada: " + uri);
                         exportToSelectedFolder(uri);
@@ -802,7 +807,11 @@ public class MainActivity extends AppCompatActivity {
                 | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+          
             Uri downloadsDir = DocumentsContract.buildTreeDocumentUri("com.android.externalstorage.documents", "primary:Download");
+
+            Uri downloadsDir = DocumentsContract.buildDocumentUri("com.android.externalstorage.documents", "primary:Download");
+
             intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, downloadsDir);
         }
 
@@ -843,6 +852,11 @@ public class MainActivity extends AppCompatActivity {
                     ? "Exportación exitosa: " + finalCount + " archivos."
                     : "No fue posible exportar archivos.");
         });
+    }
+
+    private boolean isTreeSelectionUsable(Uri treeUri) {
+        String docId = DocumentsContract.getTreeDocumentId(treeUri);
+        return docId != null && docId.contains(":") && !"primary:".equalsIgnoreCase(docId);
     }
 
     private boolean saveFileToDocumentTree(Uri treeUri, String displayName, File sourceFile) {
