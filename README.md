@@ -66,7 +66,12 @@ cd C-PIC
    - CMake 3.22.1 o superior
    - NDK (Android Native Development Kit)
 
-4. Compila el proyecto:
+4. Compila el proyecto (script en la raíz):
+```bash
+./compile.sh
+```
+
+También puedes usar Gradle directamente:
 ```bash
 ./gradlew assembleRelease
 ```
