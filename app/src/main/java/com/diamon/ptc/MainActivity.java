@@ -14,6 +14,7 @@ import android.text.TextWatcher;
 import android.text.method.LinkMovementMethod;
 import android.text.style.ForegroundColorSpan;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -68,8 +69,8 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String DEFAULT_ASM_FILE = "asm_project1.asm";
     private static final String DEFAULT_C_FILE = "c_project1.c";
-    private static final String EMPTY_ASM_FILE = "nueva.asm";
-    private static final String EMPTY_C_FILE = "nueva.c";
+    private static final String EMPTY_ASM_FILE = "nuevo.asm";
+    private static final String EMPTY_C_FILE = "nuevo.c";
 
     private static final String DEFAULT_ASM = "; Código de prueba para PIC16F628A\n" +
             "    PROCESSOR 16F628A\n" +
@@ -264,6 +265,9 @@ public class MainActivity extends AppCompatActivity {
     private void renderCurrentModule() {
         ModuleState state = getCurrentState();
         binding.btnAssemble.setText(isCurrentCMode() ? "COMPILAR" : "ENSAMBLAR");
+        binding.editAsm.setHint(isCurrentCMode()
+                ? "// Escribe tu código C aquí..."
+                : "; Escribe tu código ASM aquí...");
 
         if (state.lastProjectName != null) {
             binding.editProjectName.setText(state.lastProjectName);
@@ -371,8 +375,12 @@ public class MainActivity extends AppCompatActivity {
         input.setHint(isCurrentCMode() ? "ej: archivo.c, utils.c, defs.h" : "ej: archivo.asm, macros.inc");
         input.setTextColor(0xFF121212);
         input.setHintTextColor(0xFF5F6368);
-        input.setBackgroundResource(android.R.drawable.edit_text);
-        input.setPadding(32, 24, 32, 24);
+        input.setBackgroundResource(android.R.drawable.editbox_background_normal);
+        int horizontalPadding = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12f, getResources().getDisplayMetrics());
+        int verticalPadding = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10f, getResources().getDisplayMetrics());
+        input.setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding);
+        input.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
+        input.setSingleLine();
         new AlertDialog.Builder(this)
                 .setTitle("Nuevo archivo")
                 .setView(input)
@@ -642,14 +650,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateLineNumbers() {
-        String text = binding.editAsm.getText() == null ? "" : binding.editAsm.getText().toString();
-        int lines = 1;
-        for (int i = 0; i < text.length(); i++) {
-            if (text.charAt(i) == '\n') {
-                lines++;
-            }
-        }
-        lines = Math.max(1, lines);
+        int lines = Math.max(1, binding.editAsm.getLineCount());
         StringBuilder sb = new StringBuilder();
         for (int i = 1; i <= lines; i++) {
             sb.append(i);
