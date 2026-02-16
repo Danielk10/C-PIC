@@ -68,6 +68,8 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String DEFAULT_ASM_FILE = "asm_project1.asm";
     private static final String DEFAULT_C_FILE = "c_project1.c";
+    private static final String EMPTY_ASM_FILE = "nueva.asm";
+    private static final String EMPTY_C_FILE = "nueva.c";
 
     private static final String DEFAULT_ASM = "; Código de prueba para PIC16F628A\n" +
             "    PROCESSOR 16F628A\n" +
@@ -332,14 +334,15 @@ public class MainActivity extends AppCompatActivity {
 
     private void closeFileTab(String fileName) {
         ModuleState state = getCurrentState();
-        if (state.files.size() == 1) {
-            updateLogs("Debe quedar al menos un archivo abierto.");
-            return;
-        }
-
         removeSourceFromProjectIfExists(fileName);
         state.files.remove(fileName);
-        if (fileName.equals(state.activeFile)) {
+
+        if (state.files.isEmpty()) {
+            String defaultName = makeUniqueFileName(state, isCurrentCMode() ? EMPTY_C_FILE : EMPTY_ASM_FILE);
+            state.files.put(defaultName, "");
+            state.activeFile = defaultName;
+            updateLogs("Se creó una pestaña vacía por defecto: " + defaultName);
+        } else if (fileName.equals(state.activeFile)) {
             state.activeFile = state.files.keySet().iterator().next();
         }
 
@@ -368,7 +371,7 @@ public class MainActivity extends AppCompatActivity {
         input.setHint(isCurrentCMode() ? "ej: archivo.c, utils.c, defs.h" : "ej: archivo.asm, macros.inc");
         input.setTextColor(0xFF121212);
         input.setHintTextColor(0xFF5F6368);
-        input.setBackgroundColor(0xFFFFFFFF);
+        input.setBackgroundResource(android.R.drawable.edit_text);
         input.setPadding(32, 24, 32, 24);
         new AlertDialog.Builder(this)
                 .setTitle("Nuevo archivo")
@@ -594,8 +597,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showAboutDialog() {
-        String message = "Acerca de / Licencias<br><br>" +
-                "<b>C PIC Compiler</b><br><br>" +
+        String message = "<b>C PIC Compiler</b><br><br>" +
                 "Esta aplicación es una interfaz gráfica (GUI) profesional para las herramientas GPUTILS y SDCC.<br><br>" +
                 "<b>GPUTILS:</b><br>" +
                 "Colección de herramientas de código abierto para microcontroladores Microchip PIC.<br><br>" +
@@ -640,7 +642,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateLineNumbers() {
-        int lines = Math.max(1, binding.editAsm.getLineCount());
+        String text = binding.editAsm.getText() == null ? "" : binding.editAsm.getText().toString();
+        int lines = 1;
+        for (int i = 0; i < text.length(); i++) {
+            if (text.charAt(i) == '\n') {
+                lines++;
+            }
+        }
+        lines = Math.max(1, lines);
         StringBuilder sb = new StringBuilder();
         for (int i = 1; i <= lines; i++) {
             sb.append(i);
@@ -1044,14 +1053,13 @@ public class MainActivity extends AppCompatActivity {
         }
 
         android.content.SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-        int next;
         String generated;
         if (isC) {
-            next = prefs.getInt(KEY_C_COUNTER, 0) + 1;
+            int next = resolveNextProjectIndex("c_project", KEY_C_COUNTER);
             prefs.edit().putInt(KEY_C_COUNTER, next).apply();
             generated = "c_project" + next;
         } else {
-            next = prefs.getInt(KEY_ASM_COUNTER, 0) + 1;
+            int next = resolveNextProjectIndex("asm_project", KEY_ASM_COUNTER);
             prefs.edit().putInt(KEY_ASM_COUNTER, next).apply();
             generated = "asm_project" + next;
         }
@@ -1075,6 +1083,37 @@ public class MainActivity extends AppCompatActivity {
             return trimmed;
         }
         return modulePrefix + trimmed;
+    }
+
+    private int resolveNextProjectIndex(String projectPrefix, String counterKey) {
+        android.content.SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        int max = prefs.getInt(counterKey, 0);
+        File projectsDir = new File(getFilesDir(), "projects");
+        File[] dirs = projectsDir.listFiles();
+        if (dirs != null) {
+            for (File dir : dirs) {
+                if (!dir.isDirectory()) continue;
+                String name = dir.getName();
+                if (!name.startsWith(projectPrefix)) continue;
+                String suffix = name.substring(projectPrefix.length());
+                if (suffix.isEmpty()) continue;
+                boolean allDigits = true;
+                for (int i = 0; i < suffix.length(); i++) {
+                    if (!Character.isDigit(suffix.charAt(i))) {
+                        allDigits = false;
+                        break;
+                    }
+                }
+                if (!allDigits) continue;
+                try {
+                    int n = Integer.parseInt(suffix);
+                    if (n > max) max = n;
+                } catch (NumberFormatException ignored) {
+                    // Ignorar nombres fuera de patrón
+                }
+            }
+        }
+        return max + 1;
     }
 
     private void viewGeneratedFile(String extension) {
@@ -1248,15 +1287,15 @@ public class MainActivity extends AppCompatActivity {
         persistCurrentModuleSources(projectDir);
 
         executor.execute(() -> {
-            File[] files = projectDir.listFiles();
-            if (files == null || files.length == 0) {
+            List<File> filesToExport = collectProjectFilesForExport(projectDir, projectName);
+            if (filesToExport.isEmpty()) {
                 updateLogs("No hay archivos en el proyecto para exportar.");
                 return;
             }
 
             int count = 0;
-            for (File file : files) {
-                String exportName = projectName + "__" + file.getName();
+            for (File file : filesToExport) {
+                String exportName = file.getName();
                 if (saveFileToDocumentTree(treeUri, exportName, file)) {
                     count++;
                 }
@@ -1267,6 +1306,40 @@ public class MainActivity extends AppCompatActivity {
                     ? "> ¡Exportación exitosa! " + finalCount + " archivos guardados."
                     : "No fue posible exportar archivos.");
         });
+    }
+
+    private List<File> collectProjectFilesForExport(File projectDir, String projectName) {
+        List<File> files = new ArrayList<>();
+        ModuleState state = getCurrentState();
+
+        for (String sourceName : state.files.keySet()) {
+            File source = new File(projectDir, sourceName);
+            if (source.exists() && source.isFile()) {
+                files.add(source);
+            }
+        }
+
+        File[] projectEntries = projectDir.listFiles();
+        if (projectEntries != null) {
+            for (File file : projectEntries) {
+                if (!file.isFile()) continue;
+                String name = file.getName();
+                if (name.startsWith(projectName + ".")) {
+                    boolean alreadyAdded = false;
+                    for (File existing : files) {
+                        if (existing.getName().equals(name)) {
+                            alreadyAdded = true;
+                            break;
+                        }
+                    }
+                    if (!alreadyAdded) {
+                        files.add(file);
+                    }
+                }
+            }
+        }
+
+        return files;
     }
 
     private boolean saveFileToDocumentTree(Uri treeUri, String displayName, File sourceFile) {
