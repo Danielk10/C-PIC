@@ -94,18 +94,19 @@ public class MainActivity extends AppCompatActivity {
             "    }\n" +
             "}\n";
 
-    private static final Pattern C_PATTERN = Pattern.compile("\\b(void|int|char|unsigned|if|else|while|for|return|static|const|struct|switch|case|break|volatile|typedef|enum|union|signed|long|short|float|double|sizeof|do|goto)\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern C_PATTERN = Pattern.compile("\\b(void|int|char|unsigned|if|else|while|for|return|static|const|struct|switch|case|break|volatile|typedef|enum|union|signed|long|short|float|double|sizeof|do|goto|extern|register|continue|default|auto|inline|restrict|_Bool|_Complex|_Imaginary)\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern C_PREPROCESSOR_PATTERN = Pattern.compile("(?m)^\\s*#\\s*(include|define|ifdef|ifndef|if|elif|else|endif|pragma|error|warning|undef)\\b", Pattern.CASE_INSENSITIVE);
-    private static final Pattern C_COMMENT_PATTERN = Pattern.compile("//.*$|/\\*.*?\\*/", Pattern.MULTILINE | Pattern.DOTALL);
-    private static final Pattern C_STRING_PATTERN = Pattern.compile("\"(?:\\\\.|[^\"\\])*\"");
-    private static final Pattern C_NUMBER_PATTERN = Pattern.compile("\\b(0x[0-9a-fA-F]+|\\d+)\\b");
+    private static final Pattern C_COMMENT_PATTERN = Pattern.compile("(?s)/\\*.*?\\*/|//[^\\n\\r]*");
+    private static final Pattern C_STRING_PATTERN = Pattern.compile("\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*'");
+    private static final Pattern C_NUMBER_PATTERN = Pattern.compile("\\b(0x[0-9a-fA-F]+|0b[01]+|0[0-7]+|\\d+(?:\\.\\d+)?)\\b");
     private static final Pattern C_FUNCTION_PATTERN = Pattern.compile("\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=\\()", Pattern.MULTILINE);
 
-    private static final Pattern ASM_PATTERN = Pattern.compile("\\b(PROCESSOR|INCLUDE|ORG|END|MOVLW|MOVWF|GOTO|CALL|CLRF|BSF|BCF|BANKSEL|EQU|CONFIG|__CONFIG|TRIS[A-E]?|PORT[A-E]?|BTFSC|BTFSS|INCF|DECF|DECFSZ|RLF|RRF|NOP|RETLW)\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern ASM_PATTERN = Pattern.compile("\\b(PROCESSOR|INCLUDE|ORG|END|MOVLW|MOVWF|GOTO|CALL|CLRF|BSF|BCF|BANKSEL|EQU|CONFIG|__CONFIG|TRIS[A-E]?|PORT[A-E]?|BTFSC|BTFSS|INCF|DECF|DECFSZ|RLF|RRF|NOP|RETLW|MOVF|ADDWF|SUBWF|ANDWF|IORWF|XORWF|COMF|SWAPF|RLF|RRF|BC|BZ|BNZ|BRA|RETURN|RETFIE|CLRW|CLRWDT|SLEEP|ADDLW|SUBLW|ANDLW|IORLW|XORLW|RETLW|DT|DB|DW|RES|SETC|CLRC|SKPNC|SKPC|SKPNZ|SKPZ)\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern ASM_COMMENT_PATTERN = Pattern.compile(";.*$", Pattern.MULTILINE);
     private static final Pattern ASM_LABEL_PATTERN = Pattern.compile("(?m)^\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s*:");
-    private static final Pattern ASM_NUMBER_PATTERN = Pattern.compile("\\b(0x[0-9a-fA-F]+|\\d+)\\b");
-    private static final Pattern ASM_STRING_PATTERN = Pattern.compile("\"(?:\\\\.|[^\"\\])*\"");
+    private static final Pattern ASM_NUMBER_PATTERN = Pattern.compile("\\b(0x[0-9a-fA-F]+|0b[01]+|[0-9]+[Hh]|[0-9]+)\\b");
+    private static final Pattern ASM_DIRECTIVE_PATTERN = Pattern.compile("(?m)^\\s*(#[a-zA-Z_][a-zA-Z0-9_]*|__[a-zA-Z_][a-zA-Z0-9_]*|\\.[a-zA-Z_][a-zA-Z0-9_]*)\\b");
+    private static final Pattern ASM_STRING_PATTERN = Pattern.compile("\"(?:\\\\.|[^\"\\\\])*\"");
 
     private static class ModuleState {
         final LinkedHashMap<String, String> files = new LinkedHashMap<>();
@@ -661,6 +662,7 @@ public class MainActivity extends AppCompatActivity {
                 applyPatternColor(spannable, source, C_COMMENT_PATTERN, commentColor);
             } else {
                 applyPatternColor(spannable, source, ASM_PATTERN, keywordColor);
+                applyPatternColor(spannable, source, ASM_DIRECTIVE_PATTERN, preprocessorColor);
                 applyPatternColor(spannable, source, ASM_LABEL_PATTERN, symbolColor);
                 applyPatternColor(spannable, source, ASM_NUMBER_PATTERN, numberColor);
                 applyPatternColor(spannable, source, ASM_STRING_PATTERN, stringColor);
