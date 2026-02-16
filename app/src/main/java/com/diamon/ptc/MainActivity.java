@@ -66,8 +66,8 @@ public class MainActivity extends AppCompatActivity {
     private static final String KEY_SELECTED_LANGUAGE = "selected_language";
     private static final String KEY_SELECTED_PIC = "selected_pic";
 
-    private static final String DEFAULT_ASM_FILE = "main.asm";
-    private static final String DEFAULT_C_FILE = "main.c";
+    private static final String DEFAULT_ASM_FILE = "asm_project1.asm";
+    private static final String DEFAULT_C_FILE = "c_project1.c";
 
     private static final String DEFAULT_ASM = "; Código de prueba para PIC16F628A\n" +
             "    PROCESSOR 16F628A\n" +
@@ -228,9 +228,6 @@ public class MainActivity extends AppCompatActivity {
         binding.btnAssemble.setOnClickListener(v -> assembleCode());
         binding.btnViewHex.setOnClickListener(v -> viewGeneratedFile(".hex"));
         binding.btnExport.setOnClickListener(v -> exportFiles());
-        binding.btnAddFile.setOnClickListener(v -> showAddFileDialog());
-        binding.btnImportFile.setOnClickListener(v -> launchSourceFilePicker());
-
         binding.editAsm.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) { }
@@ -312,6 +309,16 @@ public class MainActivity extends AppCompatActivity {
             tabContainer.addView(closeBtn);
             binding.layoutTabs.addView(tabContainer);
         }
+
+        MaterialButton addTab = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        addTab.setText("+");
+        addTab.setTextSize(14f);
+        addTab.setAllCaps(false);
+        addTab.setMinWidth(0);
+        addTab.setMinimumWidth(0);
+        addTab.setPadding(18, 8, 18, 8);
+        addTab.setOnClickListener(v -> showAddFileDialog());
+        binding.layoutTabs.addView(addTab);
     }
 
     private void confirmCloseTab(String fileName) {
@@ -358,7 +365,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void showAddFileDialog() {
         final EditText input = new EditText(this);
-        input.setHint(isCurrentCMode() ? "ej: main.c, utils.c, defs.h" : "ej: main.asm, macros.inc");
+        input.setHint(isCurrentCMode() ? "ej: archivo.c, utils.c, defs.h" : "ej: archivo.asm, macros.inc");
         input.setTextColor(0xFF121212);
         input.setHintTextColor(0xFF5F6368);
         input.setBackgroundColor(0xFFFFFFFF);
@@ -453,6 +460,8 @@ public class MainActivity extends AppCompatActivity {
         int importedToC = 0;
         int importedToAsm = 0;
         String lastImportedInCurrent = null;
+        boolean importedInCurrentModule = false;
+        boolean importedInOtherModule = false;
         ModuleState currentState = getCurrentState();
 
         for (Uri uri : uris) {
@@ -477,6 +486,9 @@ public class MainActivity extends AppCompatActivity {
 
             if (targetState == currentState) {
                 lastImportedInCurrent = uniqueName;
+                importedInCurrentModule = true;
+            } else {
+                importedInOtherModule = true;
             }
 
             if (isCFile) {
@@ -490,6 +502,15 @@ public class MainActivity extends AppCompatActivity {
 
         int totalImported = importedToC + importedToAsm;
         if (totalImported > 0) {
+            if (!importedInCurrentModule && importedInOtherModule) {
+                if (importedToC > 0 && importedToAsm == 0 && !isCurrentCMode()) {
+                    currentModeIsC = true;
+                    binding.toggleLanguage.check(binding.btnLangC.getId());
+                } else if (importedToAsm > 0 && importedToC == 0 && isCurrentCMode()) {
+                    currentModeIsC = false;
+                    binding.toggleLanguage.check(binding.btnLangAsm.getId());
+                }
+            }
             refreshTabs();
             loadActiveFileInEditor();
             updateLogs("> ¡Importación exitosa! " + totalImported + " archivo(s) en pestañas nuevas (C: " + importedToC + ", ASM: " + importedToAsm + ").");
@@ -742,6 +763,10 @@ public class MainActivity extends AppCompatActivity {
                             .edit()
                             .putString(KEY_SELECTED_PIC, selected)
                             .apply();
+                    binding.editAsm.post(() -> {
+                        binding.editAsm.requestFocus();
+                        binding.editAsm.setSelection(binding.editAsm.getText().length());
+                    });
                 }
 
                 @Override
@@ -807,12 +832,16 @@ public class MainActivity extends AppCompatActivity {
 
     private void assembleAsmProject(File projectDir, String projectName, String selectedPic, LinkedHashMap<String, String> snapshotFiles) {
         executor.execute(() -> {
-            String mainFile = pickMainFile(snapshotFiles, ".asm");
-            if (mainFile == null) {
+            String mainFile = projectName + ".asm";
+            prepareProjectEntryFile(projectDir, snapshotFiles, mainFile, ".asm");
+            if (!snapshotFiles.containsKey(mainFile)) {
+                snapshotFiles.put(mainFile, readFileContent(new File(projectDir, mainFile)));
+            }
+
+            if (!new File(projectDir, mainFile).exists()) {
                 updateLogs("Agrega un archivo principal .asm para ensamblar.");
                 return;
             }
-
 
             updateLogs("Ensamblando " + mainFile + " para " + selectedPic + "...");
             String result = gpUtils.executeGpasm(projectDir,
@@ -828,6 +857,9 @@ public class MainActivity extends AppCompatActivity {
 
     private void compileCProject(File projectDir, String projectName, String selectedPic, LinkedHashMap<String, String> snapshotFiles) {
         executor.execute(() -> {
+            String mainFile = projectName + ".c";
+            prepareProjectEntryFile(projectDir, snapshotFiles, mainFile, ".c");
+
             List<String> cFiles = new ArrayList<>();
             for (String file : snapshotFiles.keySet()) {
                 if (file.toLowerCase(Locale.ROOT).endsWith(".c")) {
@@ -842,8 +874,11 @@ public class MainActivity extends AppCompatActivity {
 
             String arch = selectedPic.toUpperCase(Locale.ROOT).startsWith("18") ? "pic16" : "pic14";
 
-            String mainFile = pickMainFile(snapshotFiles, ".c");
-            if (mainFile == null) {
+            if (!cFiles.contains(mainFile)) {
+                cFiles.add(0, mainFile);
+            }
+
+            if (!new File(projectDir, mainFile).exists()) {
                 updateLogs("No se encontró archivo principal .c para definir nombre de salida.");
                 return;
             }
@@ -852,15 +887,64 @@ public class MainActivity extends AppCompatActivity {
                     "-m" + arch,
                     "-p" + selectedPic.toLowerCase(Locale.ROOT),
                     "--use-non-free",
-                    "-I" + projectDir.getAbsolutePath(),
-                    "-o", projectName + ".hex"));
+                    "--out-fmt-ihx",
+                    "-I" + projectDir.getAbsolutePath()));
             args.addAll(cFiles);
 
             String result = sdcc.executeSdcc(projectDir, args.toArray(new String[0]));
             updateLogs("Log SDCC completo:\n" + result);
+            normalizeCOutputArtifacts(projectDir, projectName, mainFile);
             renameGeneratedArtifacts(projectDir, mainFile, projectName, true);
             checkGenerationSuccess(projectDir, ".hex", true);
         });
+    }
+
+    private void normalizeCOutputArtifacts(File projectDir, String projectName, String mainFile) {
+        String sourceBase = mainFile;
+        int dot = sourceBase.lastIndexOf('.');
+        if (dot > 0) {
+            sourceBase = sourceBase.substring(0, dot);
+        }
+
+        File ihxFromProjectName = new File(projectDir, projectName + ".ihx");
+        File ihxFromSource = new File(projectDir, sourceBase + ".ihx");
+        File hexTarget = new File(projectDir, projectName + ".hex");
+
+        File sourceIhx = ihxFromProjectName.exists() ? ihxFromProjectName : ihxFromSource;
+        if (sourceIhx.exists() && !hexTarget.exists()) {
+            boolean renamed = sourceIhx.renameTo(hexTarget);
+            if (renamed) {
+                updateLogs("Renombrado: " + sourceIhx.getName() + " -> " + hexTarget.getName());
+            }
+        }
+    }
+
+    private void prepareProjectEntryFile(File projectDir, LinkedHashMap<String, String> snapshotFiles, String targetName, String extension) {
+        if (snapshotFiles.containsKey(targetName)) {
+            return;
+        }
+
+        String sourceFile = pickMainFile(snapshotFiles, extension);
+        if (sourceFile == null) {
+            return;
+        }
+
+        String content = snapshotFiles.getOrDefault(sourceFile, "");
+        snapshotFiles.put(targetName, content);
+        FileManager.writeToFile(new File(projectDir, targetName), content);
+    }
+
+    private String readFileContent(File file) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line).append('\n');
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     private String pickMainFile(LinkedHashMap<String, String> files, String ext) {
@@ -884,7 +968,7 @@ public class MainActivity extends AppCompatActivity {
         List<String> generatedFiles = new ArrayList<>();
         for (File file : files) {
             String lowerName = file.getName().toLowerCase(Locale.ROOT);
-            if (lowerName.endsWith(".hex") || lowerName.endsWith(".cod") || lowerName.endsWith(".lst")
+            if (lowerName.endsWith(".hex") || lowerName.endsWith(".ihx") || lowerName.endsWith(".cod") || lowerName.endsWith(".lst")
                     || lowerName.endsWith(".asm") || lowerName.endsWith(".c") || lowerName.endsWith(".inc")
                     || lowerName.endsWith(".h") || lowerName.endsWith(".rel") || lowerName.endsWith(".o")) {
                 generatedFiles.add(file.getName());
@@ -978,13 +1062,19 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private String normalizeProjectName(String name, boolean isC) {
-        String prefix = isC ? "c_" : "asm_";
-        if (!name.startsWith(prefix)) {
-            if (isC && name.startsWith("asm_")) name = name.substring(4);
-            else if (!isC && name.startsWith("c_")) name = name.substring(2);
-            name = prefix + name;
+        String trimmed = name.trim();
+        if (trimmed.isEmpty()) {
+            return isC ? "c_project1" : "asm_project1";
         }
-        return name;
+
+        String modulePrefix = isC ? "c_" : "asm_";
+        if (trimmed.startsWith("c_project") || trimmed.startsWith("asm_project")) {
+            return trimmed;
+        }
+        if (trimmed.startsWith("c_") || trimmed.startsWith("asm_")) {
+            return trimmed;
+        }
+        return modulePrefix + trimmed;
     }
 
     private void viewGeneratedFile(String extension) {
@@ -1213,14 +1303,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private String getMimeType(String fileName) {
-        String lower = fileName.toLowerCase(Locale.ROOT);
-        if (lower.endsWith(".c") || lower.endsWith(".h") || lower.endsWith(".asm") || lower.endsWith(".inc") || lower.endsWith(".lst") || lower.endsWith(".err") || lower.endsWith(".map") || lower.endsWith(".sym") || lower.endsWith(".adb") || lower.endsWith(".mem")) {
-            return "text/plain";
-        }
-        if (lower.endsWith(".hex") || lower.endsWith(".cod") || lower.endsWith(".o") || lower.endsWith(".obj") || lower.endsWith(".ihx") || lower.endsWith(".rel") || lower.endsWith(".lib") || lower.endsWith(".bin")) {
-            return "application/octet-stream";
-        }
-        return "*/*";
+        return "application/octet-stream";
     }
 
     private void persistCurrentModuleSources(File projectDir) {
