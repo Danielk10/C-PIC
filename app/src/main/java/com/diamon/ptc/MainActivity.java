@@ -806,6 +806,10 @@ public class MainActivity extends AppCompatActivity {
                 : "16F628A";
 
         String projectName = resolveProjectName(true);
+        ensureMainSourceMatchesProject(projectName);
+        refreshTabs();
+        loadActiveFileInEditor();
+
         File projectDir = getProjectDir(projectName);
         if (!projectDir.exists() && !projectDir.mkdirs()) {
             updateLogs("No se pudo crear directorio de proyecto.");
@@ -826,6 +830,40 @@ public class MainActivity extends AppCompatActivity {
         } else {
             assembleAsmProject(projectDir, projectName, selectedPic, snapshotFiles);
         }
+    }
+
+    private void ensureMainSourceMatchesProject(String projectName) {
+        ModuleState state = getCurrentState();
+        String extension = isCurrentCMode() ? ".c" : ".asm";
+        String desiredMain = projectName + extension;
+
+        if (state.files.containsKey(desiredMain)) {
+            state.activeFile = desiredMain;
+            return;
+        }
+
+        String sourceFile = pickMainFile(state.files, extension);
+        String content = sourceFile == null
+                ? (isCurrentCMode() ? DEFAULT_C : DEFAULT_ASM)
+                : state.files.getOrDefault(sourceFile, "");
+
+        if (sourceFile != null && shouldReplaceWithProjectMain(sourceFile, extension)) {
+            state.files.remove(sourceFile);
+        }
+
+        state.files.put(desiredMain, content);
+        state.activeFile = desiredMain;
+    }
+
+    private boolean shouldReplaceWithProjectMain(String fileName, String extension) {
+        String lower = fileName.toLowerCase(Locale.ROOT);
+        if (lower.equals("nuevo" + extension)) {
+            return true;
+        }
+        if (isCurrentCMode()) {
+            return lower.matches("c_project\\d+\\.c");
+        }
+        return lower.matches("asm_project\\d+\\.asm");
     }
 
     private boolean runToolchainPreflightChecks(boolean forCModule) {
@@ -1283,6 +1321,10 @@ public class MainActivity extends AppCompatActivity {
             updateLogs("Primero compila o ensambla para exportar.");
             return;
         }
+
+        ensureMainSourceMatchesProject(projectName);
+        refreshTabs();
+        loadActiveFileInEditor();
 
         File projectDir = getProjectDir(projectName);
         persistCurrentModuleSources(projectDir);
