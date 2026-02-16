@@ -10,8 +10,12 @@
         android:title="Limpiar Editor"
         app:showAsAction="never" />
     <item
+        android:id="@+id/action_import_sources"
+        android:title="Cargar archivos fuente"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_about"
-        android:title="Acerca de / Licencia"
+        android:title="Acerca de / Licencias"
         app:showAsAction="never" />
     <item
         android:id="@+id/action_change_export_folder"
