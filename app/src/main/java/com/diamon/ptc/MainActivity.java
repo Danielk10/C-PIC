@@ -20,6 +20,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
+import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.PopupWindow;
 import android.widget.TextView;
@@ -62,6 +63,8 @@ public class MainActivity extends AppCompatActivity {
     private static final String KEY_EXPORT_URI = "export_uri";
     private static final String KEY_ASM_COUNTER = "asm_counter";
     private static final String KEY_C_COUNTER = "c_counter";
+    private static final String KEY_SELECTED_LANGUAGE = "selected_language";
+    private static final String KEY_SELECTED_PIC = "selected_pic";
 
     private static final String DEFAULT_ASM_FILE = "main.asm";
     private static final String DEFAULT_C_FILE = "main.c";
@@ -134,7 +137,8 @@ public class MainActivity extends AppCompatActivity {
         sdcc = new SdccExecutor(this);
 
         initModuleStates();
-        currentModeIsC = binding.toggleLanguage.getCheckedButtonId() == binding.btnLangC.getId();
+        currentModeIsC = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getBoolean(KEY_SELECTED_LANGUAGE, false);
+        binding.toggleLanguage.check(currentModeIsC ? binding.btnLangC.getId() : binding.btnLangAsm.getId());
         setupFolderPicker();
         setupSourceFilePicker();
         setupListeners();
@@ -224,6 +228,7 @@ public class MainActivity extends AppCompatActivity {
         binding.btnViewHex.setOnClickListener(v -> viewGeneratedFile(".hex"));
         binding.btnExport.setOnClickListener(v -> exportFiles());
         binding.btnAddFile.setOnClickListener(v -> showAddFileDialog());
+        binding.btnImportFile.setOnClickListener(v -> launchSourceFilePicker());
 
         binding.editAsm.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
@@ -243,6 +248,10 @@ public class MainActivity extends AppCompatActivity {
 
             saveActiveEditorContentForMode(currentModeIsC);
             currentModeIsC = targetIsC;
+            getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                    .edit()
+                    .putBoolean(KEY_SELECTED_LANGUAGE, currentModeIsC)
+                    .apply();
             renderCurrentModule();
             updateLogs(isCurrentCMode() ? "Modo C (SDCC)" : "Modo ASM (GPUTILS)");
         });
@@ -320,6 +329,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
+        removeSourceFromProjectIfExists(fileName);
         state.files.remove(fileName);
         if (fileName.equals(state.activeFile)) {
             state.activeFile = state.files.keySet().iterator().next();
@@ -329,17 +339,42 @@ public class MainActivity extends AppCompatActivity {
         loadActiveFileInEditor();
     }
 
+    private void removeSourceFromProjectIfExists(String fileName) {
+        String projectName = resolveProjectName(false);
+        if (projectName == null) {
+            return;
+        }
+
+        File file = new File(getProjectDir(projectName), fileName);
+        if (file.exists()) {
+            if (file.delete()) {
+                updateLogs("Archivo desligado del proyecto al cerrar pestaña: " + fileName);
+            } else {
+                updateLogs("No se pudo eliminar del proyecto el archivo cerrado: " + fileName);
+            }
+        }
+    }
+
     private void showAddFileDialog() {
-        final android.widget.EditText input = new android.widget.EditText(this);
+        final EditText input = new EditText(this);
         input.setHint(isCurrentCMode() ? "ej: main.c, utils.c, defs.h" : "ej: main.asm, macros.inc");
+        input.setTextColor(0xFF121212);
+        input.setHintTextColor(0xFF5F6368);
+        input.setBackgroundColor(0xFFFFFFFF);
+        input.setPadding(32, 24, 32, 24);
         new AlertDialog.Builder(this)
                 .setTitle("Nuevo archivo")
                 .setView(input)
                 .setPositiveButton("Agregar", (d, w) -> {
-                    String name = input.getText().toString().trim();
-                    if (name.isEmpty()) {
+                    String rawName = input.getText().toString().trim();
+                    if (rawName.isEmpty()) {
                         updateLogs("Nombre de archivo inválido.");
                         return;
+                    }
+
+                    String name = applyDefaultExtensionIfMissing(rawName);
+                    if (!rawName.equals(name)) {
+                        updateLogs("Extensión por defecto aplicada: " + name);
                     }
 
                     if (!isValidExtensionForCurrentMode(name)) {
@@ -364,11 +399,39 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
-    private boolean isValidExtensionForCurrentMode(String name) {
-        String lower = name.toLowerCase(Locale.ROOT);
-        if (isCurrentCMode()) {
-            return lower.endsWith(".c") || lower.endsWith(".h");
+    private String applyDefaultExtensionIfMissing(String fileName) {
+        String normalized = fileName.trim();
+        int dot = normalized.lastIndexOf('.');
+        boolean hasExplicitExtension = dot > 0 && dot < normalized.length() - 1;
+        if (hasExplicitExtension) {
+            return normalized;
         }
+
+        while (normalized.endsWith(".")) {
+            normalized = normalized.substring(0, normalized.length() - 1).trim();
+        }
+
+        if (normalized.isEmpty()) {
+            return fileName.trim();
+        }
+
+        return normalized + (isCurrentCMode() ? ".c" : ".asm");
+    }
+
+    private boolean isValidExtensionForCurrentMode(String name) {
+        if (isCurrentCMode()) {
+            return isCSourceFile(name);
+        }
+        return isAsmSourceFile(name);
+    }
+
+    private boolean isCSourceFile(String name) {
+        String lower = name.toLowerCase(Locale.ROOT);
+        return lower.endsWith(".c") || lower.endsWith(".h");
+    }
+
+    private boolean isAsmSourceFile(String name) {
+        String lower = name.toLowerCase(Locale.ROOT);
         return lower.endsWith(".asm") || lower.endsWith(".inc");
     }
 
@@ -386,9 +449,10 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        ModuleState state = getCurrentState();
-        int imported = 0;
-        String lastImported = null;
+        int importedToC = 0;
+        int importedToAsm = 0;
+        String lastImportedInCurrent = null;
+        ModuleState currentState = getCurrentState();
 
         for (Uri uri : uris) {
             String name = resolveDisplayName(uri);
@@ -397,27 +461,45 @@ public class MainActivity extends AppCompatActivity {
                 continue;
             }
 
-            if (!isValidExtensionForCurrentMode(name)) {
-                updateLogs("Archivo omitido por extensión no válida para " + (isCurrentCMode() ? "C" : "ASM") + ": " + name);
+            boolean isCFile = isCSourceFile(name);
+            boolean isAsmFile = isAsmSourceFile(name);
+            if (!isCFile && !isAsmFile) {
+                updateLogs("Archivo omitido por extensión no válida (.c/.h/.asm/.inc): " + name);
                 continue;
             }
 
+            ModuleState targetState = isCFile ? cState : asmState;
             String content = readTextFromUri(uri);
-            String uniqueName = makeUniqueFileName(state, name);
-            state.files.put(uniqueName, content);
-            state.activeFile = uniqueName;
-            imported++;
-            lastImported = uniqueName;
-            updateLogs("Archivo importado: " + uniqueName);
+            String uniqueName = makeUniqueFileName(targetState, name);
+            targetState.files.put(uniqueName, content);
+            targetState.activeFile = uniqueName;
+
+            if (targetState == currentState) {
+                lastImportedInCurrent = uniqueName;
+            }
+
+            if (isCFile) {
+                importedToC++;
+                updateLogs("Archivo importado en módulo C: " + uniqueName);
+            } else {
+                importedToAsm++;
+                updateLogs("Archivo importado en módulo ASM: " + uniqueName);
+            }
         }
 
-        if (imported > 0) {
+        int totalImported = importedToC + importedToAsm;
+        if (totalImported > 0) {
             refreshTabs();
             loadActiveFileInEditor();
-            updateLogs("> ¡Importación exitosa! " + imported + " archivo(s) cargado(s) en pestañas nuevas.");
-            if (lastImported != null) {
-                updateLogs("Archivo activo: " + lastImported);
+            updateLogs("> ¡Importación exitosa! " + totalImported + " archivo(s) en pestañas nuevas (C: " + importedToC + ", ASM: " + importedToAsm + ").");
+            if (lastImportedInCurrent != null) {
+                updateLogs("Archivo activo en módulo actual: " + lastImportedInCurrent);
             }
+            if ((isCurrentCMode() && importedToAsm > 0) || (!isCurrentCMode() && importedToC > 0)) {
+                updateLogs("Se importaron también archivos para el otro módulo. Cambia el selector ASM/C para editarlos.");
+            }
+        } else {
+            updateLogs("No se importó ningún archivo válido.");
         }
     }
 
@@ -490,16 +572,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showAboutDialog() {
-        String message = "<b>C PIC Compiler</b><br><br>" +
-                "Esta aplicación es una interfaz gráfica (GUI) profesional para las herramientas <b>GPUTILS y SDCC</b>.<br><br>" +
+        String message = "Acerca de / Licencias<br><br>" +
+                "<b>C PIC Compiler</b><br><br>" +
+                "Esta aplicación es una interfaz gráfica (GUI) profesional para las herramientas GPUTILS y SDCC.<br><br>" +
                 "<b>GPUTILS:</b><br>" +
-                "Colección de herramientas de código abierto para microcontroladores Microchip PIC.<br>" +
+                "Colección de herramientas de código abierto para microcontroladores Microchip PIC.<br><br>" +
                 "Sitio web: <a href='https://sourceforge.net/projects/gputils/'>sourceforge.net/projects/gputils/</a><br><br>" +
                 "<b>SDCC (Small Device C Compiler):</b><br>" +
-                "Compilador de C para microcontroladores de 8 bits.<br>" +
+                "Compilador de C para microcontroladores de 8 bits.<br><br>" +
                 "Sitio web: <a href='https://sourceforge.net/projects/sdcc/'>sourceforge.net/projects/sdcc/</a><br><br>" +
                 "<b>Licencia del Proyecto:</b><br>" +
-                "C PIC Compiler es software libre y está bajo la licencia <b>GNU GPL v3.0</b>.<br><br>" +
+                "C PIC Compiler es software libre y está bajo la licencia GNU GPL v3.0.<br><br>" +
                 "Los binarios incluidos de GPUTILS y SDCC también se distribuyen bajo sus propias licencias GPL.";
 
         AlertDialog dialog = new AlertDialog.Builder(this)
@@ -535,15 +618,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateLineNumbers() {
-        String text = binding.editAsm.getText() == null ? "" : binding.editAsm.getText().toString();
-        int lines = 1;
-        for (int i = 0; i < text.length(); i++) {
-            if (text.charAt(i) == '\n') lines++;
-        }
-
+        int lines = Math.max(1, binding.editAsm.getLineCount());
         StringBuilder sb = new StringBuilder();
         for (int i = 1; i <= lines; i++) {
-            sb.append(i).append('\n');
+            sb.append(i);
+            if (i < lines) {
+                sb.append('\n');
+            }
         }
         binding.textLineNumbers.setText(sb.toString());
     }
@@ -642,11 +723,30 @@ public class MainActivity extends AppCompatActivity {
             adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
             binding.spinnerPic.setAdapter(adapter);
 
-            int index = pics.indexOf("16F628A");
+            String savedPic = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getString(KEY_SELECTED_PIC, null);
+            int index = savedPic == null ? -1 : pics.indexOf(savedPic);
+            if (index < 0) index = pics.indexOf("16F628A");
             if (index < 0) index = pics.indexOf("16F84A");
             if (index >= 0) {
                 binding.spinnerPic.setSelection(index);
             }
+
+            binding.spinnerPic.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                    String selected = adapter.getItem(position);
+                    if (selected == null) return;
+                    getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                            .edit()
+                            .putString(KEY_SELECTED_PIC, selected)
+                            .apply();
+                }
+
+                @Override
+                public void onNothingSelected(android.widget.AdapterView<?> parent) {
+                    // No-op
+                }
+            });
         });
     }
 
