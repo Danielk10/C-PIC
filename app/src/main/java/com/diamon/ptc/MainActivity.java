@@ -141,11 +141,6 @@ public class MainActivity extends AppCompatActivity {
                 result -> {
                     if (result.getResultCode() == RESULT_OK && result.getData() != null && result.getData().getData() != null) {
                         Uri uri = result.getData().getData();
-                        if (!isTreeSelectionUsable(uri)) {
-                            updateLogs("Esa carpeta no se puede usar. Elige una subcarpeta como Download o crea una nueva.");
-                            launchFolderPicker(true);
-                            return;
-                        }
                         saveExportUri(uri);
                         updateLogs("Carpeta de exportación actualizada: " + uri);
                         exportToSelectedFolder(uri);
@@ -804,22 +799,33 @@ public class MainActivity extends AppCompatActivity {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
                 | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-          
-            Uri downloadsDir = DocumentsContract.buildTreeDocumentUri("com.android.externalstorage.documents", "primary:Download");
-
-            Uri downloadsDir = DocumentsContract.buildDocumentUri("com.android.externalstorage.documents", "primary:Download");
-
-            intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, downloadsDir);
-        }
+                | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+                | Intent.FLAG_GRANT_PREFIX_URI_PERMISSION);
+        intent.putExtra("android.provider.extra.SHOW_ADVANCED", true);
 
         if (forceChange) {
             clearSavedExportUri();
         }
 
+        Uri initialUri = resolveInitialFolderUri();
+        if (initialUri != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, initialUri);
+        }
+
         folderPickerLauncher.launch(intent);
+    }
+
+    private Uri resolveInitialFolderUri() {
+        Uri saved = getSavedExportUri();
+        if (saved != null) {
+            return saved;
+        }
+
+        try {
+            return DocumentsContract.buildTreeDocumentUri("com.android.externalstorage.documents", "primary:Download");
+        } catch (Exception ignore) {
+            return null;
+        }
     }
 
     private void exportToSelectedFolder(Uri treeUri) {
@@ -852,11 +858,6 @@ public class MainActivity extends AppCompatActivity {
                     ? "Exportación exitosa: " + finalCount + " archivos."
                     : "No fue posible exportar archivos.");
         });
-    }
-
-    private boolean isTreeSelectionUsable(Uri treeUri) {
-        String docId = DocumentsContract.getTreeDocumentId(treeUri);
-        return docId != null && docId.contains(":") && !"primary:".equalsIgnoreCase(docId);
     }
 
     private boolean saveFileToDocumentTree(Uri treeUri, String displayName, File sourceFile) {
@@ -920,12 +921,27 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void saveExportUri(Uri uri) {
-        getContentResolver().takePersistableUriPermission(uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-        getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-                .edit()
-                .putString(KEY_EXPORT_URI, uri.toString())
-                .apply();
+        try {
+            Uri previous = getSavedExportUri();
+            if (previous != null && !previous.equals(uri)) {
+                try {
+                    getContentResolver().releasePersistableUriPermission(previous,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                } catch (Exception ignored) {
+                    // Some providers may reject releasing old permissions; continue with new one.
+                }
+            }
+
+            getContentResolver().takePersistableUriPermission(uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                    .edit()
+                    .putString(KEY_EXPORT_URI, uri.toString())
+                    .apply();
+        } catch (SecurityException sec) {
+            Log.e(TAG, "No se pudo persistir permiso SAF", sec);
+            updateLogs("No se pudo guardar permiso de carpeta. Vuelve a seleccionarla.");
+        }
     }
 
     private Uri getSavedExportUri() {
@@ -943,6 +959,16 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void clearSavedExportUri() {
+        Uri previous = getSavedExportUri();
+        if (previous != null) {
+            try {
+                getContentResolver().releasePersistableUriPermission(previous,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            } catch (Exception ignored) {
+                // Ignore release failures from provider quirks.
+            }
+        }
+
         getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
                 .edit()
                 .remove(KEY_EXPORT_URI)
