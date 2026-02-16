@@ -227,6 +227,17 @@
                         android:text="+ Archivo"
                         android:textAllCaps="false"
                         android:textSize="11sp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_import_file"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:minWidth="0dp"
+                        android:text="Cargar"
+                        android:textAllCaps="false"
+                        android:textSize="11sp" />
                 </LinearLayout>
 
                 <ScrollView
