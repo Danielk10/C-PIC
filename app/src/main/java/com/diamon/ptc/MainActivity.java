@@ -35,9 +35,12 @@ import com.diamon.ptc.databinding.ActivityMainBinding;
 import com.diamon.ptc.policy.PolicyActivity;
 import com.google.android.material.button.MaterialButton;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.InputStreamReader;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -63,10 +66,9 @@ public class MainActivity extends AppCompatActivity {
     private static final String DEFAULT_ASM_FILE = "main.asm";
     private static final String DEFAULT_C_FILE = "main.c";
 
-    private static final String DEFAULT_ASM = "; Ejemplo PIC16F628A\n" +
+    private static final String DEFAULT_ASM = "; Código de prueba para PIC16F628A\n" +
             "    PROCESSOR 16F628A\n" +
             "    INCLUDE \"P16F628A.INC\"\n\n" +
-            "    __CONFIG _INTRC_OSC_NOCLKOUT & _WDT_OFF & _PWRTE_ON & _MCLRE_ON & _BODEN_OFF & _LVP_OFF & _CP_OFF\n\n" +
             "    ORG 0x00\n" +
             "START:\n" +
             "    BANKSEL TRISB\n" +
@@ -78,18 +80,29 @@ public class MainActivity extends AppCompatActivity {
             "    END\n";
 
     private static final String DEFAULT_C = "#include <pic14/pic16f628a.h>\n\n" +
+            "// Ejemplo básico para PIC16F628A\n" +
             "void main(void) {\n" +
-            "    TRISB = 0x00;\n" +
-            "    while (1) {\n" +
+            "    TRISB = 0x00; // Puerto B como salida\n" +
+            "    while(1) {\n" +
             "        PORTB = 0xFF;\n" +
+            "        for(unsigned int i=0; i<1000; i++); // Retardo\n" +
+            "        PORTB = 0x00;\n" +
+            "        for(unsigned int i=0; i<1000; i++);\n" +
             "    }\n" +
             "}\n";
 
-    private static final Pattern C_PATTERN = Pattern.compile("\\b(void|int|char|unsigned|if|else|while|for|return|static|const|struct|switch|case|break|volatile|typedef|enum|union|signed|long|short)\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern C_PATTERN = Pattern.compile("\\b(void|int|char|unsigned|if|else|while|for|return|static|const|struct|switch|case|break|volatile|typedef|enum|union|signed|long|short|float|double|sizeof|do|goto)\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern C_PREPROCESSOR_PATTERN = Pattern.compile("(?m)^\\s*#\\s*(include|define|ifdef|ifndef|if|elif|else|endif|pragma|error|warning|undef)\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern C_COMMENT_PATTERN = Pattern.compile("//.*$|/\\*.*?\\*/", Pattern.MULTILINE | Pattern.DOTALL);
-    private static final Pattern ASM_PATTERN = Pattern.compile("\\b(PROCESSOR|INCLUDE|ORG|END|MOVLW|MOVWF|GOTO|CALL|CLRF|BSF|BCF|BANKSEL|EQU|CONFIG|__CONFIG|TRIS[A-E]?|PORT[A-E]?)\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern C_STRING_PATTERN = Pattern.compile("\"(?:\\\\.|[^\"\\])*\"");
+    private static final Pattern C_NUMBER_PATTERN = Pattern.compile("\\b(0x[0-9a-fA-F]+|\\d+)\\b");
+    private static final Pattern C_FUNCTION_PATTERN = Pattern.compile("\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=\\()", Pattern.MULTILINE);
+
+    private static final Pattern ASM_PATTERN = Pattern.compile("\\b(PROCESSOR|INCLUDE|ORG|END|MOVLW|MOVWF|GOTO|CALL|CLRF|BSF|BCF|BANKSEL|EQU|CONFIG|__CONFIG|TRIS[A-E]?|PORT[A-E]?|BTFSC|BTFSS|INCF|DECF|DECFSZ|RLF|RRF|NOP|RETLW)\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern ASM_COMMENT_PATTERN = Pattern.compile(";.*$", Pattern.MULTILINE);
+    private static final Pattern ASM_LABEL_PATTERN = Pattern.compile("(?m)^\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s*:");
+    private static final Pattern ASM_NUMBER_PATTERN = Pattern.compile("\\b(0x[0-9a-fA-F]+|\\d+)\\b");
+    private static final Pattern ASM_STRING_PATTERN = Pattern.compile("\"(?:\\\\.|[^\"\\])*\"");
 
     private static class ModuleState {
         final LinkedHashMap<String, String> files = new LinkedHashMap<>();
@@ -103,6 +116,7 @@ public class MainActivity extends AppCompatActivity {
     private GpUtilsExecutor gpUtils;
     private SdccExecutor sdcc;
     private ActivityResultLauncher<Intent> folderPickerLauncher;
+    private ActivityResultLauncher<Intent> sourceFilePickerLauncher;
 
     private final ModuleState asmState = new ModuleState();
     private final ModuleState cState = new ModuleState();
@@ -122,6 +136,7 @@ public class MainActivity extends AppCompatActivity {
         initModuleStates();
         currentModeIsC = binding.toggleLanguage.getCheckedButtonId() == binding.btnLangC.getId();
         setupFolderPicker();
+        setupSourceFilePicker();
         setupListeners();
         renderCurrentModule();
         initResources();
@@ -148,6 +163,30 @@ public class MainActivity extends AppCompatActivity {
                 });
     }
 
+    private void setupSourceFilePicker() {
+        sourceFilePickerLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() != RESULT_OK || result.getData() == null) {
+                        return;
+                    }
+                    List<Uri> uris = new ArrayList<>();
+                    Intent data = result.getData();
+                    if (data.getData() != null) {
+                        uris.add(data.getData());
+                    }
+                    if (data.getClipData() != null) {
+                        for (int i = 0; i < data.getClipData().getItemCount(); i++) {
+                            Uri uri = data.getClipData().getItemAt(i).getUri();
+                            if (uri != null) {
+                                uris.add(uri);
+                            }
+                        }
+                    }
+                    importSourceFiles(uris);
+                });
+    }
+
     @Override
     public boolean onCreateOptionsMenu(android.view.Menu menu) {
         getMenuInflater().inflate(R.menu.main_menu, menu);
@@ -166,6 +205,9 @@ public class MainActivity extends AppCompatActivity {
             return true;
         } else if (id == R.id.action_about) {
             showAboutDialog();
+            return true;
+        } else if (id == R.id.action_import_sources) {
+            launchSourceFilePicker();
             return true;
         } else if (id == R.id.action_change_export_folder) {
             launchFolderPicker(true);
@@ -330,6 +372,111 @@ public class MainActivity extends AppCompatActivity {
         return lower.endsWith(".asm") || lower.endsWith(".inc");
     }
 
+    private void launchSourceFilePicker() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+        sourceFilePickerLauncher.launch(intent);
+    }
+
+    private void importSourceFiles(List<Uri> uris) {
+        if (uris == null || uris.isEmpty()) {
+            updateLogs("No se seleccionaron archivos para importar.");
+            return;
+        }
+
+        ModuleState state = getCurrentState();
+        int imported = 0;
+        String lastImported = null;
+
+        for (Uri uri : uris) {
+            String name = resolveDisplayName(uri);
+            if (name == null || name.trim().isEmpty()) {
+                updateLogs("No se pudo identificar nombre de archivo: " + uri);
+                continue;
+            }
+
+            if (!isValidExtensionForCurrentMode(name)) {
+                updateLogs("Archivo omitido por extensión no válida para " + (isCurrentCMode() ? "C" : "ASM") + ": " + name);
+                continue;
+            }
+
+            String content = readTextFromUri(uri);
+            String uniqueName = makeUniqueFileName(state, name);
+            state.files.put(uniqueName, content);
+            state.activeFile = uniqueName;
+            imported++;
+            lastImported = uniqueName;
+            updateLogs("Archivo importado: " + uniqueName);
+        }
+
+        if (imported > 0) {
+            refreshTabs();
+            loadActiveFileInEditor();
+            updateLogs("> ¡Importación exitosa! " + imported + " archivo(s) cargado(s) en pestañas nuevas.");
+            if (lastImported != null) {
+                updateLogs("Archivo activo: " + lastImported);
+            }
+        }
+    }
+
+    private String resolveDisplayName(Uri uri) {
+        String fallback = uri.getLastPathSegment();
+        try (android.database.Cursor cursor = getContentResolver().query(uri,
+                new String[]{android.provider.OpenableColumns.DISPLAY_NAME},
+                null,
+                null,
+                null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                int idx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
+                if (idx >= 0) {
+                    String name = cursor.getString(idx);
+                    if (name != null && !name.trim().isEmpty()) return name.trim();
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "No se pudo leer nombre del archivo", e);
+        }
+        return fallback == null ? null : fallback.trim();
+    }
+
+    private String readTextFromUri(Uri uri) {
+        StringBuilder builder = new StringBuilder();
+        try (InputStream in = getContentResolver().openInputStream(uri);
+             BufferedReader reader = in == null ? null : new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+            if (reader == null) {
+                return "";
+            }
+            String line;
+            while ((line = reader.readLine()) != null) {
+                builder.append(line).append('\n');
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "No se pudo leer archivo importado", e);
+            updateLogs("No se pudo leer: " + uri);
+        }
+        return builder.toString();
+    }
+
+    private String makeUniqueFileName(ModuleState state, String originalName) {
+        if (!state.files.containsKey(originalName)) {
+            return originalName;
+        }
+        String base = originalName;
+        String ext = "";
+        int dot = originalName.lastIndexOf('.');
+        if (dot > 0) {
+            base = originalName.substring(0, dot);
+            ext = originalName.substring(dot);
+        }
+        int i = 1;
+        while (state.files.containsKey(base + "_" + i + ext)) {
+            i++;
+        }
+        return base + "_" + i + ext;
+    }
+
     private void confirmClearEditor() {
         new AlertDialog.Builder(this)
                 .setTitle("Limpiar Editor")
@@ -344,10 +491,16 @@ public class MainActivity extends AppCompatActivity {
 
     private void showAboutDialog() {
         String message = "<b>C PIC Compiler</b><br><br>" +
-                "GUI para <b>GPUTILS</b> y <b>SDCC</b>.<br><br>" +
-                "GPUTILS: <a href='https://sourceforge.net/projects/gputils/'>sourceforge.net/projects/gputils/</a><br><br>" +
-                "SDCC: <a href='https://sourceforge.net/projects/sdcc/'>sourceforge.net/projects/sdcc/</a><br><br>" +
-                "Licencia: <b>GNU GPL v3.0</b>.";
+                "Esta aplicación es una interfaz gráfica (GUI) profesional para las herramientas <b>GPUTILS y SDCC</b>.<br><br>" +
+                "<b>GPUTILS:</b><br>" +
+                "Colección de herramientas de código abierto para microcontroladores Microchip PIC.<br>" +
+                "Sitio web: <a href='https://sourceforge.net/projects/gputils/'>sourceforge.net/projects/gputils/</a><br><br>" +
+                "<b>SDCC (Small Device C Compiler):</b><br>" +
+                "Compilador de C para microcontroladores de 8 bits.<br>" +
+                "Sitio web: <a href='https://sourceforge.net/projects/sdcc/'>sourceforge.net/projects/sdcc/</a><br><br>" +
+                "<b>Licencia del Proyecto:</b><br>" +
+                "C PIC Compiler es software libre y está bajo la licencia <b>GNU GPL v3.0</b>.<br><br>" +
+                "Los binarios incluidos de GPUTILS y SDCC también se distribuyen bajo sus propias licencias GPL.";
 
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("Acerca de / Licencias")
@@ -410,26 +563,27 @@ public class MainActivity extends AppCompatActivity {
                 spannable.removeSpan(span);
             }
 
-            Pattern keywordPattern = isCurrentCMode() ? C_PATTERN : ASM_PATTERN;
-            Pattern commentPattern = isCurrentCMode() ? C_COMMENT_PATTERN : ASM_COMMENT_PATTERN;
             @ColorInt int keywordColor = 0xFF80CBC4;
+            @ColorInt int preprocessorColor = 0xFFBA68C8;
+            @ColorInt int numberColor = 0xFFFFB74D;
+            @ColorInt int stringColor = 0xFFE6EE9C;
+            @ColorInt int symbolColor = 0xFF64B5F6;
             @ColorInt int commentColor = 0xFF7F8C8D;
 
-            Matcher keywordMatcher = keywordPattern.matcher(spannable.toString());
-            while (keywordMatcher.find()) {
-                spannable.setSpan(new ForegroundColorSpan(keywordColor), keywordMatcher.start(), keywordMatcher.end(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-            }
-
+            String source = spannable.toString();
             if (isCurrentCMode()) {
-                Matcher preprocessorMatcher = C_PREPROCESSOR_PATTERN.matcher(spannable.toString());
-                while (preprocessorMatcher.find()) {
-                    spannable.setSpan(new ForegroundColorSpan(keywordColor), preprocessorMatcher.start(), preprocessorMatcher.end(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                }
-            }
-
-            Matcher commentMatcher = commentPattern.matcher(spannable.toString());
-            while (commentMatcher.find()) {
-                spannable.setSpan(new ForegroundColorSpan(commentColor), commentMatcher.start(), commentMatcher.end(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                applyPatternColor(spannable, source, C_PATTERN, keywordColor);
+                applyPatternColor(spannable, source, C_PREPROCESSOR_PATTERN, preprocessorColor);
+                applyPatternColor(spannable, source, C_NUMBER_PATTERN, numberColor);
+                applyPatternColor(spannable, source, C_STRING_PATTERN, stringColor);
+                applyPatternColor(spannable, source, C_FUNCTION_PATTERN, symbolColor);
+                applyPatternColor(spannable, source, C_COMMENT_PATTERN, commentColor);
+            } else {
+                applyPatternColor(spannable, source, ASM_PATTERN, keywordColor);
+                applyPatternColor(spannable, source, ASM_LABEL_PATTERN, symbolColor);
+                applyPatternColor(spannable, source, ASM_NUMBER_PATTERN, numberColor);
+                applyPatternColor(spannable, source, ASM_STRING_PATTERN, stringColor);
+                applyPatternColor(spannable, source, ASM_COMMENT_PATTERN, commentColor);
             }
 
             editable.replace(0, editable.length(), spannable);
@@ -438,6 +592,13 @@ public class MainActivity extends AppCompatActivity {
             binding.editAsm.setSelection(safeStart, safeEnd);
         } finally {
             isApplyingHighlight = false;
+        }
+    }
+
+    private void applyPatternColor(SpannableStringBuilder spannable, String source, Pattern pattern, @ColorInt int color) {
+        Matcher matcher = pattern.matcher(source);
+        while (matcher.find()) {
+            spannable.setSpan(new ForegroundColorSpan(color), matcher.start(), matcher.end(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
     }
 
@@ -524,9 +685,9 @@ public class MainActivity extends AppCompatActivity {
         }
 
         if (isCurrentCMode()) {
-            compileCProject(projectDir, selectedPic, snapshotFiles);
+            compileCProject(projectDir, projectName, selectedPic, snapshotFiles);
         } else {
-            assembleAsmProject(projectDir, selectedPic, snapshotFiles);
+            assembleAsmProject(projectDir, projectName, selectedPic, snapshotFiles);
         }
     }
 
@@ -542,7 +703,7 @@ public class MainActivity extends AppCompatActivity {
         return false;
     }
 
-    private void assembleAsmProject(File projectDir, String selectedPic, LinkedHashMap<String, String> snapshotFiles) {
+    private void assembleAsmProject(File projectDir, String projectName, String selectedPic, LinkedHashMap<String, String> snapshotFiles) {
         executor.execute(() -> {
             String mainFile = pickMainFile(snapshotFiles, ".asm");
             if (mainFile == null) {
@@ -550,17 +711,20 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
+
             updateLogs("Ensamblando " + mainFile + " para " + selectedPic + "...");
             String result = gpUtils.executeGpasm(projectDir,
                     "-I", projectDir.getAbsolutePath(),
+                    "-o", projectName + ".hex",
                     "-p", selectedPic.toLowerCase(Locale.ROOT),
                     mainFile);
-            updateLogs("Log GPASM:\n" + result);
-            checkGenerationSuccess(projectDir, ".hex");
+            updateLogs("Log GPASM completo:\n" + result);
+            renameGeneratedArtifacts(projectDir, mainFile, projectName, false);
+            checkGenerationSuccess(projectDir, ".hex", false);
         });
     }
 
-    private void compileCProject(File projectDir, String selectedPic, LinkedHashMap<String, String> snapshotFiles) {
+    private void compileCProject(File projectDir, String projectName, String selectedPic, LinkedHashMap<String, String> snapshotFiles) {
         executor.execute(() -> {
             List<String> cFiles = new ArrayList<>();
             for (String file : snapshotFiles.keySet()) {
@@ -575,16 +739,25 @@ public class MainActivity extends AppCompatActivity {
             }
 
             String arch = selectedPic.toUpperCase(Locale.ROOT).startsWith("18") ? "pic16" : "pic14";
+
+            String mainFile = pickMainFile(snapshotFiles, ".c");
+            if (mainFile == null) {
+                updateLogs("No se encontró archivo principal .c para definir nombre de salida.");
+                return;
+            }
+
             List<String> args = new ArrayList<>(Arrays.asList(
                     "-m" + arch,
                     "-p" + selectedPic.toLowerCase(Locale.ROOT),
                     "--use-non-free",
-                    "-I" + projectDir.getAbsolutePath()));
+                    "-I" + projectDir.getAbsolutePath(),
+                    "-o", projectName + ".hex"));
             args.addAll(cFiles);
 
             String result = sdcc.executeSdcc(projectDir, args.toArray(new String[0]));
-            updateLogs("Log SDCC:\n" + result);
-            checkGenerationSuccess(projectDir, ".hex");
+            updateLogs("Log SDCC completo:\n" + result);
+            renameGeneratedArtifacts(projectDir, mainFile, projectName, true);
+            checkGenerationSuccess(projectDir, ".hex", true);
         });
     }
 
@@ -599,20 +772,64 @@ public class MainActivity extends AppCompatActivity {
         return null;
     }
 
-    private void checkGenerationSuccess(File projectDir, String extension) {
+    private void checkGenerationSuccess(File projectDir, String extension, boolean isCModule) {
         File[] files = projectDir.listFiles();
         if (files == null) {
             updateLogs("No se encontró salida para " + extension);
             return;
         }
 
+        List<String> generatedFiles = new ArrayList<>();
         for (File file : files) {
-            if (file.getName().toLowerCase(Locale.ROOT).endsWith(extension)) {
-                updateLogs("Generado: " + file.getName());
-                return;
+            String lowerName = file.getName().toLowerCase(Locale.ROOT);
+            if (lowerName.endsWith(".hex") || lowerName.endsWith(".cod") || lowerName.endsWith(".lst")
+                    || lowerName.endsWith(".asm") || lowerName.endsWith(".c") || lowerName.endsWith(".inc")
+                    || lowerName.endsWith(".h") || lowerName.endsWith(".rel") || lowerName.endsWith(".o")) {
+                generatedFiles.add(file.getName());
             }
         }
+
+        Collections.sort(generatedFiles);
+        if (!generatedFiles.isEmpty()) {
+            updateLogs("Archivos del proyecto: " + String.join(", ", generatedFiles));
+        }
+
+        File expectedFile = findFirstWithExtension(projectDir, extension);
+        if (expectedFile != null) {
+            updateLogs(isCModule ? "Compilador correctamente." : "Ensamblado correctamente.");
+            updateLogs("> ¡Operación exitosa! Archivo generado: " + expectedFile.getName());
+            return;
+        }
         updateLogs("No se generó salida esperada. Revisa logs.");
+    }
+
+    private void renameGeneratedArtifacts(File projectDir, String sourceFileName, String projectName, boolean includeCSourceOutput) {
+        String sourceBase = sourceFileName;
+        int dot = sourceBase.lastIndexOf('.');
+        if (dot > 0) {
+            sourceBase = sourceBase.substring(0, dot);
+        }
+
+        List<String> extensions = new ArrayList<>(Arrays.asList(".hex", ".cod", ".lst", ".map", ".err", ".obj", ".o", ".rel", ".asm"));
+        if (includeCSourceOutput) {
+            extensions.add(".c");
+        }
+
+        for (String ext : extensions) {
+            File from = new File(projectDir, sourceBase + ext);
+            File to = new File(projectDir, projectName + ext);
+            if (!from.exists() || from.equals(to)) {
+                continue;
+            }
+            if (to.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                to.delete();
+            }
+            boolean renamed = from.renameTo(to);
+            if (renamed) {
+                updateLogs("Renombrado: " + from.getName() + " -> " + to.getName());
+            }
+        }
     }
 
     private File getProjectDir(String projectName) {
@@ -855,7 +1072,7 @@ public class MainActivity extends AppCompatActivity {
 
             int finalCount = count;
             updateLogs(finalCount > 0
-                    ? "Exportación exitosa: " + finalCount + " archivos."
+                    ? "> ¡Exportación exitosa! " + finalCount + " archivos guardados."
                     : "No fue posible exportar archivos.");
         });
     }

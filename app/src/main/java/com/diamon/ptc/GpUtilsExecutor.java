@@ -96,10 +96,14 @@ public class GpUtilsExecutor {
             int exitCode = process.waitFor();
             Log.d(TAG, "Codigo de salida: " + exitCode);
 
-            if (output.length() == 0) {
-                return "Ejecutado con codigo de salida: " + exitCode;
+            String result = output.toString().trim();
+            StringBuilder fullLog = new StringBuilder();
+            fullLog.append("Comando: ").append(String.join(" ", command)).append("\n");
+            fullLog.append("Código de salida: ").append(exitCode);
+            if (!result.isEmpty()) {
+                fullLog.append("\n").append(result);
             }
-            return output.toString().trim();
+            return fullLog.toString().trim();
 
         } catch (Exception e) {
             Log.e(TAG, "Error ejecutando " + binaryName + ": " + e.getMessage());

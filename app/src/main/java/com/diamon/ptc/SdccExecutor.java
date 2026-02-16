@@ -91,10 +91,16 @@ public class SdccExecutor {
 
             int exitCode = process.waitFor();
             String result = output.toString().trim();
-            if (exitCode != 0 && result.isEmpty()) {
-                return "Error: SDCC termino con codigo " + exitCode + ". Revisa Logcat para mas detalles.";
+            StringBuilder fullLog = new StringBuilder();
+            fullLog.append("Comando: ").append(String.join(" ", command)).append("\n");
+            fullLog.append("Código de salida: ").append(exitCode);
+            if (!result.isEmpty()) {
+                fullLog.append("\n").append(result);
             }
-            return result;
+            if (exitCode != 0 && result.isEmpty()) {
+                fullLog.append("\nError: SDCC termino con codigo ").append(exitCode).append(". Revisa Logcat para mas detalles.");
+            }
+            return fullLog.toString().trim();
 
         } catch (Exception e) {
             Log.e(TAG, "Error ejecutando SDCC: " + e.getMessage());
