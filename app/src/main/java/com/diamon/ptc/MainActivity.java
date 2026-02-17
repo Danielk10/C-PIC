@@ -997,7 +997,7 @@ public class MainActivity extends AppCompatActivity {
             // Detectar si la arquitectura es PIC (pic14 o pic16) para determinar la extensión del objeto
             boolean isPicArch = arch.equals("pic14") || arch.equals("pic16");
             String objExtension = isPicArch ? ".o" : ".rel";
-            updateLogs("Arquitectura detectada: " + arch + " -> Archivos objeto: " + objExtension);
+            updateLogs("Arquitectura: " + arch + " -> Extensión de objeto: *" + objExtension + " (SDCC usa GPUTILS como backend para PIC)");
 
             List<String> objFiles = new ArrayList<>();
             for (String cFile : cFiles) {
@@ -1025,7 +1025,9 @@ public class MainActivity extends AppCompatActivity {
                 String objName = getBaseName(cFile) + objExtension;
                 File objFile = new File(projectDir, objName);
                 if (!objFile.exists()) {
-                    updateLogs("No se generó el objeto esperado: " + objName + " y Este comportamiento es esperado cuando SDCC usa GPUTILS como backend para PIC.");
+                    updateLogs("No se generó el objeto esperado: " + objName);
+                    updateLogs("Nota: Para arquitecturas PIC, SDCC invoca internamente a GPASM (de GPUTILS).");
+                    updateLogs("El archivo *" + objExtension + " debería haberse generado. Verifica el log de compilación.");
                     return;
                 }
                 objFiles.add(objName);
