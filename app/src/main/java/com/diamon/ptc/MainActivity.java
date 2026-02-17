@@ -1,6 +1,8 @@
 package com.diamon.ptc;
 
 import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -25,6 +27,7 @@ import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.PopupWindow;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -146,8 +149,31 @@ public class MainActivity extends AppCompatActivity {
         setupFolderPicker();
         setupSourceFilePicker();
         setupListeners();
+        setupLogCopySupport();
         renderCurrentModule();
         initResources();
+    }
+
+    private void setupLogCopySupport() {
+        binding.textLogs.setTextIsSelectable(true);
+        binding.textLogs.setLongClickable(true);
+        binding.textLogs.setOnLongClickListener(v -> {
+            String logs = binding.textLogs.getText() == null ? "" : binding.textLogs.getText().toString();
+            if (logs.trim().isEmpty()) {
+                Toast.makeText(this, "No hay texto en el log para copiar.", Toast.LENGTH_SHORT).show();
+                return true;
+            }
+
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            if (clipboard == null) {
+                Toast.makeText(this, "No se pudo acceder al portapapeles.", Toast.LENGTH_SHORT).show();
+                return true;
+            }
+
+            clipboard.setPrimaryClip(ClipData.newPlainText("logs", logs));
+            Toast.makeText(this, "Logs copiados al portapapeles.", Toast.LENGTH_SHORT).show();
+            return true;
+        });
     }
 
     private void initModuleStates() {
@@ -796,6 +822,11 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
+        if (!hasAtLeastOneNonEmptySource(state)) {
+            updateLogs("No hay archivos de entrada válidos. Agrega código en al menos una pestaña.");
+            return;
+        }
+
         if (!runToolchainPreflightChecks(isCurrentCMode())) {
             updateLogs("Prechequeo de herramientas falló. Revisa los logs.");
             return;
@@ -806,9 +837,6 @@ public class MainActivity extends AppCompatActivity {
                 : "16F628A";
 
         String projectName = resolveProjectName(true);
-        ensureMainSourceMatchesProject(projectName);
-        refreshTabs();
-        loadActiveFileInEditor();
 
         File projectDir = getProjectDir(projectName);
         if (!projectDir.exists() && !projectDir.mkdirs()) {
@@ -826,10 +854,19 @@ public class MainActivity extends AppCompatActivity {
         }
 
         if (isCurrentCMode()) {
-            compileCProject(projectDir, projectName, selectedPic, snapshotFiles);
+            compileCProject(projectDir, selectedPic, snapshotFiles, state.activeFile, projectName);
         } else {
-            assembleAsmProject(projectDir, projectName, selectedPic, snapshotFiles);
+            assembleAsmProject(projectDir, selectedPic, snapshotFiles, state.activeFile, projectName);
         }
+    }
+
+    private boolean hasAtLeastOneNonEmptySource(ModuleState state) {
+        for (String content : state.files.values()) {
+            if (content != null && !content.trim().isEmpty()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void ensureMainSourceMatchesProject(String projectName) {
@@ -878,42 +915,74 @@ public class MainActivity extends AppCompatActivity {
         return false;
     }
 
-    private void assembleAsmProject(File projectDir, String projectName, String selectedPic, LinkedHashMap<String, String> snapshotFiles) {
+    private void assembleAsmProject(File projectDir, String selectedPic, LinkedHashMap<String, String> snapshotFiles,
+                                    String activeFileName, String projectName) {
         executor.execute(() -> {
-            String mainFile = projectName + ".asm";
-            prepareProjectEntryFile(projectDir, snapshotFiles, mainFile, ".asm");
-            if (!snapshotFiles.containsKey(mainFile)) {
-                snapshotFiles.put(mainFile, readFileContent(new File(projectDir, mainFile)));
-            }
-
-            if (!new File(projectDir, mainFile).exists()) {
-                updateLogs("Agrega un archivo principal .asm para ensamblar.");
+            List<String> asmFiles = collectSourceFiles(snapshotFiles, ".asm");
+            if (asmFiles.isEmpty()) {
+                updateLogs("Agrega al menos un archivo .asm para ensamblar.");
                 return;
             }
 
-            updateLogs("Ensamblando " + mainFile + " para " + selectedPic + "...");
-            String result = gpUtils.executeGpasm(projectDir,
-                    "-I", projectDir.getAbsolutePath(),
-                    "-o", projectName + ".hex",
-                    "-p", selectedPic.toLowerCase(Locale.ROOT),
-                    mainFile);
-            updateLogs("Log GPASM completo:\n" + result);
-            renameGeneratedArtifacts(projectDir, mainFile, projectName, false);
+            String outputBaseName = resolveOutputBaseName(activeFileName, projectName, ".asm");
+            String preferredEntry = activeFileName != null ? activeFileName : outputBaseName + ".asm";
+            prioritizeMainSource(asmFiles, preferredEntry);
+
+            List<String> objectFiles = new ArrayList<>();
+            String compilePrefix = "Compilando ASM";
+            for (String asmFile : asmFiles) {
+                if (!new File(projectDir, asmFile).exists()) {
+                    updateLogs("No se encontró el archivo fuente: " + asmFile);
+                    return;
+                }
+
+                updateLogs(compilePrefix + " " + asmFile + "...");
+                String asmResult = gpUtils.executeGpasm(projectDir,
+                        "-c",
+                        "-I", projectDir.getAbsolutePath(),
+                        "-p", selectedPic.toLowerCase(Locale.ROOT),
+                        asmFile);
+                updateLogs("Log GPASM para " + asmFile + ":\n" + asmResult);
+                if (didCommandFail(asmResult)) {
+                    updateLogs("Error en " + asmFile + ". Se cancela el enlace.");
+                    return;
+                }
+
+                String objectName = getBaseName(asmFile) + ".o";
+                File objectFile = new File(projectDir, objectName);
+                if (!objectFile.exists()) {
+                    updateLogs("No se generó el objeto esperado: " + objectName);
+                    return;
+                }
+                objectFiles.add(objectName);
+            }
+
+            if (objectFiles.isEmpty()) {
+                updateLogs("No hay objetos ASM para enlazar.");
+                return;
+            }
+
+            List<String> linkArgs = new ArrayList<>();
+            linkArgs.add("-o");
+            linkArgs.add(outputBaseName + ".hex");
+            linkArgs.addAll(objectFiles);
+
+            updateLogs("Enlazando ASM del proyecto...");
+            String linkResult = gpUtils.executeBinary(projectDir, "gplink", linkArgs.toArray(new String[0]));
+            updateLogs("Log GPLINK completo:\n" + linkResult);
+            if (didCommandFail(linkResult)) {
+                updateLogs("Falló el enlace ASM. No se generó HEX.");
+                return;
+            }
+
             checkGenerationSuccess(projectDir, ".hex", false);
         });
     }
 
-    private void compileCProject(File projectDir, String projectName, String selectedPic, LinkedHashMap<String, String> snapshotFiles) {
+    private void compileCProject(File projectDir, String selectedPic, LinkedHashMap<String, String> snapshotFiles,
+                                 String activeFileName, String projectName) {
         executor.execute(() -> {
-            String mainFile = projectName + ".c";
-            prepareProjectEntryFile(projectDir, snapshotFiles, mainFile, ".c");
-
-            List<String> cFiles = new ArrayList<>();
-            for (String file : snapshotFiles.keySet()) {
-                if (file.toLowerCase(Locale.ROOT).endsWith(".c")) {
-                    cFiles.add(file);
-                }
-            }
+            List<String> cFiles = collectSourceFiles(snapshotFiles, ".c");
 
             if (cFiles.isEmpty()) {
                 updateLogs("Agrega al menos un archivo .c para compilar.");
@@ -921,30 +990,119 @@ public class MainActivity extends AppCompatActivity {
             }
 
             String arch = selectedPic.toUpperCase(Locale.ROOT).startsWith("18") ? "pic16" : "pic14";
+            String outputBaseName = resolveOutputBaseName(activeFileName, projectName, ".c");
+            String preferredEntry = activeFileName != null ? activeFileName : outputBaseName + ".c";
+            prioritizeMainSource(cFiles, preferredEntry);
 
-            if (!cFiles.contains(mainFile)) {
-                cFiles.add(0, mainFile);
+            List<String> relFiles = new ArrayList<>();
+            for (String cFile : cFiles) {
+                if (!new File(projectDir, cFile).exists()) {
+                    updateLogs("No se encontró el archivo fuente: " + cFile);
+                    return;
+                }
+
+                updateLogs("Compilando C " + cFile + "...");
+                List<String> compileArgs = new ArrayList<>(Arrays.asList(
+                        "-m" + arch,
+                        "-p" + selectedPic.toLowerCase(Locale.ROOT),
+                        "--use-non-free",
+                        "-c",
+                        "-I" + projectDir.getAbsolutePath(),
+                        cFile
+                ));
+                String compileResult = sdcc.executeSdcc(projectDir, compileArgs.toArray(new String[0]));
+                updateLogs("Log SDCC para " + cFile + ":\n" + compileResult);
+                if (didCommandFail(compileResult)) {
+                    updateLogs("Error en " + cFile + ". Se detiene la compilación del proyecto.");
+                    return;
+                }
+
+                String relName = getBaseName(cFile) + ".rel";
+                File relFile = new File(projectDir, relName);
+                if (!relFile.exists()) {
+                    updateLogs("No se generó el objeto esperado: " + relName);
+                    return;
+                }
+                relFiles.add(relName);
             }
 
-            if (!new File(projectDir, mainFile).exists()) {
-                updateLogs("No se encontró archivo principal .c para definir nombre de salida.");
+            if (relFiles.isEmpty()) {
+                updateLogs("No hay objetos C para enlazar.");
                 return;
             }
 
-            List<String> args = new ArrayList<>(Arrays.asList(
+            List<String> linkArgs = new ArrayList<>(Arrays.asList(
                     "-m" + arch,
                     "-p" + selectedPic.toLowerCase(Locale.ROOT),
                     "--use-non-free",
                     "--out-fmt-ihx",
                     "-I" + projectDir.getAbsolutePath()));
-            args.addAll(cFiles);
+            linkArgs.addAll(relFiles);
+            linkArgs.add("-o");
+            linkArgs.add(outputBaseName + ".hex");
 
-            String result = sdcc.executeSdcc(projectDir, args.toArray(new String[0]));
+            String result = sdcc.executeSdcc(projectDir, linkArgs.toArray(new String[0]));
             updateLogs("Log SDCC completo:\n" + result);
-            normalizeCOutputArtifacts(projectDir, projectName, mainFile);
-            renameGeneratedArtifacts(projectDir, mainFile, projectName, true);
+            if (didCommandFail(result)) {
+                updateLogs("Falló el enlace C. No se generó HEX.");
+                return;
+            }
+
+            normalizeCOutputArtifacts(projectDir, outputBaseName, outputBaseName + ".c");
             checkGenerationSuccess(projectDir, ".hex", true);
         });
+    }
+
+    private List<String> collectSourceFiles(LinkedHashMap<String, String> snapshotFiles, String extension) {
+        List<String> sources = new ArrayList<>();
+        for (String file : snapshotFiles.keySet()) {
+            if (file.toLowerCase(Locale.ROOT).endsWith(extension) && !snapshotFiles.getOrDefault(file, "").trim().isEmpty()) {
+                sources.add(file);
+            }
+        }
+        return sources;
+    }
+
+    private String resolveOutputBaseName(String activeFileName, String fallbackName, String extension) {
+        if (activeFileName != null && activeFileName.toLowerCase(Locale.ROOT).endsWith(extension)) {
+            String base = getBaseName(activeFileName);
+            if (!base.trim().isEmpty()) {
+                return base;
+            }
+        }
+        return fallbackName;
+    }
+
+    private void prioritizeMainSource(List<String> sourceFiles, String preferredFileName) {
+        if (preferredFileName == null) {
+            return;
+        }
+        for (int i = 0; i < sourceFiles.size(); i++) {
+            if (sourceFiles.get(i).equalsIgnoreCase(preferredFileName)) {
+                if (i > 0) {
+                    String main = sourceFiles.remove(i);
+                    sourceFiles.add(0, main);
+                }
+                return;
+            }
+        }
+    }
+
+    private String getBaseName(String fileName) {
+        int dot = fileName.lastIndexOf('.');
+        return dot > 0 ? fileName.substring(0, dot) : fileName;
+    }
+
+    private boolean didCommandFail(String commandOutput) {
+        Matcher matcher = Pattern.compile("Código de salida:\\s*(-?\\d+)").matcher(commandOutput == null ? "" : commandOutput);
+        if (!matcher.find()) {
+            return true;
+        }
+        try {
+            return Integer.parseInt(matcher.group(1)) != 0;
+        } catch (NumberFormatException e) {
+            return true;
+        }
     }
 
     private void normalizeCOutputArtifacts(File projectDir, String projectName, String mainFile) {
