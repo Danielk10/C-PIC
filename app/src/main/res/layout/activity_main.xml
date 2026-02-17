@@ -291,8 +291,10 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:fontFamily="monospace"
+                    android:longClickable="true"
                     android:text="Esperando operación..."
                     android:textColor="#03DAC5"
+                    android:textIsSelectable="true"
                     android:textSize="12sp" />
             </ScrollView>
         </com.google.android.material.card.MaterialCardView>

@@ -1,6 +1,8 @@
 package com.diamon.ptc;
 
 import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -25,6 +27,7 @@ import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.PopupWindow;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -146,8 +149,31 @@ public class MainActivity extends AppCompatActivity {
         setupFolderPicker();
         setupSourceFilePicker();
         setupListeners();
+        setupLogCopySupport();
         renderCurrentModule();
         initResources();
+    }
+
+    private void setupLogCopySupport() {
+        binding.textLogs.setTextIsSelectable(true);
+        binding.textLogs.setLongClickable(true);
+        binding.textLogs.setOnLongClickListener(v -> {
+            String logs = binding.textLogs.getText() == null ? "" : binding.textLogs.getText().toString();
+            if (logs.trim().isEmpty()) {
+                Toast.makeText(this, "No hay texto en el log para copiar.", Toast.LENGTH_SHORT).show();
+                return true;
+            }
+
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            if (clipboard == null) {
+                Toast.makeText(this, "No se pudo acceder al portapapeles.", Toast.LENGTH_SHORT).show();
+                return true;
+            }
+
+            clipboard.setPrimaryClip(ClipData.newPlainText("logs", logs));
+            Toast.makeText(this, "Logs copiados al portapapeles.", Toast.LENGTH_SHORT).show();
+            return true;
+        });
     }
 
     private void initModuleStates() {
