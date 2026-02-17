@@ -12,6 +12,7 @@ import android.provider.DocumentsContract;
 import android.text.Editable;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
+import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.text.method.LinkMovementMethod;
 import android.text.style.ForegroundColorSpan;
@@ -70,11 +71,6 @@ public class MainActivity extends AppCompatActivity {
     private static final String KEY_SELECTED_LANGUAGE = "selected_language";
     private static final String KEY_SELECTED_PIC = "selected_pic";
 
-    private static final String DEFAULT_ASM_FILE = "asm_project1.asm";
-    private static final String DEFAULT_C_FILE = "c_project1.c";
-    private static final String EMPTY_ASM_FILE = "nuevo.asm";
-    private static final String EMPTY_C_FILE = "nuevo.c";
-
     private static final String DEFAULT_ASM = "; Código de prueba para PIC16F628A\n" +
             "    PROCESSOR 16F628A\n" +
             "    INCLUDE \"P16F628A.INC\"\n\n" +
@@ -117,7 +113,8 @@ public class MainActivity extends AppCompatActivity {
     private static class ModuleState {
         final LinkedHashMap<String, String> files = new LinkedHashMap<>();
         String activeFile;
-        String lastProjectName;
+        String currentProjectName; // Nombre efectivo actual (visual y lógico)
+        String genericBaseName;    // Nombre genérico base (ej: asm_project1) reservado
     }
 
     private ActivityMainBinding binding;
@@ -131,6 +128,7 @@ public class MainActivity extends AppCompatActivity {
     private final ModuleState asmState = new ModuleState();
     private final ModuleState cState = new ModuleState();
     private boolean isApplyingHighlight;
+    private boolean isUpdatingProjectName; // Flag para evitar bucles infinitos en el TextWatcher
     private boolean currentModeIsC;
 
     @Override
@@ -143,9 +141,12 @@ public class MainActivity extends AppCompatActivity {
         gpUtils = new GpUtilsExecutor(this);
         sdcc = new SdccExecutor(this);
 
+        initInitialGenericNames();
         initModuleStates();
+        
         currentModeIsC = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getBoolean(KEY_SELECTED_LANGUAGE, false);
         binding.toggleLanguage.check(currentModeIsC ? binding.btnLangC.getId() : binding.btnLangAsm.getId());
+        
         setupFolderPicker();
         setupSourceFilePicker();
         setupListeners();
@@ -154,6 +155,35 @@ public class MainActivity extends AppCompatActivity {
         initResources();
     }
 
+    private void initInitialGenericNames() {
+        // Calcular nombres genéricos al inicio. Se incrementan para que sean únicos.
+        int nextAsm = resolveNextProjectIndex("asm_project", KEY_ASM_COUNTER);
+        int nextC = resolveNextProjectIndex("c_project", KEY_C_COUNTER);
+
+        // Guardamos el nuevo contador para la próxima vez
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
+                .putInt(KEY_ASM_COUNTER, nextAsm)
+                .putInt(KEY_C_COUNTER, nextC)
+                .apply();
+
+        asmState.genericBaseName = "asm_project" + nextAsm;
+        asmState.currentProjectName = asmState.genericBaseName;
+
+        cState.genericBaseName = "c_project" + nextC;
+        cState.currentProjectName = cState.genericBaseName;
+    }
+
+    private void initModuleStates() {
+        // Iniciamos con el archivo principal usando el nombre genérico calculado
+        String asmFile = asmState.genericBaseName + ".asm";
+        asmState.files.put(asmFile, DEFAULT_ASM);
+        asmState.activeFile = asmFile;
+
+        String cFile = cState.genericBaseName + ".c";
+        cState.files.put(cFile, DEFAULT_C);
+        cState.activeFile = cFile;
+    }
+    
     private void setupLogCopySupport() {
         binding.textLogs.setTextIsSelectable(true);
         binding.textLogs.setLongClickable(true);
@@ -174,14 +204,6 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Logs copiados al portapapeles.", Toast.LENGTH_SHORT).show();
             return true;
         });
-    }
-
-    private void initModuleStates() {
-        asmState.files.put(DEFAULT_ASM_FILE, DEFAULT_ASM);
-        asmState.activeFile = DEFAULT_ASM_FILE;
-
-        cState.files.put(DEFAULT_C_FILE, DEFAULT_C);
-        cState.activeFile = DEFAULT_C_FILE;
     }
 
     private void setupFolderPicker() {
@@ -257,6 +279,21 @@ public class MainActivity extends AppCompatActivity {
         binding.btnAssemble.setOnClickListener(v -> assembleCode());
         binding.btnViewHex.setOnClickListener(v -> viewGeneratedFile(".hex"));
         binding.btnExport.setOnClickListener(v -> exportFiles());
+        
+        // Listener para el nombre del proyecto (Sincronización en tiempo real)
+        binding.editProjectName.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { }
+            
+            @Override
+            public void afterTextChanged(Editable s) {
+                if (isUpdatingProjectName) return;
+                
+                String inputName = s.toString().trim();
+                syncProjectNameAndRenameTab(inputName);
+            }
+        });
+
         binding.editAsm.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) { }
@@ -283,26 +320,78 @@ public class MainActivity extends AppCompatActivity {
             updateLogs(isCurrentCMode() ? "Modo C (SDCC)" : "Modo ASM (GPUTILS)");
         });
     }
+    
+    /**
+     * Sincroniza el nombre del proyecto con la pestaña principal en tiempo real.
+     */
+    private void syncProjectNameAndRenameTab(String inputName) {
+        ModuleState state = getCurrentState();
+        String oldEffectiveName = state.currentProjectName;
+        String newEffectiveName;
+        
+        // Si el usuario borra todo el texto, volvemos al nombre genérico (ej. asm_project1)
+        if (inputName.isEmpty()) {
+            newEffectiveName = state.genericBaseName;
+        } else {
+            // Si el usuario escribe algo, ese es el nuevo nombre
+            newEffectiveName = normalizeProjectName(inputName, isCurrentCMode());
+        }
+        
+        if (newEffectiveName.equals(oldEffectiveName)) return;
+
+        // Intentar renombrar la pestaña que coincide con el nombre anterior
+        // Esto asegura que la pestaña principal siempre tenga el nombre del proyecto
+        String ext = isCurrentCMode() ? ".c" : ".asm";
+        String oldFileName = oldEffectiveName + ext;
+        String newFileName = newEffectiveName + ext;
+
+        if (state.files.containsKey(oldFileName)) {
+            // Renombrar la clave en el mapa preservando el contenido
+            String content = state.files.remove(oldFileName);
+            
+            // Colocamos el contenido en la nueva clave (nuevo nombre)
+            if (content != null) {
+                state.files.put(newFileName, content);
+            }
+
+            // Si el archivo activo era el que renombramos, actualizamos la referencia
+            if (oldFileName.equals(state.activeFile)) {
+                state.activeFile = newFileName;
+            }
+            
+            // Actualizamos el nombre actual del proyecto en el estado
+            state.currentProjectName = newEffectiveName;
+
+            refreshTabs();
+        }
+    }
 
     private ModuleState getCurrentState() {
         return isCurrentCMode() ? cState : asmState;
     }
 
     private void renderCurrentModule() {
+        isUpdatingProjectName = true; // Evitar disparar el TextWatcher
         ModuleState state = getCurrentState();
+        
         binding.btnAssemble.setText(isCurrentCMode() ? "COMPILAR" : "ENSAMBLAR");
         binding.editAsm.setHint(isCurrentCMode()
                 ? "// Escribe tu código C aquí..."
                 : "; Escribe tu código ASM aquí...");
 
-        if (state.lastProjectName != null) {
-            binding.editProjectName.setText(state.lastProjectName);
-        } else {
+        // Configurar el EditText con el nombre del usuario.
+        // Si el nombre actual es el genérico, dejamos el campo vacío (o con hint)
+        // para indicar que no hay un nombre personalizado aún.
+        if (state.currentProjectName.equals(state.genericBaseName)) {
             binding.editProjectName.setText("");
+            binding.editProjectName.setHint(state.genericBaseName);
+        } else {
+            binding.editProjectName.setText(state.currentProjectName);
         }
 
         refreshTabs();
         loadActiveFileInEditor();
+        isUpdatingProjectName = false;
     }
 
     private void refreshTabs() {
@@ -368,10 +457,14 @@ public class MainActivity extends AppCompatActivity {
         state.files.remove(fileName);
 
         if (state.files.isEmpty()) {
-            String defaultName = makeUniqueFileName(state, isCurrentCMode() ? EMPTY_C_FILE : EMPTY_ASM_FILE);
+            // Si se cierra todo, se crea un nuevo archivo con el nombre ACTUAL del proyecto.
+            // Esto respeta si el usuario puso un nombre o si está usando el genérico.
+            String ext = isCurrentCMode() ? ".c" : ".asm";
+            String defaultName = state.currentProjectName + ext;
+            
             state.files.put(defaultName, "");
             state.activeFile = defaultName;
-            updateLogs("Se creó una pestaña vacía por defecto: " + defaultName);
+            updateLogs("Se creó una pestaña por defecto: " + defaultName);
         } else if (fileName.equals(state.activeFile)) {
             state.activeFile = state.files.keySet().iterator().next();
         }
@@ -381,7 +474,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void removeSourceFromProjectIfExists(String fileName) {
-        String projectName = resolveProjectName(false);
+        String projectName = resolveProjectName(); // Obtener nombre actual
         if (projectName == null) {
             return;
         }
@@ -390,15 +483,13 @@ public class MainActivity extends AppCompatActivity {
         if (file.exists()) {
             if (file.delete()) {
                 updateLogs("Archivo desligado del proyecto al cerrar pestaña: " + fileName);
-            } else {
-                updateLogs("No se pudo eliminar del proyecto el archivo cerrado: " + fileName);
             }
         }
     }
 
     private void showAddFileDialog() {
         final EditText input = new EditText(this);
-        input.setHint(isCurrentCMode() ? "ej: archivo.c, utils.c, defs.h" : "ej: archivo.asm, macros.inc");
+        input.setHint(isCurrentCMode() ? "ej: utils.c, defs.h" : "ej: macros.inc");
         input.setTextColor(0xFF121212);
         input.setHintTextColor(0xFF5F6368);
         input.setBackgroundResource(android.R.drawable.editbox_background_normal);
@@ -418,10 +509,7 @@ public class MainActivity extends AppCompatActivity {
                     }
 
                     String name = applyDefaultExtensionIfMissing(rawName);
-                    if (!rawName.equals(name)) {
-                        updateLogs("Extensión por defecto aplicada: " + name);
-                    }
-
+                    
                     if (!isValidExtensionForCurrentMode(name)) {
                         updateLogs(isCurrentCMode()
                                 ? "En modo C solo se permiten .c y .h"
@@ -471,12 +559,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private boolean isCSourceFile(String name) {
-        String lower = name.toLowerCase(Locale.ROOT);
+        String lower = name.toLowerCase(Locale.US);
         return lower.endsWith(".c") || lower.endsWith(".h");
     }
 
     private boolean isAsmSourceFile(String name) {
-        String lower = name.toLowerCase(Locale.ROOT);
+        String lower = name.toLowerCase(Locale.US);
         return lower.endsWith(".asm") || lower.endsWith(".inc");
     }
 
@@ -550,13 +638,7 @@ public class MainActivity extends AppCompatActivity {
             }
             refreshTabs();
             loadActiveFileInEditor();
-            updateLogs("> ¡Importación exitosa! " + totalImported + " archivo(s) en pestañas nuevas (C: " + importedToC + ", ASM: " + importedToAsm + ").");
-            if (lastImportedInCurrent != null) {
-                updateLogs("Archivo activo en módulo actual: " + lastImportedInCurrent);
-            }
-            if ((isCurrentCMode() && importedToAsm > 0) || (!isCurrentCMode() && importedToC > 0)) {
-                updateLogs("Se importaron también archivos para el otro módulo. Cambia el selector ASM/C para editarlos.");
-            }
+            updateLogs("> ¡Importación exitosa! " + totalImported + " archivo(s).");
         } else {
             updateLogs("No se importó ningún archivo válido.");
         }
@@ -632,19 +714,15 @@ public class MainActivity extends AppCompatActivity {
 
     private void showAboutDialog() {
         String message = "<b>C PIC Compiler</b><br><br>" +
-                "Esta aplicación es una interfaz gráfica (GUI) profesional para las herramientas GPUTILS y SDCC.<br><br>" +
+                "Interfaz gráfica para GPUTILS y SDCC.<br><br>" +
                 "<b>GPUTILS:</b><br>" +
-                "Colección de herramientas de código abierto para microcontroladores Microchip PIC.<br><br>" +
-                "Sitio web: <a href='https://sourceforge.net/projects/gputils/'>sourceforge.net/projects/gputils/</a><br><br>" +
-                "<b>SDCC (Small Device C Compiler):</b><br>" +
-                "Compilador de C para microcontroladores de 8 bits.<br><br>" +
-                "Sitio web: <a href='https://sourceforge.net/projects/sdcc/'>sourceforge.net/projects/sdcc/</a><br><br>" +
-                "<b>Licencia del Proyecto:</b><br>" +
-                "C PIC Compiler es software libre y está bajo la licencia GNU GPL v3.0.<br><br>" +
-                "Los binarios incluidos de GPUTILS y SDCC también se distribuyen bajo sus propias licencias GPL.";
+                "Herramientas para PIC Microchip.<br><br>" +
+                "<b>SDCC:</b><br>" +
+                "Compilador de C para microcontroladores.<br><br>" +
+                "Licencia GNU GPL v3.0.";
 
         AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("Acerca de / Licencias")
+                .setTitle("Acerca de")
                 .setMessage(HtmlCompat.fromHtml(message, HtmlCompat.FROM_HTML_MODE_COMPACT))
                 .setPositiveButton("Cerrar", null)
                 .show();
@@ -766,10 +844,10 @@ public class MainActivity extends AppCompatActivity {
         String[] files = headerDir.list();
         if (files != null) {
             for (String file : files) {
-                if (file.toLowerCase(Locale.ROOT).endsWith(".inc")) {
+                if (file.toLowerCase(Locale.US).endsWith(".inc")) {
                     String name = file.substring(0, file.length() - 4);
-                    if (name.toLowerCase(Locale.ROOT).startsWith("p")) name = name.substring(1);
-                    pics.add(name.toUpperCase(Locale.ROOT));
+                    if (name.toLowerCase(Locale.US).startsWith("p")) name = name.substring(1);
+                    pics.add(name.toUpperCase(Locale.US));
                 }
             }
         }
@@ -806,9 +884,7 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 @Override
-                public void onNothingSelected(android.widget.AdapterView<?> parent) {
-                    // No-op
-                }
+                public void onNothingSelected(android.widget.AdapterView<?> parent) { }
             });
         });
     }
@@ -836,13 +912,16 @@ public class MainActivity extends AppCompatActivity {
                 ? binding.spinnerPic.getSelectedItem().toString()
                 : "16F628A";
 
-        String projectName = resolveProjectName(true);
+        String projectName = resolveProjectName();
 
         File projectDir = getProjectDir(projectName);
         if (!projectDir.exists() && !projectDir.mkdirs()) {
             updateLogs("No se pudo crear directorio de proyecto.");
             return;
         }
+
+        // Limpiar archivos anteriores para asegurar una compilación limpia
+        cleanupProjectDir(projectDir);
 
         LinkedHashMap<String, String> snapshotFiles = new LinkedHashMap<>(state.files);
         for (String fileName : snapshotFiles.keySet()) {
@@ -860,6 +939,17 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void cleanupProjectDir(File projectDir) {
+        File[] files = projectDir.listFiles();
+        if (files == null) return;
+        for (File f : files) {
+            String name = f.getName().toLowerCase(Locale.US);
+            if (name.endsWith(".hex") || name.endsWith(".o") || name.endsWith(".rel") || name.endsWith(".ihx") || name.endsWith(".cod")) {
+                f.delete();
+            }
+        }
+    }
+
     private boolean hasAtLeastOneNonEmptySource(ModuleState state) {
         for (String content : state.files.values()) {
             if (content != null && !content.trim().isEmpty()) {
@@ -867,40 +957,6 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         return false;
-    }
-
-    private void ensureMainSourceMatchesProject(String projectName) {
-        ModuleState state = getCurrentState();
-        String extension = isCurrentCMode() ? ".c" : ".asm";
-        String desiredMain = projectName + extension;
-
-        if (state.files.containsKey(desiredMain)) {
-            state.activeFile = desiredMain;
-            return;
-        }
-
-        String sourceFile = pickMainFile(state.files, extension);
-        String content = sourceFile == null
-                ? (isCurrentCMode() ? DEFAULT_C : DEFAULT_ASM)
-                : state.files.getOrDefault(sourceFile, "");
-
-        if (sourceFile != null && shouldReplaceWithProjectMain(sourceFile, extension)) {
-            state.files.remove(sourceFile);
-        }
-
-        state.files.put(desiredMain, content);
-        state.activeFile = desiredMain;
-    }
-
-    private boolean shouldReplaceWithProjectMain(String fileName, String extension) {
-        String lower = fileName.toLowerCase(Locale.ROOT);
-        if (lower.equals("nuevo" + extension)) {
-            return true;
-        }
-        if (isCurrentCMode()) {
-            return lower.matches("c_project\\d+\\.c");
-        }
-        return lower.matches("asm_project\\d+\\.asm");
     }
 
     private boolean runToolchainPreflightChecks(boolean forCModule) {
@@ -924,9 +980,17 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
-            String outputBaseName = resolveOutputBaseName(activeFileName, projectName, ".asm");
-            String preferredEntry = activeFileName != null ? activeFileName : outputBaseName + ".asm";
+            // Si el archivo activo es asm, lo priorizamos como punto de entrada.
+            // Si no, buscamos uno que coincida con el nombre del proyecto.
+            String projectMain = projectName + ".asm";
+            String preferredEntry = (activeFileName != null && activeFileName.endsWith(".asm")) 
+                                    ? activeFileName 
+                                    : projectMain;
+                                    
             prioritizeMainSource(asmFiles, preferredEntry);
+
+            // El nombre base de salida será el del nombre del proyecto
+            String outputBaseName = projectName;
 
             List<String> objectFiles = new ArrayList<>();
             String compilePrefix = "Compilando ASM";
@@ -940,7 +1004,7 @@ public class MainActivity extends AppCompatActivity {
                 String asmResult = gpUtils.executeGpasm(projectDir,
                         "-c",
                         "-I", projectDir.getAbsolutePath(),
-                        "-p", selectedPic.toLowerCase(Locale.ROOT),
+                        "-p", selectedPic.toLowerCase(Locale.US),
                         asmFile);
                 updateLogs("Log GPASM para " + asmFile + ":\n" + asmResult);
                 if (didCommandFail(asmResult)) {
@@ -989,19 +1053,16 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
-            String arch = selectedPic.toUpperCase(Locale.ROOT).startsWith("18") ? "pic16" : "pic14";
-            String outputBaseName = resolveOutputBaseName(activeFileName, projectName, ".c");
-            String preferredEntry = activeFileName != null ? activeFileName : outputBaseName + ".c";
+            String arch = selectedPic.toUpperCase(Locale.US).startsWith("18") ? "pic16" : "pic14";
+            
+            String projectMain = projectName + ".c";
+            String preferredEntry = (activeFileName != null && activeFileName.endsWith(".c")) 
+                                    ? activeFileName 
+                                    : projectMain;
             prioritizeMainSource(cFiles, preferredEntry);
 
-            // Detectar si la arquitectura es PIC (pic14 o pic16) para determinar la extensión del objeto
-            boolean isPicArch = arch.equals("pic14") || arch.equals("pic16");
-            String objExtension = isPicArch ? ".o" : ".rel";
-            updateLogs("Arquitectura detectada: " + arch + " -> Archivos objeto: *" + objExtension);
-            if (isPicArch) {
-                updateLogs("Nota: SDCC usa GPUTILS (gpasm) como backend para arquitecturas PIC.");
-            }
-
+            String outputBaseName = projectName;
+            
             List<String> objFiles = new ArrayList<>();
             for (String cFile : cFiles) {
                 if (!new File(projectDir, cFile).exists()) {
@@ -1009,33 +1070,41 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
 
-                updateLogs("Compilando C " + cFile + "...");
+                updateLogs("Compilando C " + cFile + " (Arch: " + arch + ")...");
                 List<String> compileArgs = new ArrayList<>(Arrays.asList(
                         "-m" + arch,
-                        "-p" + selectedPic.toLowerCase(Locale.ROOT),
+                        "-p" + selectedPic.toLowerCase(Locale.US),
                         "--use-non-free",
                         "-c",
                         "-I" + projectDir.getAbsolutePath(),
                         cFile
                 ));
+                
                 String compileResult = sdcc.executeSdcc(projectDir, compileArgs.toArray(new String[0]));
                 updateLogs("Log SDCC para " + cFile + ":\n" + compileResult);
+                
                 if (didCommandFail(compileResult)) {
-                    updateLogs("Error en " + cFile + ". Se detiene la compilación del proyecto.");
+                    updateLogs("Error en " + cFile + ". Se detiene la compilación.");
                     return;
                 }
 
-                String objName = getBaseName(cFile) + objExtension;
-                File objFile = new File(projectDir, objName);
+                String baseName = getBaseName(cFile);
+                File objFile = new File(projectDir, baseName + ".o");
+                
+                // Si no encontramos el .o, buscar .rel
                 if (!objFile.exists()) {
-                    updateLogs("No se generó el archivo objeto esperado: " + objName);
-                    if (isPicArch) {
-                        updateLogs("SDCC invoca a gpasm internamente. El archivo *" + objExtension + " debería generarse automáticamente.");
-                        updateLogs("Posible causa: Error en la invocación de gpasm o problema con los headers de GPUTILS.");
-                    }
+                     File relFile = new File(projectDir, baseName + ".rel");
+                     if (relFile.exists()) {
+                         objFile = relFile;
+                     }
+                }
+
+                if (!objFile.exists()) {
+                    updateLogs("ERROR CRÍTICO: No se generó archivo objeto para " + cFile);
                     return;
                 }
-                objFiles.add(objName);
+                
+                objFiles.add(objFile.getName());
             }
 
             if (objFiles.isEmpty()) {
@@ -1045,7 +1114,7 @@ public class MainActivity extends AppCompatActivity {
 
             List<String> linkArgs = new ArrayList<>(Arrays.asList(
                     "-m" + arch,
-                    "-p" + selectedPic.toLowerCase(Locale.ROOT),
+                    "-p" + selectedPic.toLowerCase(Locale.US),
                     "--use-non-free",
                     "--out-fmt-ihx",
                     "-I" + projectDir.getAbsolutePath()));
@@ -1061,7 +1130,8 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
-            normalizeCOutputArtifacts(projectDir, outputBaseName, outputBaseName + ".c");
+            // Normalizar salidas
+            normalizeCOutputArtifacts(projectDir, outputBaseName);
             checkGenerationSuccess(projectDir, ".hex", true);
         });
     }
@@ -1069,21 +1139,11 @@ public class MainActivity extends AppCompatActivity {
     private List<String> collectSourceFiles(LinkedHashMap<String, String> snapshotFiles, String extension) {
         List<String> sources = new ArrayList<>();
         for (String file : snapshotFiles.keySet()) {
-            if (file.toLowerCase(Locale.ROOT).endsWith(extension) && !snapshotFiles.getOrDefault(file, "").trim().isEmpty()) {
+            if (file.toLowerCase(Locale.US).endsWith(extension) && !snapshotFiles.getOrDefault(file, "").trim().isEmpty()) {
                 sources.add(file);
             }
         }
         return sources;
-    }
-
-    private String resolveOutputBaseName(String activeFileName, String fallbackName, String extension) {
-        if (activeFileName != null && activeFileName.toLowerCase(Locale.ROOT).endsWith(extension)) {
-            String base = getBaseName(activeFileName);
-            if (!base.trim().isEmpty()) {
-                return base;
-            }
-        }
-        return fallbackName;
     }
 
     private void prioritizeMainSource(List<String> sourceFiles, String preferredFileName) {
@@ -1118,63 +1178,25 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void normalizeCOutputArtifacts(File projectDir, String projectName, String mainFile) {
-        String sourceBase = mainFile;
-        int dot = sourceBase.lastIndexOf('.');
-        if (dot > 0) {
-            sourceBase = sourceBase.substring(0, dot);
-        }
+    private void normalizeCOutputArtifacts(File projectDir, String outputBaseName) {
+        File hexTarget = new File(projectDir, outputBaseName + ".hex");
+        
+        // Buscar cualquier .ihx o .HEX que coincida con lo que SDCC pudo haber generado
+        File[] files = projectDir.listFiles();
+        if (files == null) return;
 
-        File ihxFromProjectName = new File(projectDir, projectName + ".ihx");
-        File ihxFromSource = new File(projectDir, sourceBase + ".ihx");
-        File hexTarget = new File(projectDir, projectName + ".hex");
-
-        File sourceIhx = ihxFromProjectName.exists() ? ihxFromProjectName : ihxFromSource;
-        if (sourceIhx.exists() && !hexTarget.exists()) {
-            boolean renamed = sourceIhx.renameTo(hexTarget);
-            if (renamed) {
-                updateLogs("Renombrado: " + sourceIhx.getName() + " -> " + hexTarget.getName());
+        for (File f : files) {
+            String name = f.getName();
+            if (name.equalsIgnoreCase(outputBaseName + ".ihx") || 
+                name.equalsIgnoreCase(outputBaseName + ".HEX")) {
+                
+                if (!name.equals(hexTarget.getName())) {
+                     if (hexTarget.exists()) hexTarget.delete();
+                     f.renameTo(hexTarget);
+                     updateLogs("Renombrado salida: " + name + " -> " + hexTarget.getName());
+                }
             }
         }
-    }
-
-    private void prepareProjectEntryFile(File projectDir, LinkedHashMap<String, String> snapshotFiles, String targetName, String extension) {
-        if (snapshotFiles.containsKey(targetName)) {
-            return;
-        }
-
-        String sourceFile = pickMainFile(snapshotFiles, extension);
-        if (sourceFile == null) {
-            return;
-        }
-
-        String content = snapshotFiles.getOrDefault(sourceFile, "");
-        snapshotFiles.put(targetName, content);
-        FileManager.writeToFile(new File(projectDir, targetName), content);
-    }
-
-    private String readFileContent(File file) {
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line).append('\n');
-            }
-            return sb.toString();
-        } catch (Exception e) {
-            return "";
-        }
-    }
-
-    private String pickMainFile(LinkedHashMap<String, String> files, String ext) {
-        String expected = "main" + ext;
-        for (String file : files.keySet()) {
-            if (file.equalsIgnoreCase(expected)) return file;
-        }
-        for (String file : files.keySet()) {
-            if (file.toLowerCase(Locale.ROOT).endsWith(ext)) return file;
-        }
-        return null;
     }
 
     private void checkGenerationSuccess(File projectDir, String extension, boolean isCModule) {
@@ -1185,8 +1207,13 @@ public class MainActivity extends AppCompatActivity {
         }
 
         List<String> generatedFiles = new ArrayList<>();
+        File expectedFile = null;
+        
         for (File file : files) {
-            String lowerName = file.getName().toLowerCase(Locale.ROOT);
+            String lowerName = file.getName().toLowerCase(Locale.US);
+            if (lowerName.endsWith(extension)) {
+                 expectedFile = file;
+            }
             if (lowerName.endsWith(".hex") || lowerName.endsWith(".ihx") || lowerName.endsWith(".cod") || lowerName.endsWith(".lst")
                     || lowerName.endsWith(".asm") || lowerName.endsWith(".c") || lowerName.endsWith(".inc")
                     || lowerName.endsWith(".h") || lowerName.endsWith(".rel") || lowerName.endsWith(".o")) {
@@ -1196,103 +1223,37 @@ public class MainActivity extends AppCompatActivity {
 
         Collections.sort(generatedFiles);
         if (!generatedFiles.isEmpty()) {
-            updateLogs("Archivos del proyecto: " + String.join(", ", generatedFiles));
+            updateLogs("Archivos generados: " + TextUtils.join(", ", generatedFiles));
         }
 
-        File expectedFile = findFirstWithExtension(projectDir, extension);
         if (expectedFile != null) {
             updateLogs(isCModule ? "✓ Compilación exitosa." : "✓ Ensamblado exitoso.");
             updateLogs("> ¡Operación completada! Archivo generado: " + expectedFile.getName());
             return;
         }
-        updateLogs("No se generó salida esperada. Revisa logs.");
-    }
-
-    private void renameGeneratedArtifacts(File projectDir, String sourceFileName, String projectName, boolean includeCSourceOutput) {
-        String sourceBase = sourceFileName;
-        int dot = sourceBase.lastIndexOf('.');
-        if (dot > 0) {
-            sourceBase = sourceBase.substring(0, dot);
-        }
-
-        List<String> extensions = new ArrayList<>(Arrays.asList(".hex", ".cod", ".lst", ".map", ".err", ".obj", ".o", ".rel", ".asm"));
-        if (includeCSourceOutput) {
-            extensions.add(".c");
-        }
-
-        for (String ext : extensions) {
-            File from = new File(projectDir, sourceBase + ext);
-            File to = new File(projectDir, projectName + ext);
-            if (!from.exists() || from.equals(to)) {
-                continue;
-            }
-            if (to.exists()) {
-                //noinspection ResultOfMethodCallIgnored
-                to.delete();
-            }
-            boolean renamed = from.renameTo(to);
-            if (renamed) {
-                updateLogs("Renombrado: " + from.getName() + " -> " + to.getName());
-            }
-        }
+        updateLogs("No se generó salida esperada (" + extension + "). Revisa logs de error.");
     }
 
     private File getProjectDir(String projectName) {
         return new File(new File(getFilesDir(), "projects"), projectName);
     }
 
-    private String resolveProjectName(boolean createIfMissing) {
-        ModuleState state = getCurrentState();
-        String uiValue = binding.editProjectName.getText() == null ? "" : binding.editProjectName.getText().toString().trim();
-        boolean isC = isCurrentCMode();
-
-        if (!uiValue.isEmpty()) {
-            String normalized = normalizeProjectName(uiValue, isC);
-            state.lastProjectName = normalized;
-            binding.editProjectName.setText(normalized);
-            return normalized;
-        }
-
-        if (state.lastProjectName != null) {
-            binding.editProjectName.setText(state.lastProjectName);
-            return state.lastProjectName;
-        }
-
-        if (!createIfMissing) {
-            return null;
-        }
-
-        android.content.SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-        String generated;
-        if (isC) {
-            int next = resolveNextProjectIndex("c_project", KEY_C_COUNTER);
-            prefs.edit().putInt(KEY_C_COUNTER, next).apply();
-            generated = "c_project" + next;
-        } else {
-            int next = resolveNextProjectIndex("asm_project", KEY_ASM_COUNTER);
-            prefs.edit().putInt(KEY_ASM_COUNTER, next).apply();
-            generated = "asm_project" + next;
-        }
-
-        state.lastProjectName = generated;
-        binding.editProjectName.setText(generated);
-        return generated;
+    /**
+     * Devuelve el nombre actual del proyecto. 
+     * Si el usuario escribió algo, devuelve eso (sanitizado).
+     * Si no, devuelve el genérico (ej. asm_project1).
+     */
+    private String resolveProjectName() {
+        return getCurrentState().currentProjectName;
     }
 
     private String normalizeProjectName(String name, boolean isC) {
-        String trimmed = name.trim();
+        String trimmed = name.trim().replaceAll("[^a-zA-Z0-9_]", "_");
         if (trimmed.isEmpty()) {
-            return isC ? "c_project1" : "asm_project1";
+            // Esto no debería ocurrir gracias a la lógica del TextWatcher, pero por seguridad:
+            return isC ? cState.genericBaseName : asmState.genericBaseName;
         }
-
-        String modulePrefix = isC ? "c_" : "asm_";
-        if (trimmed.startsWith("c_project") || trimmed.startsWith("asm_project")) {
-            return trimmed;
-        }
-        if (trimmed.startsWith("c_") || trimmed.startsWith("asm_")) {
-            return trimmed;
-        }
-        return modulePrefix + trimmed;
+        return trimmed;
     }
 
     private int resolveNextProjectIndex(String projectPrefix, String counterKey) {
@@ -1319,7 +1280,6 @@ public class MainActivity extends AppCompatActivity {
                     int n = Integer.parseInt(suffix);
                     if (n > max) max = n;
                 } catch (NumberFormatException ignored) {
-                    // Ignorar nombres fuera de patrón
                 }
             }
         }
@@ -1327,15 +1287,22 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void viewGeneratedFile(String extension) {
-        String projectName = resolveProjectName(false);
+        String projectName = resolveProjectName();
         if (projectName == null) {
             updateLogs("Primero compila o ensambla un proyecto.");
             return;
         }
 
         File projectDir = getProjectDir(projectName);
-        File target = findFirstWithExtension(projectDir, extension);
-        if (target == null) {
+        
+        // Buscar primero el archivo que coincide con el proyecto
+        File target = new File(projectDir, projectName + extension);
+        if (!target.exists()) {
+             // Si no existe con nombre exacto, buscar cualquiera con la extensión
+             target = findFirstWithExtension(projectDir, extension);
+        }
+
+        if (target == null || !target.exists()) {
             updateLogs("No existe archivo " + extension + " para el proyecto actual.");
             return;
         }
@@ -1346,7 +1313,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        if (target.getName().toLowerCase(Locale.ROOT).endsWith(".hex")) {
+        if (target.getName().toLowerCase(Locale.US).endsWith(".hex")) {
             showAdvancedHexViewer(content);
         } else {
             showSimpleTextViewer(target.getName(), content);
@@ -1357,7 +1324,7 @@ public class MainActivity extends AppCompatActivity {
         File[] files = dir.listFiles();
         if (files == null) return null;
         for (File file : files) {
-            if (file.getName().toLowerCase(Locale.ROOT).endsWith(extension)) {
+            if (file.getName().toLowerCase(Locale.US).endsWith(extension)) {
                 return file;
             }
         }
@@ -1432,7 +1399,7 @@ public class MainActivity extends AppCompatActivity {
         StringBuilder ansi = new StringBuilder();
 
         for (byte b : bytes) {
-            hexStr.append(String.format(Locale.ROOT, "%02X ", b));
+            hexStr.append(String.format(Locale.US, "%02X ", b));
             ansi.append((b >= 32 && b <= 126) ? (char) b : '.');
         }
 
@@ -1440,7 +1407,7 @@ public class MainActivity extends AppCompatActivity {
             hexStr.append("   ");
         }
 
-        return new String[] { String.format(Locale.ROOT, "%04X:", startAddr), hexStr.toString().trim(), ansi.toString() };
+        return new String[] { String.format(Locale.US, "%04X:", startAddr), hexStr.toString().trim(), ansi.toString() };
     }
 
     private void exportFiles() {
@@ -1487,13 +1454,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void exportToSelectedFolder(Uri treeUri) {
-        String projectName = resolveProjectName(false);
-        if (projectName == null) {
-            updateLogs("Primero compila o ensambla para exportar.");
-            return;
-        }
-
-        ensureMainSourceMatchesProject(projectName);
+        String projectName = resolveProjectName();
+        // Nota: Ya no forzamos rename aquí, confiamos en la sincronización en tiempo real.
+        
         refreshTabs();
         loadActiveFileInEditor();
 
@@ -1526,6 +1489,7 @@ public class MainActivity extends AppCompatActivity {
         List<File> files = new ArrayList<>();
         ModuleState state = getCurrentState();
 
+        // 1. Exportar fuentes actuales (ya tienen los nombres correctos)
         for (String sourceName : state.files.keySet()) {
             File source = new File(projectDir, sourceName);
             if (source.exists() && source.isFile()) {
@@ -1533,21 +1497,37 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
+        // 2. Exportar artefactos generados (hex, lst, etc.) que coincidan con el nombre del proyecto
+        // o con los archivos fuente
         File[] projectEntries = projectDir.listFiles();
         if (projectEntries != null) {
             for (File file : projectEntries) {
                 if (!file.isFile()) continue;
                 String name = file.getName();
-                if (name.startsWith(projectName + ".")) {
-                    boolean alreadyAdded = false;
-                    for (File existing : files) {
-                        if (existing.getName().equals(name)) {
-                            alreadyAdded = true;
-                            break;
-                        }
+                
+                // Si el archivo ya fue añadido (es fuente), saltar
+                boolean alreadyAdded = false;
+                for (File existing : files) {
+                    if (existing.getName().equals(name)) {
+                        alreadyAdded = true;
+                        break;
                     }
-                    if (!alreadyAdded) {
+                }
+                if (alreadyAdded) continue;
+
+                // Criterio de inclusión para artefactos:
+                // Coincide con nombre del proyecto O coincide con nombre de algún archivo fuente (sin ext)
+                if (name.startsWith(projectName + ".")) {
+                    files.add(file);
+                    continue;
+                }
+                
+                // Chequear si corresponde a un fuente secundario (ej: utils.asm -> utils.o)
+                for (String sourceName : state.files.keySet()) {
+                    String base = getBaseName(sourceName);
+                    if (name.startsWith(base + ".")) {
                         files.add(file);
+                        break;
                     }
                 }
             }
@@ -1617,7 +1597,6 @@ public class MainActivity extends AppCompatActivity {
                     getContentResolver().releasePersistableUriPermission(previous,
                             Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
                 } catch (Exception ignored) {
-                    // Some providers may reject releasing old permissions; continue with new one.
                 }
             }
 
@@ -1654,7 +1633,6 @@ public class MainActivity extends AppCompatActivity {
                 getContentResolver().releasePersistableUriPermission(previous,
                         Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
             } catch (Exception ignored) {
-                // Ignore release failures from provider quirks.
             }
         }
 
@@ -1672,6 +1650,12 @@ public class MainActivity extends AppCompatActivity {
             binding.scrollLogs.post(() -> binding.scrollLogs.fullScroll(View.FOCUS_DOWN));
         });
     }
+
+    static {
+        System.loadLibrary("ptc");
+    }
+
+    public native String stringFromJNI();
 
     @Override
     protected void onDestroy() {
