@@ -489,7 +489,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void showAddFileDialog() {
         final EditText input = new EditText(this);
-        input.setHint(isCurrentCMode() ? "ej: utils.c, defs.h" : "ej: macros.inc");
+        input.setHint(isCurrentCMode() ? "ej: archivo.c, utils.c, defs.h" : "ej: archivo.asm, macros.inc");
         input.setTextColor(0xFF121212);
         input.setHintTextColor(0xFF5F6368);
         input.setBackgroundResource(android.R.drawable.editbox_background_normal);
@@ -714,15 +714,19 @@ public class MainActivity extends AppCompatActivity {
 
     private void showAboutDialog() {
         String message = "<b>C PIC Compiler</b><br><br>" +
-                "Interfaz gráfica para GPUTILS y SDCC.<br><br>" +
+                "Esta aplicación es una interfaz gráfica (GUI) profesional para las herramientas GPUTILS y SDCC.<br><br>" +
                 "<b>GPUTILS:</b><br>" +
-                "Herramientas para PIC Microchip.<br><br>" +
-                "<b>SDCC:</b><br>" +
-                "Compilador de C para microcontroladores.<br><br>" +
-                "Licencia GNU GPL v3.0.";
+                "Colección de herramientas de código abierto para microcontroladores Microchip PIC.<br><br>" +
+                "Sitio web: <a href='https://sourceforge.net/projects/gputils/'>sourceforge.net/projects/gputils/</a><br><br>" +
+                "<b>SDCC (Small Device C Compiler):</b><br>" +
+                "Compilador de C para microcontroladores de 8 bits.<br><br>" +
+                "Sitio web: <a href='https://sourceforge.net/projects/sdcc/'>sourceforge.net/projects/sdcc/</a><br><br>" +
+                "<b>Licencia del Proyecto:</b><br>" +
+                "C PIC Compiler es software libre y está bajo la licencia GNU GPL v3.0.<br><br>" +
+                "Los binarios incluidos de GPUTILS y SDCC también se distribuyen bajo sus propias licencias GPL.";
 
         AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("Acerca de")
+                .setTitle("Acerca de / Licencias")
                 .setMessage(HtmlCompat.fromHtml(message, HtmlCompat.FROM_HTML_MODE_COMPACT))
                 .setPositiveButton("Cerrar", null)
                 .show();
