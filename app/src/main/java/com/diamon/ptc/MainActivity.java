@@ -994,7 +994,12 @@ public class MainActivity extends AppCompatActivity {
             String preferredEntry = activeFileName != null ? activeFileName : outputBaseName + ".c";
             prioritizeMainSource(cFiles, preferredEntry);
 
-            List<String> relFiles = new ArrayList<>();
+            // Detectar si la arquitectura es PIC (pic14 o pic16) para determinar la extensión del objeto
+            boolean isPicArch = arch.equals("pic14") || arch.equals("pic16");
+            String objExtension = isPicArch ? ".o" : ".rel";
+            updateLogs("Arquitectura detectada: " + arch + " -> Archivos objeto: " + objExtension);
+
+            List<String> objFiles = new ArrayList<>();
             for (String cFile : cFiles) {
                 if (!new File(projectDir, cFile).exists()) {
                     updateLogs("No se encontró el archivo fuente: " + cFile);
@@ -1017,16 +1022,16 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
 
-                String relName = getBaseName(cFile) + ".rel";
-                File relFile = new File(projectDir, relName);
-                if (!relFile.exists()) {
-                    updateLogs("No se generó el objeto esperado: " + relName);
+                String objName = getBaseName(cFile) + objExtension;
+                File objFile = new File(projectDir, objName);
+                if (!objFile.exists()) {
+                    updateLogs("No se generó el objeto esperado: " + objName + " y Este comportamiento es esperado cuando SDCC usa GPUTILS como backend para PIC.");
                     return;
                 }
-                relFiles.add(relName);
+                objFiles.add(objName);
             }
 
-            if (relFiles.isEmpty()) {
+            if (objFiles.isEmpty()) {
                 updateLogs("No hay objetos C para enlazar.");
                 return;
             }
@@ -1037,7 +1042,7 @@ public class MainActivity extends AppCompatActivity {
                     "--use-non-free",
                     "--out-fmt-ihx",
                     "-I" + projectDir.getAbsolutePath()));
-            linkArgs.addAll(relFiles);
+            linkArgs.addAll(objFiles);
             linkArgs.add("-o");
             linkArgs.add(outputBaseName + ".hex");
 
@@ -1188,7 +1193,7 @@ public class MainActivity extends AppCompatActivity {
 
         File expectedFile = findFirstWithExtension(projectDir, extension);
         if (expectedFile != null) {
-            updateLogs(isCModule ? "Compilador correctamente." : "Ensamblado correctamente.");
+            updateLogs(isCModule ? "Compilado correctamente." : "Ensamblado correctamente.");
             updateLogs("> ¡Operación exitosa! Archivo generado: " + expectedFile.getName());
             return;
         }
