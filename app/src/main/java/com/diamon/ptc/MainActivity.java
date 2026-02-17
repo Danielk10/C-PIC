@@ -997,7 +997,10 @@ public class MainActivity extends AppCompatActivity {
             // Detectar si la arquitectura es PIC (pic14 o pic16) para determinar la extensión del objeto
             boolean isPicArch = arch.equals("pic14") || arch.equals("pic16");
             String objExtension = isPicArch ? ".o" : ".rel";
-            updateLogs("Arquitectura: " + arch + " -> Extensión de objeto: *" + objExtension + " (SDCC usa GPUTILS como backend para PIC)");
+            updateLogs("Arquitectura detectada: " + arch + " -> Archivos objeto: *" + objExtension);
+            if (isPicArch) {
+                updateLogs("Nota: SDCC usa GPUTILS (gpasm) como backend para arquitecturas PIC.");
+            }
 
             List<String> objFiles = new ArrayList<>();
             for (String cFile : cFiles) {
@@ -1025,9 +1028,11 @@ public class MainActivity extends AppCompatActivity {
                 String objName = getBaseName(cFile) + objExtension;
                 File objFile = new File(projectDir, objName);
                 if (!objFile.exists()) {
-                    updateLogs("No se generó el objeto esperado: " + objName);
-                    updateLogs("Nota: Para arquitecturas PIC, SDCC invoca internamente a GPASM (de GPUTILS).");
-                    updateLogs("El archivo *" + objExtension + " debería haberse generado. Verifica el log de compilación.");
+                    updateLogs("No se generó el archivo objeto esperado: " + objName);
+                    if (isPicArch) {
+                        updateLogs("SDCC invoca a gpasm internamente. El archivo *" + objExtension + " debería generarse automáticamente.");
+                        updateLogs("Posible causa: Error en la invocación de gpasm o problema con los headers de GPUTILS.");
+                    }
                     return;
                 }
                 objFiles.add(objName);
@@ -1048,8 +1053,9 @@ public class MainActivity extends AppCompatActivity {
             linkArgs.add("-o");
             linkArgs.add(outputBaseName + ".hex");
 
+            updateLogs("Enlazando proyecto C...");
             String result = sdcc.executeSdcc(projectDir, linkArgs.toArray(new String[0]));
-            updateLogs("Log SDCC completo:\n" + result);
+            updateLogs("Log SDCC enlace:\n" + result);
             if (didCommandFail(result)) {
                 updateLogs("Falló el enlace C. No se generó HEX.");
                 return;
@@ -1195,8 +1201,8 @@ public class MainActivity extends AppCompatActivity {
 
         File expectedFile = findFirstWithExtension(projectDir, extension);
         if (expectedFile != null) {
-            updateLogs(isCModule ? "Compilado correctamente." : "Ensamblado correctamente.");
-            updateLogs("> ¡Operación exitosa! Archivo generado: " + expectedFile.getName());
+            updateLogs(isCModule ? "✓ Compilación exitosa." : "✓ Ensamblado exitoso.");
+            updateLogs("> ¡Operación completada! Archivo generado: " + expectedFile.getName());
             return;
         }
         updateLogs("No se generó salida esperada. Revisa logs.");
