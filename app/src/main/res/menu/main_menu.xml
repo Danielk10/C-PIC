@@ -3,26 +3,26 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
         android:id="@+id/action_clear_logs"
-        android:title="Limpiar Logs"
+        android:title="@string/menu_clear_logs"
         app:showAsAction="ifRoom" />
     <item
         android:id="@+id/action_clear_editor"
-        android:title="Limpiar Editor"
+        android:title="@string/menu_clear_editor"
         app:showAsAction="never" />
     <item
         android:id="@+id/action_import_sources"
-        android:title="Cargar archivos fuente"
+        android:title="@string/menu_import_sources"
         app:showAsAction="never" />
     <item
         android:id="@+id/action_about"
-        android:title="Acerca de / Licencias"
+        android:title="@string/menu_about"
         app:showAsAction="never" />
     <item
         android:id="@+id/action_change_export_folder"
-        android:title="Cambiar carpeta de exportación"
+        android:title="@string/menu_change_export_folder"
         app:showAsAction="never" />
     <item
         android:id="@+id/action_policy"
-        android:title="Política de Privacidad"
+        android:title="@string/menu_privacy_policy"
         app:showAsAction="never" />
 </menu>

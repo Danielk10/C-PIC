@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App name -->
+    <string name="app_name">C PIC Compiler</string>
+
+    <!-- AdMob IDs (same in all languages) -->
+    <string name="admob_app_id">ca-app-pub-5141499161332805~8263601193</string>
+    <string name="ad_banner_id">ca-app-pub-5141499161332805/1220566600</string>
+    <string name="ad_interstitial_id">ca-app-pub-5141499161332805/8342402367</string>
+
+    <!-- activity_main.xml - PIC Selector -->
+    <string name="label_pic">PIC:</string>
+    <string name="label_language">LANGUAGE:</string>
+    <string name="btn_asm_gputils">ASM (GPUTILS)</string>
+    <string name="btn_c_sdcc">C (SDCC)</string>
+    <string name="label_project">PROJECT:</string>
+    <string name="hint_project_name">project_name</string>
+
+    <!-- activity_main.xml - Editor -->
+    <string name="label_editor">EDITOR</string>
+    <string name="hint_editor_asm">; Write your code here…</string>
+    <string name="hint_editor_c">// Write your C code here…</string>
+
+    <!-- activity_main.xml - Buttons -->
+    <string name="btn_assemble">ASSEMBLE</string>
+    <string name="btn_compile">COMPILE</string>
+    <string name="btn_view_hex">VIEW HEX</string>
+    <string name="btn_export">EXPORT GENERATED FILES</string>
+
+    <!-- activity_main.xml - Loading overlay -->
+    <string name="loading_message">Preparing tools…\nThis will only take a moment the first time.</string>
+
+    <!-- activity_main.xml - Logs -->
+    <string name="log_waiting">Waiting for operation…</string>
+
+    <!-- popup_hex_viewer.xml -->
+    <string name="hex_header_addr">ADDR</string>
+    <string name="hex_header_hex">HEX (L-ENDIAN)</string>
+    <string name="hex_header_ascii">ASCII</string>
+    <string name="btn_close_viewer">Close Viewer</string>
+
+    <!-- menu/main_menu.xml -->
+    <string name="menu_clear_logs">Clear Logs</string>
+    <string name="menu_clear_editor">Clear Editor</string>
+    <string name="menu_import_sources">Load source files</string>
+    <string name="menu_about">About / Licenses</string>
+    <string name="menu_change_export_folder">Change export folder</string>
+    <string name="menu_privacy_policy">Privacy Policy</string>
+
+    <!-- PolicyActivity -->
+    <string name="title_privacy_policy">Privacy Policy</string>
+
+    <!-- Common buttons -->
+    <string name="btn_close">Close</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="btn_yes">Yes</string>
+    <string name="btn_add">Add</string>
+
+    <!-- Dialogs -->
+    <string name="dialog_close_file_title">Close file</string>
+    <string name="dialog_close_file_msg">Delete tab \'%s\'?</string>
+    <string name="dialog_new_file_title">New file</string>
+    <string name="hint_new_file_asm">e.g.: file.asm, macros.inc</string>
+    <string name="hint_new_file_c">e.g.: file.c, utils.c, defs.h</string>
+    <string name="dialog_clear_editor_title">Clear Editor</string>
+    <string name="dialog_clear_editor_msg">Delete the content of the active file?</string>
+    <string name="dialog_about_title">About / Licenses</string>
+
+    <!-- Toasts -->
+    <string name="toast_no_log_text">No text in log to copy.</string>
+    <string name="toast_clipboard_fail">Could not access clipboard.</string>
+    <string name="toast_logs_copied">Logs copied to clipboard.</string>
+</resources>

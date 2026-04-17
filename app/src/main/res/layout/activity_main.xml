@@ -16,7 +16,7 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:title="C PIC Compiler"
+            app:title="@string/app_name"
             app:titleTextColor="#FFFFFF"
             android:theme="@style/ToolbarTheme"
             app:popupTheme="@style/CustomPopupTheme" />
@@ -56,7 +56,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="PIC:"
+                        android:text="@string/label_pic"
                         android:textColor="@color/secondary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
@@ -84,7 +84,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="LENGUAJE:"
+                        android:text="@string/label_language"
                         android:textColor="@color/secondary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
@@ -104,7 +104,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="ASM (GPUTILS)"
+                            android:text="@string/btn_asm_gputils"
                             android:textSize="11sp"
                             android:lines="1"
                             android:ellipsize="end"
@@ -116,7 +116,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="C (SDCC)"
+                            android:text="@string/btn_c_sdcc"
                             android:textSize="11sp"
                             android:lines="1"
                             android:ellipsize="end"
@@ -140,7 +140,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="PROYECTO:"
+                        android:text="@string/label_project"
                         android:textColor="@color/secondary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
@@ -156,7 +156,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:background="#CCCCCC"
-                            android:hint="nombre_del_proyecto"
+                            android:hint="@string/hint_project_name"
                             android:inputType="text"
                             android:padding="8dp"
                             android:lines="1"
@@ -192,7 +192,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="EDITOR"
+                    android:text="@string/label_editor"
                     android:textColor="@color/secondary"
                     android:textSize="12sp"
                     android:textStyle="bold" />
@@ -251,7 +251,7 @@
                             android:background="@null"
                             android:fontFamily="monospace"
                             android:gravity="top"
-                            android:hint="; Escribe tu código aquí..."
+                            android:hint="@string/hint_editor_asm"
                             android:inputType="textMultiLine|textNoSuggestions|textVisiblePassword"
                             android:minHeight="200dp"
                             android:padding="12dp"
@@ -292,7 +292,7 @@
                     android:layout_height="wrap_content"
                     android:fontFamily="monospace"
                     android:longClickable="true"
-                    android:text="Esperando operación..."
+                    android:text="@string/log_waiting"
                     android:textColor="#03DAC5"
                     android:textIsSelectable="true"
                     android:textSize="12sp" />
@@ -306,7 +306,7 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="8dp"
-            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintBottom_toTopOf="@+id/adView_banner"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent">
 
@@ -321,7 +321,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1.2"
                     android:layout_marginEnd="4dp"
-                    android:text="ENSAMBLAR"
+                    android:text="@string/btn_assemble"
                     app:backgroundTint="@color/primary"
                     app:cornerRadius="8dp" />
 
@@ -331,7 +331,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="0.8"
                     android:layout_marginStart="4dp"
-                    android:text="VER HEX"
+                    android:text="@string/btn_view_hex"
                     app:backgroundTint="@color/secondary"
                     app:cornerRadius="8dp" />
             </LinearLayout>
@@ -341,11 +341,22 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="EXPORTAR ARCHIVOS GENERADOS"
+                android:text="@string/btn_export"
                 app:backgroundTint="@color/primary_variant"
                 app:cornerRadius="8dp" />
 
         </LinearLayout>
+
+        <!-- Banner Ad (bottom) -->
+        <com.google.android.gms.ads.AdView
+            android:id="@+id/adView_banner"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:adSize="BANNER"
+            app:adUnitId="@string/ad_banner_id"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -377,7 +388,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:gravity="center"
-                android:text="Preparando herramientas...\nSolo tomará un momento la primera vez."
+                android:text="@string/loading_message"
                 android:textColor="#FFFFFF"
                 android:textSize="14sp"
                 android:textStyle="bold" />

@@ -9,10 +9,13 @@
         
         <item name="android:windowBackground">@color/background</item>
         <item name="android:statusBarColor">@color/background</item>
-        <item name="android:navigationBarColor">@color/background</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
         
         <item name="android:textColorPrimary">@color/on_surface</item>
         
+        <!-- Immersive mode / display cutout support (API 28+) -->
+        <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="o_mr1">shortEdges</item>
+
         <!-- Menu and Popup visibility fixes -->
         <item name="actionMenuTextColor">#FFFFFF</item>
         <item name="android:actionMenuTextColor">#FFFFFF</item>

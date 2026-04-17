@@ -5,6 +5,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import androidx.appcompat.app.AppCompatActivity;
+import com.diamon.ptc.R;
 import com.diamon.ptc.databinding.ActivityPolicyBinding;
 
 public class PolicyActivity extends AppCompatActivity {
@@ -18,7 +19,7 @@ public class PolicyActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
 
         if (getSupportActionBar() != null) {
-            getSupportActionBar().setTitle("Política de Privacidad");
+            getSupportActionBar().setTitle(getString(R.string.title_privacy_policy));
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         }
 

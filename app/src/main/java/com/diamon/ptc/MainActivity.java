@@ -34,6 +34,13 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.ColorInt;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.annotation.NonNull;
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.FullScreenContentCallback;
+import com.google.android.gms.ads.LoadAdError;
+import com.google.android.gms.ads.MobileAds;
+import com.google.android.gms.ads.interstitial.InterstitialAd;
+import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback;
 import androidx.core.text.HtmlCompat;
 import androidx.documentfile.provider.DocumentFile;
 
@@ -130,12 +137,14 @@ public class MainActivity extends AppCompatActivity {
     private boolean isApplyingHighlight;
     private boolean isUpdatingProjectName; // Flag para evitar bucles infinitos en el TextWatcher
     private boolean currentModeIsC;
+    private InterstitialAd mInterstitialAd;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+        enableImmersiveMode();
         setSupportActionBar(binding.toolbar);
 
         gpUtils = new GpUtilsExecutor(this);
@@ -143,16 +152,48 @@ public class MainActivity extends AppCompatActivity {
 
         initInitialGenericNames();
         initModuleStates();
-        
+
         currentModeIsC = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getBoolean(KEY_SELECTED_LANGUAGE, false);
         binding.toggleLanguage.check(currentModeIsC ? binding.btnLangC.getId() : binding.btnLangAsm.getId());
-        
+
         setupFolderPicker();
         setupSourceFilePicker();
         setupListeners();
         setupLogCopySupport();
         renderCurrentModule();
         initResources();
+
+        // Initialize AdMob
+        MobileAds.initialize(this, initializationStatus -> {
+            AdRequest adRequest = new AdRequest.Builder().build();
+            binding.adViewBanner.loadAd(adRequest);
+        });
+        loadInterstitialAd();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            enableImmersiveMode();
+        }
+    }
+
+    /** Activa modo inmersivo: oculta barra de navegación, mantiene barra de estado visible. */
+    private void enableImmersiveMode() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            android.view.WindowInsetsController controller = getWindow().getInsetsController();
+            if (controller != null) {
+                controller.hide(android.view.WindowInsets.Type.navigationBars());
+                controller.setSystemBarsBehavior(
+                    android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+            }
+        } else {
+            //noinspection deprecation
+            getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+        }
     }
 
     private void initInitialGenericNames() {
@@ -190,18 +231,18 @@ public class MainActivity extends AppCompatActivity {
         binding.textLogs.setOnLongClickListener(v -> {
             String logs = binding.textLogs.getText() == null ? "" : binding.textLogs.getText().toString();
             if (logs.trim().isEmpty()) {
-                Toast.makeText(this, "No hay texto en el log para copiar.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.toast_no_log_text), Toast.LENGTH_SHORT).show();
                 return true;
             }
 
             ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
             if (clipboard == null) {
-                Toast.makeText(this, "No se pudo acceder al portapapeles.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.toast_clipboard_fail), Toast.LENGTH_SHORT).show();
                 return true;
             }
 
             clipboard.setPrimaryClip(ClipData.newPlainText("logs", logs));
-            Toast.makeText(this, "Logs copiados al portapapeles.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.toast_logs_copied), Toast.LENGTH_SHORT).show();
             return true;
         });
     }
@@ -374,10 +415,10 @@ public class MainActivity extends AppCompatActivity {
         isUpdatingProjectName = true; // Evitar disparar el TextWatcher
         ModuleState state = getCurrentState();
         
-        binding.btnAssemble.setText(isCurrentCMode() ? "COMPILAR" : "ENSAMBLAR");
+        binding.btnAssemble.setText(isCurrentCMode() ? getString(R.string.btn_compile) : getString(R.string.btn_assemble));
         binding.editAsm.setHint(isCurrentCMode()
-                ? "// Escribe tu código C aquí..."
-                : "; Escribe tu código ASM aquí...");
+                ? getString(R.string.hint_editor_c)
+                : getString(R.string.hint_editor_asm));
 
         // Configurar el EditText con el nombre del usuario.
         // Si el nombre actual es el genérico, dejamos el campo vacío (o con hint)
@@ -444,10 +485,10 @@ public class MainActivity extends AppCompatActivity {
 
     private void confirmCloseTab(String fileName) {
         new AlertDialog.Builder(this)
-                .setTitle("Cerrar archivo")
-                .setMessage("¿Eliminar la pestaña '" + fileName + "'?")
-                .setPositiveButton("Cerrar", (d, w) -> closeFileTab(fileName))
-                .setNegativeButton("Cancelar", null)
+                .setTitle(getString(R.string.dialog_close_file_title))
+                .setMessage(getString(R.string.dialog_close_file_msg, fileName))
+                .setPositiveButton(getString(R.string.btn_close), (d, w) -> closeFileTab(fileName))
+                .setNegativeButton(getString(R.string.btn_cancel), null)
                 .show();
     }
 
@@ -489,7 +530,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void showAddFileDialog() {
         final EditText input = new EditText(this);
-        input.setHint(isCurrentCMode() ? "ej: archivo.c, utils.c, defs.h" : "ej: archivo.asm, macros.inc");
+        input.setHint(isCurrentCMode() ? getString(R.string.hint_new_file_c) : getString(R.string.hint_new_file_asm));
         input.setTextColor(0xFF121212);
         input.setHintTextColor(0xFF5F6368);
         input.setBackgroundResource(android.R.drawable.editbox_background_normal);
@@ -499,9 +540,9 @@ public class MainActivity extends AppCompatActivity {
         input.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
         input.setSingleLine();
         new AlertDialog.Builder(this)
-                .setTitle("Nuevo archivo")
+                .setTitle(getString(R.string.dialog_new_file_title))
                 .setView(input)
-                .setPositiveButton("Agregar", (d, w) -> {
+                .setPositiveButton(getString(R.string.btn_add), (d, w) -> {
                     String rawName = input.getText().toString().trim();
                     if (rawName.isEmpty()) {
                         updateLogs("Nombre de archivo inválido.");
@@ -528,7 +569,7 @@ public class MainActivity extends AppCompatActivity {
                     refreshTabs();
                     loadActiveFileInEditor();
                 })
-                .setNegativeButton("Cancelar", null)
+                .setNegativeButton(getString(R.string.btn_cancel), null)
                 .show();
     }
 
@@ -702,9 +743,9 @@ public class MainActivity extends AppCompatActivity {
 
     private void confirmClearEditor() {
         new AlertDialog.Builder(this)
-                .setTitle("Limpiar Editor")
-                .setMessage("¿Borrar el contenido del archivo activo?")
-                .setPositiveButton("Sí", (d, w) -> {
+                .setTitle(getString(R.string.dialog_clear_editor_title))
+                .setMessage(getString(R.string.dialog_clear_editor_msg))
+                .setPositiveButton(getString(R.string.btn_yes), (d, w) -> {
                     binding.editAsm.setText("");
                     saveActiveEditorContent();
                 })
@@ -726,9 +767,9 @@ public class MainActivity extends AppCompatActivity {
                 "Los binarios incluidos de GPUTILS y SDCC también se distribuyen bajo sus propias licencias GPL.";
 
         AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("Acerca de / Licencias")
+                .setTitle(getString(R.string.dialog_about_title))
                 .setMessage(HtmlCompat.fromHtml(message, HtmlCompat.FROM_HTML_MODE_COMPACT))
-                .setPositiveButton("Cerrar", null)
+                .setPositiveButton(getString(R.string.btn_close), null)
                 .show();
 
         TextView textView = dialog.findViewById(android.R.id.message);
@@ -826,6 +867,24 @@ public class MainActivity extends AppCompatActivity {
 
     private boolean isCurrentCMode() {
         return currentModeIsC;
+    }
+
+    /** Precarga el anuncio intersticial para tenerlo listo al cerrar el visor hex. */
+    private void loadInterstitialAd() {
+        AdRequest adRequest = new AdRequest.Builder().build();
+        InterstitialAd.load(this, getString(R.string.ad_interstitial_id), adRequest,
+            new InterstitialAdLoadCallback() {
+                @Override
+                public void onAdLoaded(@NonNull InterstitialAd interstitialAd) {
+                    mInterstitialAd = interstitialAd;
+                    Log.d(TAG, "Interstitial ad loaded.");
+                }
+                @Override
+                public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
+                    mInterstitialAd = null;
+                    Log.d(TAG, "Interstitial ad failed to load: " + loadAdError.getMessage());
+                }
+            });
     }
 
     private void initResources() {
@@ -1394,7 +1453,27 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        popupView.findViewById(R.id.btn_close_popup).setOnClickListener(v -> popupWindow.dismiss());
+        popupView.findViewById(R.id.btn_close_popup).setOnClickListener(v -> {
+            if (mInterstitialAd != null) {
+                mInterstitialAd.setFullScreenContentCallback(new FullScreenContentCallback() {
+                    @Override
+                    public void onAdDismissedFullScreenContent() {
+                        popupWindow.dismiss();
+                        loadInterstitialAd();
+                    }
+                    @Override
+                    public void onAdFailedToShowFullScreenContent(@NonNull com.google.android.gms.ads.AdError adError) {
+                        popupWindow.dismiss();
+                        loadInterstitialAd();
+                    }
+                });
+                mInterstitialAd.show(MainActivity.this);
+                mInterstitialAd = null;
+            } else {
+                popupWindow.dismiss();
+                loadInterstitialAd();
+            }
+        });
         popupWindow.showAtLocation(binding.getRoot(), Gravity.CENTER, 0, 0);
     }
 
@@ -1665,5 +1744,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         executor.shutdown();
+        if (binding != null) {
+            binding.adViewBanner.destroy();
+        }
     }
 }

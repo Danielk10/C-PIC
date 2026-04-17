@@ -57,7 +57,7 @@
         <activity
             android:name=".policy.PolicyActivity"
             android:exported="false"
-            android:label="Política de Privacidad"
+            android:label="@string/title_privacy_policy"
             android:theme="@style/Theme.AppCompat.DayNight.DarkActionBar" />
 
     </application>
