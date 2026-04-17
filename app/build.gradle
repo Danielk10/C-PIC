@@ -1,5 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.crashlytics)
 }
 
 android {
@@ -12,8 +14,8 @@ android {
         applicationId "com.diamon.ptc"
         minSdk 23
         targetSdk 36
-        versionCode 14
-        versionName "1.2.1"
+        versionCode 15
+        versionName "1.2.2"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         ndk {
@@ -25,6 +27,9 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            ndk {
+                debugSymbolLevel 'SYMBOL_TABLE'
+            }
         }
     }
     compileOptions {
@@ -47,6 +52,7 @@ android {
         }
         doNotStrip "**/*.so"
     }
+
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -58,6 +64,14 @@ dependencies {
     implementation libs.material
     implementation libs.constraintlayout
     implementation libs.documentfile
+    implementation libs.firebase.crashlytics
+    implementation libs.play.services.ads
+    implementation platform(libs.firebase.bom)
+    implementation libs.firebase.analytics
+    // Add the dependencies for the Crashlytics NDK and Analytics libraries
+    // When using the BoM, you don't specify versions in Firebase library dependencies
+    implementation(libs.firebase.crashlytics.ndk)
+    implementation(libs.google.firebase.analytics)
     testImplementation libs.junit
     androidTestImplementation libs.ext.junit
     androidTestImplementation libs.espresso.core
