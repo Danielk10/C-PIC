@@ -70,4 +70,13 @@
     <string name="toast_no_log_text">No hay texto en el log para copiar.</string>
     <string name="toast_clipboard_fail">No se pudo acceder al portapapeles.</string>
     <string name="toast_logs_copied">Logs copiados al portapapeles.</string>
+
+    <!-- In-App Purchase - Remove Ads -->
+    <string name="menu_remove_ads">Quitar Anuncios</string>
+    <string name="iap_purchase_success">¡Compra exitosa! Los anuncios han sido eliminados.</string>
+    <string name="iap_purchase_restored">Compra restaurada. Los anuncios han sido eliminados.</string>
+    <string name="iap_purchase_error">Error al procesar la compra. Inténtalo de nuevo.</string>
+    <string name="iap_product_unavailable">Producto no disponible en este momento.</string>
+    <string name="iap_billing_unavailable">Servicio de compras no disponible.</string>
+    <string name="iap_already_purchased">Ya has adquirido la versión sin anuncios.</string>
 </resources>

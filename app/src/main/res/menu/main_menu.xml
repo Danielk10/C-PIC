@@ -22,6 +22,10 @@
         android:title="@string/menu_change_export_folder"
         app:showAsAction="never" />
     <item
+        android:id="@+id/action_remove_ads"
+        android:title="@string/menu_remove_ads"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_policy"
         android:title="@string/menu_privacy_policy"
         app:showAsAction="never" />

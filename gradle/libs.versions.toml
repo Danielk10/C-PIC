@@ -11,9 +11,11 @@ playServicesAds = "25.2.0"
 firebaseCrashlytics = "20.0.5"
 googleServices = "4.4.4"
 crashlyticsPlugin = "3.0.7"
+billing = "8.3.0"
 firebaseBom = "34.12.0"
 
 [libraries]
+billing = { group = "com.android.billingclient", name = "billing", version.ref = "billing" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }

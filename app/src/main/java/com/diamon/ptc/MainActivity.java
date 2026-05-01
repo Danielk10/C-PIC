@@ -28,6 +28,7 @@ import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.PopupWindow;
 import android.widget.TextView;
+import android.view.MenuItem;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -138,6 +139,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean isUpdatingProjectName; // Flag para evitar bucles infinitos en el TextWatcher
     private boolean currentModeIsC;
     private InterstitialAd mInterstitialAd;
+    private BillingManager billingManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -163,12 +165,31 @@ public class MainActivity extends AppCompatActivity {
         renderCurrentModule();
         initResources();
 
-        // Initialize AdMob
-        MobileAds.initialize(this, initializationStatus -> {
-            AdRequest adRequest = new AdRequest.Builder().build();
-            binding.adViewBanner.loadAd(adRequest);
+        // Initialize BillingManager for in-app purchases
+        billingManager = new BillingManager(this, adsRemoved -> {
+            runOnUiThread(() -> {
+                if (adsRemoved) {
+                    // Ocultar banner y detener intersticiales
+                    binding.adViewBanner.setVisibility(View.GONE);
+                    mInterstitialAd = null;
+                    Toast.makeText(this, getString(R.string.iap_purchase_success), Toast.LENGTH_LONG).show();
+                }
+                // Actualizar menú para ocultar/mostrar el ítem de compra
+                invalidateOptionsMenu();
+            });
         });
-        loadInterstitialAd();
+        billingManager.startConnection();
+
+        // Initialize AdMob only if ads should be shown
+        if (BillingManager.shouldShowAds(this)) {
+            MobileAds.initialize(this, initializationStatus -> {
+                AdRequest adRequest = new AdRequest.Builder().build();
+                binding.adViewBanner.loadAd(adRequest);
+            });
+            loadInterstitialAd();
+        } else {
+            binding.adViewBanner.setVisibility(View.GONE);
+        }
     }
 
     @Override
@@ -278,6 +299,11 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onCreateOptionsMenu(android.view.Menu menu) {
         getMenuInflater().inflate(R.menu.main_menu, menu);
+        // Ocultar "Quitar Anuncios" si ya se compró
+        MenuItem removeAdsItem = menu.findItem(R.id.action_remove_ads);
+        if (removeAdsItem != null) {
+            removeAdsItem.setVisible(BillingManager.shouldShowAds(this));
+        }
         return true;
     }
 
@@ -299,6 +325,9 @@ public class MainActivity extends AppCompatActivity {
             return true;
         } else if (id == R.id.action_change_export_folder) {
             launchFolderPicker(true);
+            return true;
+        } else if (id == R.id.action_remove_ads) {
+            handleRemoveAdsPurchase();
             return true;
         } else if (id == R.id.action_policy) {
             startActivity(new Intent(this, PolicyActivity.class));
@@ -862,6 +891,9 @@ public class MainActivity extends AppCompatActivity {
 
     /** Precarga el anuncio intersticial para tenerlo listo al cerrar el visor hex. */
     private void loadInterstitialAd() {
+        // No cargar intersticiales si los anuncios fueron eliminados
+        if (!BillingManager.shouldShowAds(this)) return;
+
         AdRequest adRequest = new AdRequest.Builder().build();
         InterstitialAd.load(this, getString(R.string.ad_interstitial_id), adRequest,
             new InterstitialAdLoadCallback() {
@@ -1445,7 +1477,8 @@ public class MainActivity extends AppCompatActivity {
         });
 
         popupView.findViewById(R.id.btn_close_popup).setOnClickListener(v -> {
-            if (mInterstitialAd != null) {
+            // Solo mostrar intersticial si se deben mostrar anuncios
+            if (BillingManager.shouldShowAds(this) && mInterstitialAd != null) {
                 mInterstitialAd.setFullScreenContentCallback(new FullScreenContentCallback() {
                     @Override
                     public void onAdDismissedFullScreenContent() {
@@ -1462,7 +1495,6 @@ public class MainActivity extends AppCompatActivity {
                 mInterstitialAd = null;
             } else {
                 popupWindow.dismiss();
-                loadInterstitialAd();
             }
         });
         popupWindow.showAtLocation(binding.getRoot(), Gravity.CENTER, 0, 0);
@@ -1731,10 +1763,39 @@ public class MainActivity extends AppCompatActivity {
 
     public native String stringFromJNI();
 
+    /**
+     * Maneja el clic en el ítem de menú "Quitar Anuncios".
+     * Verifica el estado del billing y lanza el flujo de compra.
+     */
+    private void handleRemoveAdsPurchase() {
+        if (!BillingManager.shouldShowAds(this)) {
+            Toast.makeText(this, getString(R.string.iap_already_purchased), Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (billingManager == null || !billingManager.isServiceConnected()) {
+            Toast.makeText(this, getString(R.string.iap_billing_unavailable), Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (!billingManager.isProductAvailable()) {
+            Toast.makeText(this, getString(R.string.iap_product_unavailable), Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        boolean launched = billingManager.launchPurchaseFlow(this);
+        if (!launched) {
+            Toast.makeText(this, getString(R.string.iap_purchase_error), Toast.LENGTH_SHORT).show();
+        }
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
         executor.shutdown();
+        if (billingManager != null) {
+            billingManager.destroy();
+        }
         if (binding != null) {
             binding.adViewBanner.destroy();
         }

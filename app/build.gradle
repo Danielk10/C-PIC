@@ -65,6 +65,7 @@ dependencies {
     implementation libs.constraintlayout
     implementation libs.documentfile
     implementation libs.firebase.crashlytics
+    implementation libs.billing
     implementation libs.play.services.ads
     implementation platform(libs.firebase.bom)
     implementation libs.firebase.analytics

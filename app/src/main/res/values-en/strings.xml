@@ -70,4 +70,13 @@
     <string name="toast_no_log_text">No text in log to copy.</string>
     <string name="toast_clipboard_fail">Could not access clipboard.</string>
     <string name="toast_logs_copied">Logs copied to clipboard.</string>
+
+    <!-- In-App Purchase - Remove Ads -->
+    <string name="menu_remove_ads">Remove Ads</string>
+    <string name="iap_purchase_success">Purchase successful! Ads have been removed.</string>
+    <string name="iap_purchase_restored">Purchase restored. Ads have been removed.</string>
+    <string name="iap_purchase_error">Error processing purchase. Please try again.</string>
+    <string name="iap_product_unavailable">Product not available at this time.</string>
+    <string name="iap_billing_unavailable">Purchase service not available.</string>
+    <string name="iap_already_purchased">You have already purchased the ad-free version.</string>
 </resources>
