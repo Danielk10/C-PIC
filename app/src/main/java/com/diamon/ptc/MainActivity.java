@@ -140,6 +140,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean currentModeIsC;
     private InterstitialAd mInterstitialAd;
     private BillingManager billingManager;
+    private String adsPrice = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -166,17 +167,28 @@ public class MainActivity extends AppCompatActivity {
         initResources();
 
         // Initialize BillingManager for in-app purchases
-        billingManager = new BillingManager(this, adsRemoved -> {
-            runOnUiThread(() -> {
-                if (adsRemoved) {
-                    // Ocultar banner y detener intersticiales
-                    binding.adViewBanner.setVisibility(View.GONE);
-                    mInterstitialAd = null;
-                    Toast.makeText(this, getString(R.string.iap_purchase_success), Toast.LENGTH_LONG).show();
-                }
-                // Actualizar menú para ocultar/mostrar el ítem de compra
-                invalidateOptionsMenu();
-            });
+        billingManager = new BillingManager(this, new BillingManager.BillingListener() {
+            @Override
+            public void onAdsRemovedChanged(boolean adsRemoved) {
+                runOnUiThread(() -> {
+                    if (adsRemoved) {
+                        // Ocultar banner y detener intersticiales
+                        binding.adViewBanner.setVisibility(View.GONE);
+                        mInterstitialAd = null;
+                        Toast.makeText(MainActivity.this, getString(R.string.iap_purchase_success), Toast.LENGTH_LONG).show();
+                    }
+                    // Actualizar menú para ocultar/mostrar el ítem de compra
+                    invalidateOptionsMenu();
+                });
+            }
+
+            @Override
+            public void onPriceLoaded(String formattedPrice) {
+                runOnUiThread(() -> {
+                    adsPrice = formattedPrice;
+                    invalidateOptionsMenu();
+                });
+            }
         });
         billingManager.startConnection();
 
@@ -303,6 +315,9 @@ public class MainActivity extends AppCompatActivity {
         MenuItem removeAdsItem = menu.findItem(R.id.action_remove_ads);
         if (removeAdsItem != null) {
             removeAdsItem.setVisible(BillingManager.shouldShowAds(this));
+            if (adsPrice != null) {
+                removeAdsItem.setTitle(getString(R.string.menu_remove_ads) + " (" + adsPrice + ")");
+            }
         }
         return true;
     }

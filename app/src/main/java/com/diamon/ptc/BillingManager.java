@@ -41,20 +41,21 @@ public class BillingManager implements PurchasesUpdatedListener {
     private static final String PREFS_NAME = "billing_prefs";
     private static final String KEY_ADS_REMOVED = "ads_removed";
 
-    /** Callback que notifica cuando el estado de "anuncios eliminados" cambia. */
-    public interface OnAdsRemovedListener {
+    /** Callback que notifica cambios de estado y precio. */
+    public interface BillingListener {
         void onAdsRemovedChanged(boolean adsRemoved);
+        void onPriceLoaded(String formattedPrice);
     }
 
     private final Context context;
     private final BillingClient billingClient;
     @Nullable
-    private OnAdsRemovedListener listener;
+    private BillingListener listener;
     @Nullable
     private ProductDetails removeAdsDetails;
     private boolean isServiceConnected = false;
 
-    public BillingManager(@NonNull Context context, @Nullable OnAdsRemovedListener listener) {
+    public BillingManager(@NonNull Context context, @Nullable BillingListener listener) {
         this.context = context.getApplicationContext();
         this.listener = listener;
 
@@ -126,6 +127,11 @@ public class BillingManager implements PurchasesUpdatedListener {
                     && !queryResult.getProductDetailsList().isEmpty()) {
                 removeAdsDetails = queryResult.getProductDetailsList().get(0);
                 Log.d(TAG, "Product details loaded: " + removeAdsDetails.getName());
+                
+                ProductDetails.OneTimePurchaseOfferDetails offerDetails = removeAdsDetails.getOneTimePurchaseOfferDetails();
+                if (offerDetails != null && listener != null) {
+                    listener.onPriceLoaded(offerDetails.getFormattedPrice());
+                }
             } else {
                 removeAdsDetails = null;
                 Log.w(TAG, "Failed to load product details: " + billingResult.getDebugMessage());
