@@ -7,15 +7,15 @@ plugins {
 android {
     namespace = 'com.diamon.ptc'
     compileSdk {
-        version = release(36)
+        version = release(37)
     }
 
     defaultConfig {
         applicationId "com.diamon.ptc"
         minSdk 23
-        targetSdk 36
-        versionCode 16
-        versionName "1.2.3"
+        targetSdk 37
+        versionCode 17
+        versionName "1.2.4"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         ndk {
@@ -39,7 +39,7 @@ android {
     externalNativeBuild {
         cmake {
             path file('src/main/cpp/CMakeLists.txt')
-            version = '3.22.1'
+            version = '4.1.2'
         }
     }
     buildFeatures {
