@@ -17,10 +17,9 @@ echo "=== Descargando SDCC 4.5.0 ==="
 wget -q -c "https://sourceforge.net/projects/sdcc/files/sdcc/4.5.0/sdcc-src-4.5.0.tar.bz2/download" -O sdcc-src-4.5.0.tar.bz2
 tar -xjf sdcc-src-4.5.0.tar.bz2
 
-# SDCC se extrae normalmente en una carpeta llamada sdcc-4.5.0
 cd sdcc-4.5.0
 
-# Configurar compiladores (Clang es el estándar en Termux/Android moderno)
+# Configurar compiladores (Clang)
 export CC=clang
 export CXX=clang++
 export AR=llvm-ar
@@ -32,6 +31,10 @@ export CXXFLAGS="-fPIC -fPIE -Oz -ffile-prefix-map=$DESTDIR="
 
 # Banderas de enlazado: PIE y alineación estricta de 16KB
 export LDFLAGS="-pie -Wl,-z,max-page-size=16384"
+
+# !!! SOLUCIÓN AL ERROR !!!
+# Agregamos los binarios de gputils (previamente compilados) al PATH
+export PATH="$FAKE_USR/bin:$PATH"
 
 echo "=== Configurando SDCC ==="
 ./configure \
