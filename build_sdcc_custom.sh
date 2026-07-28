@@ -25,9 +25,9 @@ export CXX=clang++
 export AR=llvm-ar
 export RANLIB=llvm-ranlib
 
-# Banderas de compilación
-export CFLAGS="-fPIC -fPIE -Oz -ffile-prefix-map=$DESTDIR="
-export CXXFLAGS="-fPIC -fPIE -Oz -ffile-prefix-map=$DESTDIR="
+# Banderas de compilación combinando PIE, alineación estricta y GNU_SOURCE
+export CFLAGS="-fPIC -fPIE -Oz -ffile-prefix-map=$DESTDIR= -D_GNU_SOURCE"
+export CXXFLAGS="-fPIC -fPIE -Oz -ffile-prefix-map=$DESTDIR= -D_GNU_SOURCE"
 export LDFLAGS="-pie -Wl,-z,max-page-size=16384"
 
 echo "=== Configurando entorno GPUTILS en fake_root ==="
