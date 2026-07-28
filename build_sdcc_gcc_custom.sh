@@ -19,15 +19,15 @@ tar -xjf sdcc-src-4.5.0.tar.bz2
 
 cd sdcc-4.5.0
 
-# Configurar compiladores
-export CC=clang
-export CXX=clang++
-export AR=llvm-ar
-export RANLIB=llvm-ranlib
+# Configurar compiladores (usando GCC como solicitado)
+export CC=gcc
+export CXX=g++
+export AR=ar
+export RANLIB=ranlib
 
-# Banderas de compilación combinando PIE, alineación estricta y mapeo de funciones unlocked
-export CFLAGS="-fPIC -fPIE -Oz -ffile-prefix-map=$DESTDIR= -Dfputc_unlocked=fputc -Dputc_unlocked=putc -Dgetc_unlocked=getc -Dgetchar_unlocked=getchar -Dputchar_unlocked=putchar -Dclearerr_unlocked=clearerr -Dfeof_unlocked=feof -Dferror_unlocked=ferror -Dfflush_unlocked=fflush"
-export CXXFLAGS="-fPIC -fPIE -Oz -ffile-prefix-map=$DESTDIR= -Dfputc_unlocked=fputc -Dputc_unlocked=putc -Dgetc_unlocked=getc -Dgetchar_unlocked=getchar -Dputchar_unlocked=putchar -Dclearerr_unlocked=clearerr -Dfeof_unlocked=feof -Dferror_unlocked=ferror -Dfflush_unlocked=fflush"
+# Banderas de compilación
+export CFLAGS="-fPIC -fPIE -Oz -ffile-prefix-map=$DESTDIR="
+export CXXFLAGS="-fPIC -fPIE -Oz -ffile-prefix-map=$DESTDIR="
 export LDFLAGS="-pie -Wl,-z,max-page-size=16384"
 
 echo "=== Configurando entorno GPUTILS en fake_root ==="
