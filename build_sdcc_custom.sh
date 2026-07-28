@@ -4,7 +4,7 @@ set -e
 cd "$HOME"
 
 export APP_PREFIX=/data/data/com.diamon.ptc/files/usr
-export DESTDIR="$HOME/fake_root_n"
+export DESTDIR="$HOME/fake_root"
 export FAKE_USR="$DESTDIR$APP_PREFIX"
 
 # Preparar directorios limpios
@@ -30,11 +30,11 @@ export CFLAGS="-fPIC -fPIE -Oz -ffile-prefix-map=$DESTDIR="
 export CXXFLAGS="-fPIC -fPIE -Oz -ffile-prefix-map=$DESTDIR="
 export LDFLAGS="-pie -Wl,-z,max-page-size=16384"
 
-echo "=== Configurando entorno GPUTILS en fake_root_n ==="
+echo "=== Configurando entorno GPUTILS en fake_root ==="
 # Agregamos los binarios al PATH
 export PATH="$FAKE_USR/bin:$PATH"
 
-# Apuntamos gputils a sus directorios en fake_root_n para que no falle al ser llamado por SDCC
+# Apuntamos gputils a sus directorios en fake_root para que no falle al ser llamado por SDCC
 export GPUTILS_HEADER_PATH="$FAKE_USR/share/gputils/header"
 export GPUTILS_LKR_PATH="$FAKE_USR/share/gputils/lkr"
 export GPUTILS_LIBPATH="$FAKE_USR/share/gputils/lib"
@@ -58,7 +58,7 @@ echo "=== Configurando SDCC ==="
 echo "=== Compilando SDCC ==="
 make -j"$(nproc)"
 
-echo "=== Instalando SDCC en fake_root_n ==="
+echo "=== Instalando SDCC en fake_root ==="
 make DESTDIR="$DESTDIR" install
 
 echo "=== Verificando binario principal (sdcc) ==="
