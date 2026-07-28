@@ -19,22 +19,30 @@ tar -xjf sdcc-src-4.5.0.tar.bz2
 
 cd sdcc-4.5.0
 
-# Configurar compiladores (Clang)
+# Configurar compiladores
 export CC=clang
 export CXX=clang++
 export AR=llvm-ar
 export RANLIB=llvm-ranlib
 
-# Banderas de compilación combinando tus requerimientos y optimizaciones
+# Banderas de compilación
 export CFLAGS="-fPIC -fPIE -Oz -ffile-prefix-map=$DESTDIR="
 export CXXFLAGS="-fPIC -fPIE -Oz -ffile-prefix-map=$DESTDIR="
-
-# Banderas de enlazado: PIE y alineación estricta de 16KB
 export LDFLAGS="-pie -Wl,-z,max-page-size=16384"
 
-# !!! SOLUCIÓN AL ERROR !!!
-# Agregamos los binarios de gputils (previamente compilados) al PATH
+echo "=== Configurando entorno GPUTILS en fake_root_n ==="
+# Agregamos los binarios al PATH
 export PATH="$FAKE_USR/bin:$PATH"
+
+# Apuntamos gputils a sus directorios en fake_root_n para que no falle al ser llamado por SDCC
+export GPUTILS_HEADER_PATH="$FAKE_USR/share/gputils/header"
+export GPUTILS_LKR_PATH="$FAKE_USR/share/gputils/lkr"
+export GPUTILS_LIBPATH="$FAKE_USR/share/gputils/lib"
+
+# Verificamos que gpasm funcione y encuentre sus archivos
+echo "Probando gpasm..."
+gpasm --version
+gpasm --list-chips | head -n 5
 
 echo "=== Configurando SDCC ==="
 ./configure \
