@@ -36,14 +36,16 @@ android {
 
     signingConfigs {
         release {
-            if (keystorePropertiesFile.exists()) {
-                storeFile = file(keystoreProperties['storeFile'])
+            def propStoreFile = keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+            def envStoreFile = System.getenv("SIGNING_STORE_FILE") ? file(System.getenv("SIGNING_STORE_FILE")) : null
+
+            if (propStoreFile != null && propStoreFile.exists()) {
+                storeFile = propStoreFile
                 storePassword = keystoreProperties['storePassword']
                 keyAlias = keystoreProperties['keyAlias']
                 keyPassword = keystoreProperties['keyPassword']
-            } else {
-                def envStoreFile = System.getenv("SIGNING_STORE_FILE")
-                storeFile = envStoreFile ? file(envStoreFile) : null
+            } else if (envStoreFile != null && envStoreFile.exists()) {
+                storeFile = envStoreFile
                 storePassword = System.getenv("SIGNING_STORE_PASSWORD")
                 keyAlias = System.getenv("SIGNING_KEY_ALIAS")
                 keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
@@ -53,7 +55,11 @@ android {
 
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            if (signingConfigs.release.storeFile != null && signingConfigs.release.storeFile.exists()) {
+                signingConfig signingConfigs.release
+            } else {
+                signingConfig signingConfigs.debug
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             ndk {

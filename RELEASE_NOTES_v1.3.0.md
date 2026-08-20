@@ -49,6 +49,5 @@ Esta versión representa una evolución integral de la aplicación, transformán
 ---
 
 ## 📦 Artefactos Adjuntos
-- **`app-debug.apk`**: APK de desarrollo y pruebas.
-- **`app-release.apk`**: APK firmado de producción optimizado para ARM64 (`arm64-v8a`).
-- **`app-release.aab`**: Android App Bundle firmado listo para Google Play Store.
+- **`C_PIC_Compiler_v1.3.0.apk`**: APK Release optimizado y firmado para dispositivos ARM64 (`arm64-v8a`).
+- **`C_PIC_Compiler_v1.3.0.aab`**: Android App Bundle firmado listo para Google Play Store.
