@@ -154,6 +154,7 @@
     <string name="opt_makebin_desc">Convierte el archivo HEX en una imagen binaria plana (.bin) para programadores de memoria EEPROM/ROM.</string>
     <string name="opt_auto_apply_title">Aplicar automáticamente al compilar</string>
     <string name="opt_auto_apply_desc">Ejecuta las utilidades seleccionadas automáticamente tras cada compilación exitosa.</string>
+    <string name="opt_actions_header">Acciones Inmediatas (Bajo Demanda)</string>
     <string name="btn_run_packihx">Ejecutar packihx</string>
     <string name="btn_run_makebin">Ejecutar makebin</string>
     <string name="btn_run_simulator">Simular con ucSim</string>

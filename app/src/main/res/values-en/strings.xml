@@ -154,6 +154,7 @@
     <string name="opt_makebin_desc">Converts HEX output into a flat binary (.bin) image for EEPROM/ROM programmers.</string>
     <string name="opt_auto_apply_title">Auto-apply after compilation</string>
     <string name="opt_auto_apply_desc">Automatically runs selected utilities after each successful build.</string>
+    <string name="opt_actions_header">Immediate Actions (On Demand)</string>
     <string name="btn_run_packihx">Run packihx</string>
     <string name="btn_run_makebin">Run makebin</string>
     <string name="btn_run_simulator">Simulate with ucSim</string>
