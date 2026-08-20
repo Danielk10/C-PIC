@@ -2,8 +2,12 @@
 
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Android-green.svg)
-![API Level](https://img.shields.io/badge/API-23%20to%2036-brightgreen.svg)
+![API Level](https://img.shields.io/badge/API-23%20to%2037-brightgreen.svg)
+![Android](https://img.shields.io/badge/Android-16%20(API%2037)-blue.svg)
 ![Architecture](https://img.shields.io/badge/arch-ARM64-orange.svg)
+![Gradle](https://img.shields.io/badge/Gradle-9.6.0-02303A.svg)
+![AGP](https://img.shields.io/badge/AGP-9.2.1-34A853.svg)
+![NDK](https://img.shields.io/badge/NDK-30.0.14904198-informational.svg)
 
 ## Captura de Pantalla
 
@@ -11,161 +15,144 @@
 
 ## Descripción
 
-**C PIC Compiler** es una aplicación Android nativa que permite compilar código ensamblador (ASM) y código en lenguaje C para microcontroladores PIC directamente desde tu dispositivo móvil. Esta herramienta está diseñada para desarrolladores de sistemas embebidos que desean programar microcontroladores PIC sin necesidad de una PC.
+**C PIC Compiler** es una aplicación Android nativa profesional de alto rendimiento diseñada para compilar código en lenguaje C y ensamblador (ASM) directamente en tu dispositivo móvil para microcontroladores PIC (Microchip). 
 
-## Características
+Esta herramienta permite a desarrolladores de sistemas embebidos, ingenieros y estudiantes compilar, enlazar, depurar, simular y exportar binarios (`.hex`, `.bin`, `.map`) de manera autónoma sin necesidad de conexión a internet ni dependencia de una computadora.
 
-- ✅ Compilación de código C y ensamblador para microcontroladores PIC
-- ✅ Basado en las herramientas oficiales SDCC y GPUTILS
-- ✅ Soporte para múltiples familias de microcontroladores PIC
-- ✅ Interfaz Android nativa optimizada
-- ✅ Sin necesidad de conexión a internet para compilar
-- ✅ Compilador completo integrado en la aplicación
+---
 
-## Requisitos del Sistema
+## ✨ Características Principales
 
-### Hardware
-- Dispositivo Android con arquitectura **ARM64 (arm64-v8a)**
-- Sistema operativo Android de **64 bits**
-- Mínimo 100 MB de espacio libre
+- ✅ **Compilación 100% Offline**: Compilación autónoma y local directamente en el dispositivo Android.
+- ✅ **Motores Oficiales Integrados**:
+  - **SDCC 4.5.0** (Small Device C Compiler).
+  - **GPUTILS 1.5.2** (GNU PIC Utilities: `gpasm`, `gplink`, `gplib`, `gpdasm`, etc.).
+  - **Suite UCSIM / S51**: Simuladores y emuladores de microcontroladores integrados.
+- ✅ **Soporte Extenso de Familias PIC**: Compatible con Microchip PIC12, PIC14, PIC16, PIC18 y arquitecturas cruzadas soportadas por SDCC.
+- ✅ **Alineación de Memoria a 16 KB**: Binarios compilados y enlazados estrictamente con `-Wl,-z,max-page-size=16384` (`Align 0x4000`), garantizando compatibilidad total con **Android 15** y **Android 16**.
+- ✅ **Cumplimiento Estricto de Google Play**: Todos los ejecutables y bibliotecas nativas se distribuyen bajo el estándar `lib<nombre>.so` en `jniLibs/arm64-v8a/` y se reconstruyen de forma transparente en tiempo de ejecución.
+- ✅ **Optimización de Assets**: Depuración de archivos redundantes y fuentes innecesarias en runtime, reduciendo más de 150 MB del paquete base.
+- ✅ **Interfaz de Usuario Moderna**: Desarrollada con Material Design, visor de registros en tiempo real y selector interactivo de microcontroladores.
 
-### Software
-- Android **API Level 23** (Android 6.0 Marshmallow) o superior
-- Soportado hasta **API Level 36** (Android 16)
+---
 
-> ⚠️ **Nota importante**: Esta aplicación **solo** es compatible con dispositivos Android ARM64 de 64 bits. No funciona en dispositivos de 32 bits ni en otras arquitecturas.
+## 📱 Especificaciones Técnicas y Versiones
 
-## Tecnologías Utilizadas
+| Componente | Versión / Valor |
+|---|---|
+| **Android Compile SDK** | `android-37` (Android 16) |
+| **Android Target SDK** | `37` (Android 16) |
+| **Android Min SDK** | `23` (Android 6.0 Marshmallow) |
+| **Android Build Tools** | `37.0.0` |
+| **Gradle** | `9.6.0` |
+| **Android Gradle Plugin (AGP)** | `9.2.1` |
+| **Android NDK** | `30.0.14904198` (`rc1`) |
+| **CMake** | `4.1.2` |
+| **SDCC (Small Device C Compiler)** | `4.5.0` |
+| **GPUTILS (GNU PIC Utilities)** | `1.5.2` |
+| **Arquitectura de Ejecución** | ARM64 (`arm64-v8a` de 64 bits) |
+| **Alineación ELF** | 16 KB (`max-page-size=16384`) |
 
-Esta aplicación integra los siguientes compiladores y herramientas:
+---
 
-### SDCC (Small Device C Compiler)
-- **Fuente**: [SDCC en SourceForge](https://sourceforge.net/projects/sdcc/)
-- **Descripción**: Compilador C de código abierto optimizado para microcontroladores de 8 bits
-- **Licencia**: GPL
+## 🚀 Entorno de Compilación y Uso
 
-### GPUTILS (GNU PIC Utilities)
-- **Fuente**: [GPUTILS en SourceForge](https://sourceforge.net/projects/gputils/)
-- **Descripción**: Suite de herramientas para ensamblar y enlazar código para microcontroladores PIC
-- **Licencia**: GPL
-
-## Instalación
-
-### Desde el Código Fuente
-
-1. Clona este repositorio:
+### 1. Clonar el Repositorio
 ```bash
 git clone https://github.com/Danielk10/C-PIC.git
 cd C-PIC
 ```
 
-2. Abre el proyecto en Android Studio
+### 2. Configurar el Entorno del SDK y NDK
+El script [`setup-sdk.sh`](setup-sdk.sh) instala de manera desatendida las plataformas, build-tools, CMake y NDK requeridos en `/tmp/android-sdk`:
 
-3. Asegúrate de tener instalado:
-   - Android SDK API 36
-   - CMake 3.22.1 o superior
-   - NDK (Android Native Development Kit)
-
-4. Compila el proyecto (script en la raíz):
 ```bash
-./compile.sh
+bash setup-sdk.sh
 ```
 
-También puedes usar Gradle directamente:
+### 3. Compilación de Artefactos
+
+Para mantener limpio el árbol de trabajo, los artefactos de compilación se generan en el directorio temporal `/tmp/calculo`:
+
 ```bash
+# Compilar APK de depuración (Debug)
+./gradlew assembleDebug
+
+# Compilar APK firmado de producción (Release)
 ./gradlew assembleRelease
+
+# Compilar Android App Bundle (.aab) firmado para Google Play Store
+./gradlew bundleRelease
 ```
 
-5. El APK se generará en: `app/build/outputs/apk/release/`
+**Rutas de salida generadas:**
+- **APK Debug:** `/tmp/calculo/outputs/apk/debug/app-debug.apk`
+- **APK Release:** `/tmp/calculo/outputs/apk/release/app-release.apk`
+- **AAB Release:** `/tmp/calculo/outputs/bundle/release/app-release.aab`
 
-## Uso
+---
 
-1. **Abre la aplicación** en tu dispositivo Android
-2. **Crea o importa** tu código fuente C o ASM
-3. **Configura** el microcontrolador PIC objetivo
-4. **Compila** tu proyecto
-5. **Exporta** el archivo HEX generado para programarlo en tu microcontrolador
-
-## Estructura del Proyecto
+## 📂 Estructura del Repositorio
 
 ```
 C-PIC/
 ├── app/
-│   ├── src/
-│   │   ├── main/
-│   │   │   ├── cpp/          # Código nativo C/C++ (NDK)
-│   │   │   ├── java/         # Código Java de la aplicación
-│   │   │   └── res/          # Recursos de la interfaz
-│   │   └── ...
-│   └── build.gradle          # Configuración de compilación
-├── gradle/
-├── LICENSE                   # Licencia GPL-3.0
-└── README.md                # Este archivo
+│   ├── build.gradle                               # Configuración de compilación del módulo
+│   └── src/main/
+│       ├── AndroidManifest.xml                    # Manifiesto de la aplicación Android
+│       ├── assets/data/data/com.diamon.ptc/files/ # Headers, scripts LKR y librerías precompiladas
+│       │   └── usr/share/
+│       │       ├── gputils/                       # Headers (.inc) y scripts (.lkr) de PIC
+│       │       └── sdcc/                          # Includes C y librerías compiladas (.lib)
+│       ├── cpp/                                   # Soporte nativo C/C++ (CMake/NDK)
+│       ├── java/com/diamon/ptc/                   # Código fuente Java
+│       │   ├── MainActivity.java                  # Controlador principal de la UI
+│       │   ├── SdccExecutor.java                  # Ejecutor de SDCC y gestión de symlinks
+│       │   ├── GpUtilsExecutor.java               # Ejecutor de herramientas GPUTILS
+│       │   ├── AssetExtractor.java                # Extractor eficiente de recursos
+│       │   ├── IntelHexParser.java                # Analizador de formatos HEX
+│       │   └── BillingManager.java                # Gestión de compras in-app
+│       ├── jniLibs/arm64-v8a/                     # 72 binarios nativos ARM64 (lib*.so)
+│       └── res/                                   # Layouts, recursos gráficos y cadenas
+├── fake_root/                                     # Estructura base inmutable de referencia
+├── libs/                                          # Librerías dinámicas compartidas de soporte
+├── build_sdcc_custom.sh                           # Script de construcción personalizada de SDCC
+├── build_gputils_custom.sh                        # Script de construcción personalizada de GPUTILS
+├── setup-sdk.sh                                   # Script instalador del SDK 37 y NDK 30
+├── upload_play_store.py                           # Script de subida automática a Google Play
+├── GEMINI.md                                      # Especificación de arquitectura y compilación
+├── GUIA_PUBLICACION_PLAY_STORE.md                 # Guía de publicación en Google Play
+├── NOMBRES_BINARIOS_VS_ANTIGUOS.md                # Correspondencia de binarios lib*.so vs originales
+├── REPORTE_LIMPIEZA_ASSETS.md                     # Auditoría de limpieza y ahorro en assets
+├── REPORTE_ANALISIS_DEPENDENCIAS.md               # Análisis de dependencias DT_NEEDED y 16KB
+├── REPORTE_DEPENDENCIAS_ORIGINALES.md             # Inventario de dependencias nativas upstream
+├── RELEASE_NOTES_v1.2.5.md                        # Notas de versión del lanzamiento v1.2.5
+└── README.md                                      # Este documento
 ```
-
-## Compilación Nativa
-
-Esta aplicación utiliza **Android NDK** y **CMake** para compilar componentes nativos optimizados para ARM64. Los binarios de SDCC y GPUTILS están integrados como bibliotecas nativas (.so).
-
-### Configuración NDK
-- **ABI soportado**: `arm64-v8a`
-- **CMake versión**: 3.22.1
-- **Compatibilidad Java**: Java 11
-
-## Contribuciones
-
-Las contribuciones son bienvenidas. Si deseas colaborar:
-
-1. Haz un fork del proyecto
-2. Crea una rama para tu característica (`git checkout -b feature/nueva-caracteristica`)
-3. Realiza tus cambios y haz commit (`git commit -am 'Agregar nueva característica'`)
-4. Sube tus cambios (`git push origin feature/nueva-caracteristica`)
-5. Abre un Pull Request
-
-## Licencia
-
-Este proyecto está licenciado bajo la **GNU General Public License v3.0** (GPL-3.0).
-
-Ver el archivo [LICENSE](LICENSE) para más detalles.
-
-### Licencias de Componentes
-
-- **SDCC**: GPL License - [SDCC License](https://sourceforge.net/projects/sdcc/)
-- **GPUTILS**: GPL License - [GPUTILS License](https://sourceforge.net/projects/gputils/)
-- **C-PIC**: GPL-3.0 License
-
-## Créditos
-
-- **Desarrollador**: Daniel Diamon (Danielk10)
-- **Basado en**: SDCC y GPUTILS
-- **Inspiración**: Llevar el desarrollo de microcontroladores PIC a dispositivos móviles siguiendo los pasos de Termux del cuál hice usó para este proyecto
-
-
-## Soporte
-
-Si encuentras algún problema o tienes sugerencias:
-
-- Abre un [Issue en GitHub](https://github.com/Danielk10/C-PIC/issues)
-- Contacta al desarrollador a través de GitHub
-
-## Limitaciones Conocidas
-
-- Solo compatible con dispositivos ARM64 de 64 bits
-- No soporta depuración en tiempo real del microcontrolador
-- Requiere permisos de almacenamiento para leer/escribir archivos de proyecto
-
-## Roadmap
-
-- [ ] Soporte para más familias de microcontroladores
-- [ ] Editor de código con resaltado de sintaxis mejorado
-- [ ] Plantillas de proyectos predefinidas
-- [ ] Integración con herramientas de programación PIC
-- [ ] Documentación de referencia de la API de PIC
-
-## Agradecimientos
-
-Gracias a los equipos de desarrollo de SDCC, GPUTILS y Termux versión Google Play por proporcionar estas excelentes herramientas de código abierto que hacen posible este proyecto.
 
 ---
 
-**Nota**: Esta aplicación es una herramienta de desarrollo y requiere conocimientos de programación de microcontroladores PIC y lenguaje C/ensamblador.
+## 📚 Documentación Técnica Adicional
+
+Para más detalles técnicos, consulta los documentos especializados en la raíz del proyecto:
+
+1. **[GEMINI.md](GEMINI.md)**: Arquitectura del proyecto, configuración de variables de entorno y firma.
+2. **[NOMBRES_BINARIOS_VS_ANTIGUOS.md](NOMBRES_BINARIOS_VS_ANTIGUOS.md)**: Mapeo detallado de los 60 ejecutables y 12 librerías nativas adaptadas a Google Play.
+3. **[REPORTE_LIMPIEZA_ASSETS.md](REPORTE_LIMPIEZA_ASSETS.md)**: Detalle del ahorro de espacio de más de 150 MB al depurar fuentes y binarios redundantes.
+4. **[REPORTE_ANALISIS_DEPENDENCIAS.md](REPORTE_ANALISIS_DEPENDENCIAS.md)**: Análisis de dependencias `DT_NEEDED` y alineación estricta de páginas a 16 KB.
+5. **[REPORTE_DEPENDENCIAS_ORIGINALES.md](REPORTE_DEPENDENCIAS_ORIGINALES.md)**: Registro de referencia con los nombres y dependencias upstream sin alterar.
+6. **[GUIA_PUBLICACION_PLAY_STORE.md](GUIA_PUBLICACION_PLAY_STORE.md)**: Procedimiento paso a paso para el despliegue automático a Google Play Console.
+
+---
+
+## 📄 Licencia
+
+Este proyecto está distribuido bajo la **Licencia Pública General de GNU v3.0 (GPL-3.0)**. Consulta el archivo [`LICENSE`](LICENSE) para conocer todos los términos y condiciones.
+
+---
+
+## 👤 Autor
+
+- **Desarrollador**: Daniel Diamon ([@Danielk10](https://github.com/Danielk10))
+- **Repositorio Oficial**: [https://github.com/Danielk10/C-PIC](https://github.com/Danielk10/C-PIC)
+- **Lanzamientos Oficiales**: [GitHub Releases](https://github.com/Danielk10/C-PIC/releases)

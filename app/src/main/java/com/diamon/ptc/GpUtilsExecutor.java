@@ -6,6 +6,7 @@ import android.util.Log;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +60,8 @@ public class GpUtilsExecutor {
             Log.e(TAG, "Binario no encontrado: " + binaryFile.getAbsolutePath());
             return "Error: No se encontro el binario " + binaryFile.getAbsolutePath() + "\nDisponibles: " + available;
         }
+
+        setupSymlinks();
 
         List<String> command = new ArrayList<>();
         command.add(binaryFile.getAbsolutePath());
@@ -123,5 +126,81 @@ public class GpUtilsExecutor {
             issues.add("Falta carpeta lkr gputils (usr/share/gputils/lkr)");
         }
         return issues;
+    }
+
+    public void setupSymlinks() {
+        try {
+            File usrDir = new File(workDir, "usr");
+            File binDir = new File(usrDir, "bin");
+            if (!binDir.exists()) binDir.mkdirs();
+
+            File libDir = new File(usrDir, "lib");
+            if (!libDir.exists()) libDir.mkdirs();
+
+            File[] nativeFiles = nativeLibDir.listFiles();
+            if (nativeFiles != null) {
+                for (File file : nativeFiles) {
+                    String name = file.getName();
+                    if (name.startsWith("lib") && name.endsWith(".so")) {
+                        String baseName = name.substring(3, name.length() - 3);
+                        if (!isSharedLibrary(baseName)) {
+                            createSymlink(new File(binDir, baseName), file.getAbsolutePath());
+                        }
+                    }
+                }
+            }
+
+            linkSharedLib(libDir, "libncursesw.so", "libncursesw.so.6");
+            linkSharedLib(libDir, "libpanelw.so", "libpanelw.so.6");
+            linkSharedLib(libDir, "libreadline.so", "libreadline.so.8");
+            linkSharedLib(libDir, "libzstd.so", "libzstd.so.1");
+
+            String targetZ = new File("/system/lib64/libz.so").exists() ? "/system/lib64/libz.so" : "/system/lib/libz.so";
+            File localZ = new File(nativeLibDir, "libz.so");
+            createSymlink(new File(libDir, "libz.so.1"), localZ.exists() ? localZ.getAbsolutePath() : targetZ);
+
+            linkSharedLib(libDir, "libiconv.so", "libiconv.so");
+            linkSharedLib(libDir, "libisl.so", "libisl.so");
+            linkSharedLib(libDir, "libgmp.so", "libgmp.so");
+            linkSharedLib(libDir, "libgc.so", "libgc.so");
+            linkSharedLib(libDir, "libfl.so", "libfl.so");
+            linkSharedLib(libDir, "libandroid-support.so", "libandroid-support.so");
+            linkSharedLib(libDir, "libc++_shared.so", "libc++_shared.so");
+        } catch (Exception e) {
+            Log.e(TAG, "Error al configurar symlinks en GpUtilsExecutor: " + e.getMessage());
+        }
+    }
+
+    private boolean isSharedLibrary(String name) {
+        return name.equals("android-support") || name.equals("c++_shared") || name.equals("fl")
+                || name.equals("gc") || name.equals("gmp") || name.equals("iconv") || name.equals("isl")
+                || name.equals("ncursesw") || name.equals("panelw") || name.equals("readline")
+                || name.equals("z") || name.equals("zstd") || name.equals("ptc");
+    }
+
+    private void linkSharedLib(File libDir, String libName, String symlinkName) {
+        File target = new File(nativeLibDir, libName);
+        if (target.exists()) {
+            createSymlink(new File(libDir, symlinkName), target.getAbsolutePath());
+            if (!symlinkName.equals(libName)) {
+                createSymlink(new File(libDir, libName), target.getAbsolutePath());
+            }
+        }
+    }
+
+    private void createSymlink(File symlink, String targetPath) {
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                if (symlink.exists() || Files.isSymbolicLink(symlink.toPath())) {
+                    symlink.delete();
+                }
+            } else {
+                symlink.delete();
+            }
+            android.system.Os.symlink(targetPath, symlink.getAbsolutePath());
+            Log.d(TAG, "Symlink creado: " + symlink.getName() + " -> " + targetPath);
+        } catch (Exception e) {
+            Log.e(TAG, "Error al crear enlace " + symlink.getName() + ": " + e.getMessage());
+        }
     }
 }

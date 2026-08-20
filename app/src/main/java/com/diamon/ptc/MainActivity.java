@@ -935,6 +935,9 @@ public class MainActivity extends AppCompatActivity {
                 mainHandler.post(() -> binding.loadingOverlay.setVisibility(View.GONE));
                 updateLogs(success ? "Recursos extraídos correctamente." : "Error al extraer recursos.");
             }
+            if (sdcc != null) {
+                sdcc.setupSymlinks();
+            }
             loadPicList();
         });
     }
