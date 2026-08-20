@@ -206,6 +206,16 @@ public class MainActivity extends AppCompatActivity {
                     invalidateOptionsMenu();
                 });
             }
+
+            @Override
+            public void onPurchasesRestored() {
+                runOnUiThread(() -> {
+                    binding.adViewBanner.setVisibility(View.GONE);
+                    mInterstitialAd = null;
+                    Toast.makeText(MainActivity.this, getString(R.string.iap_purchase_restored), Toast.LENGTH_SHORT).show();
+                    invalidateOptionsMenu();
+                });
+            }
         });
         billingManager.startConnection();
 
@@ -1212,7 +1222,7 @@ public class MainActivity extends AppCompatActivity {
             return true;
         }
         for (String issue : issues) {
-            log("[PRECHEQUEO] " + issue);
+            log(getString(R.string.log_precheck_issue, issue));
         }
         return false;
     }

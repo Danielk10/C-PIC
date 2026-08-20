@@ -143,4 +143,5 @@
     <string name="log_cant_save_source_export">No se pudo guardar fuente para exportar: %s</string>
     <string name="log_cant_save_saf_permission">No se pudo guardar permiso de carpeta. Vuelve a seleccionarla.</string>
     <string name="log_saf_permission_lost">Permiso de carpeta perdido. Selecciona nuevamente una carpeta de destino.</string>
+    <string name="log_precheck_issue">[PRECHEQUEO] %s</string>
 </resources>

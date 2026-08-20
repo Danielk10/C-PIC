@@ -143,5 +143,6 @@
     <string name="log_cant_save_source_export">Could not save source for export: %s</string>
     <string name="log_cant_save_saf_permission">Could not save folder permission. Please select it again.</string>
     <string name="log_saf_permission_lost">Folder permission lost. Please select target folder again.</string>
+    <string name="log_precheck_issue">[PRECHECK] %s</string>
 </resources>
 

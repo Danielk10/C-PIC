@@ -45,6 +45,7 @@ public class BillingManager implements PurchasesUpdatedListener {
     public interface BillingListener {
         void onAdsRemovedChanged(boolean adsRemoved);
         void onPriceLoaded(String formattedPrice);
+        default void onPurchasesRestored() {}
     }
 
     private final Context context;
@@ -257,7 +258,12 @@ public class BillingManager implements PurchasesUpdatedListener {
                         break;
                     }
                 }
+                SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+                boolean previousValue = prefs.getBoolean(KEY_ADS_REMOVED, false);
                 setAdsRemoved(hasRemoveAds);
+                if (hasRemoveAds && !previousValue && listener != null) {
+                    listener.onPurchasesRestored();
+                }
             } else {
                 Log.w(TAG, "Failed to query purchases: " + billingResult.getDebugMessage());
             }
