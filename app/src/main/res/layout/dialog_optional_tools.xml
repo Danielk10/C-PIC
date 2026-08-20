@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@color/surface"
-    android:padding="16dp">
+    android:padding="10dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -16,7 +16,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             app:cardBackgroundColor="#1E1E1E"
-            app:cardCornerRadius="10dp"
+            app:cardCornerRadius="8dp"
             app:cardElevation="2dp"
             app:strokeColor="#333333"
             app:strokeWidth="1dp">
@@ -25,32 +25,33 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="14dp">
+                android:padding="10dp">
 
                 <!-- Checkbox Packihx -->
                 <com.google.android.material.checkbox.MaterialCheckBox
                     android:id="@+id/chk_packihx"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:minHeight="36dp"
                     android:text="@string/opt_packihx_title"
                     android:textColor="#FFFFFF"
-                    android:textSize="15sp"
+                    android:textSize="13.5sp"
                     android:textStyle="bold"
                     app:buttonTint="@color/primary" />
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="32dp"
-                    android:layout_marginBottom="12dp"
+                    android:layout_marginStart="30dp"
+                    android:layout_marginBottom="8dp"
                     android:text="@string/opt_packihx_desc"
                     android:textColor="#B0BEC5"
-                    android:textSize="13sp" />
+                    android:textSize="11.5sp" />
 
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:layout_marginBottom="8dp"
+                    android:layout_marginBottom="6dp"
                     android:background="#333333" />
 
                 <!-- Checkbox Makebin -->
@@ -58,25 +59,26 @@
                     android:id="@+id/chk_makebin"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:minHeight="36dp"
                     android:text="@string/opt_makebin_title"
                     android:textColor="#FFFFFF"
-                    android:textSize="15sp"
+                    android:textSize="13.5sp"
                     android:textStyle="bold"
                     app:buttonTint="@color/primary" />
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="32dp"
-                    android:layout_marginBottom="12dp"
+                    android:layout_marginStart="30dp"
+                    android:layout_marginBottom="8dp"
                     android:text="@string/opt_makebin_desc"
                     android:textColor="#B0BEC5"
-                    android:textSize="13sp" />
+                    android:textSize="11.5sp" />
 
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:layout_marginBottom="8dp"
+                    android:layout_marginBottom="6dp"
                     android:background="#333333" />
 
                 <!-- Checkbox Auto Apply -->
@@ -84,19 +86,20 @@
                     android:id="@+id/chk_auto_apply"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:minHeight="36dp"
                     android:text="@string/opt_auto_apply_title"
                     android:textColor="#FFFFFF"
-                    android:textSize="15sp"
+                    android:textSize="13.5sp"
                     android:textStyle="bold"
                     app:buttonTint="@color/primary" />
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="32dp"
+                    android:layout_marginStart="30dp"
                     android:text="@string/opt_auto_apply_desc"
                     android:textColor="#B0BEC5"
-                    android:textSize="13sp" />
+                    android:textSize="11.5sp" />
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
@@ -105,11 +108,11 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="8dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginBottom="6dp"
             android:text="@string/opt_actions_header"
             android:textColor="@color/secondary"
-            android:textSize="14sp"
+            android:textSize="12sp"
             android:textStyle="bold" />
 
         <!-- Action Buttons with high-contrast theme styling -->
@@ -117,12 +120,16 @@
             android:id="@+id/btn_run_packihx_action"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:minHeight="38dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
             android:layout_marginTop="2dp"
             android:text="@string/btn_run_packihx"
             android:textColor="@color/primary"
+            android:textSize="12sp"
             android:textStyle="bold"
             app:backgroundTint="#2E3440"
-            app:cornerRadius="8dp"
+            app:cornerRadius="6dp"
             app:strokeColor="@color/primary"
             app:strokeWidth="1dp" />
 
@@ -130,12 +137,16 @@
             android:id="@+id/btn_run_makebin_action"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:minHeight="38dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:layout_marginTop="4dp"
             android:text="@string/btn_run_makebin"
             android:textColor="@color/primary"
+            android:textSize="12sp"
             android:textStyle="bold"
             app:backgroundTint="#2E3440"
-            app:cornerRadius="8dp"
+            app:cornerRadius="6dp"
             app:strokeColor="@color/primary"
             app:strokeWidth="1dp" />
 
@@ -143,12 +154,16 @@
             android:id="@+id/btn_run_simulator_action"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:minHeight="38dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:layout_marginTop="4dp"
             android:text="@string/btn_run_simulator"
             android:textColor="@color/secondary"
+            android:textSize="12sp"
             android:textStyle="bold"
             app:backgroundTint="#2E3440"
-            app:cornerRadius="8dp"
+            app:cornerRadius="6dp"
             app:strokeColor="@color/secondary"
             app:strokeWidth="1dp" />
 

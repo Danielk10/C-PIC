@@ -33,10 +33,13 @@
             android:id="@+id/card_pic_selector"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_margin="8dp"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="4dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="2dp"
             app:cardBackgroundColor="#1E1E1E"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="4dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="3dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
@@ -45,7 +48,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="12dp">
+                android:padding="6dp">
 
                 <!-- Row 1: Architecture Selector -->
                 <LinearLayout
@@ -59,21 +62,22 @@
                         android:layout_height="wrap_content"
                         android:text="@string/label_arch"
                         android:textColor="@color/secondary"
-                        android:textSize="14sp"
+                        android:textSize="12sp"
                         android:textStyle="bold" />
 
                     <Spinner
                         android:id="@+id/spinner_arch"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
+                        android:layout_marginStart="6dp"
                         android:theme="@style/ThemeOverlay.AppCompat.Dark" />
                 </LinearLayout>
 
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="4dp"
                     android:background="#333333" />
 
                 <!-- Row 2: Sub-Architecture Selector (visible only for families with sub-archs) -->
@@ -90,14 +94,14 @@
                         android:layout_height="wrap_content"
                         android:text="@string/label_variant"
                         android:textColor="@color/secondary"
-                        android:textSize="14sp"
+                        android:textSize="12sp"
                         android:textStyle="bold" />
 
                     <Spinner
                         android:id="@+id/spinner_sub_arch"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
+                        android:layout_marginStart="6dp"
                         android:theme="@style/ThemeOverlay.AppCompat.Dark" />
                 </LinearLayout>
 
@@ -105,7 +109,8 @@
                     android:id="@+id/divider_sub_arch"
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="4dp"
                     android:background="#333333"
                     android:visibility="gone" />
 
@@ -123,14 +128,14 @@
                         android:layout_height="wrap_content"
                         android:text="@string/label_pic"
                         android:textColor="@color/secondary"
-                        android:textSize="14sp"
+                        android:textSize="12sp"
                         android:textStyle="bold" />
 
                     <Spinner
                         android:id="@+id/spinner_pic"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
+                        android:layout_marginStart="6dp"
                         android:theme="@style/ThemeOverlay.AppCompat.Dark" />
                 </LinearLayout>
 
@@ -138,7 +143,8 @@
                     android:id="@+id/divider_device"
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="4dp"
                     android:background="#333333" />
 
                 <!-- Row 4: Language Toggle (visible only for families with ASM mode) -->
@@ -154,7 +160,7 @@
                         android:layout_height="wrap_content"
                         android:text="@string/label_language"
                         android:textColor="@color/secondary"
-                        android:textSize="14sp"
+                        android:textSize="12sp"
                         android:textStyle="bold" />
 
                     <com.google.android.material.button.MaterialButtonToggleGroup
@@ -162,7 +168,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:layout_marginStart="16dp"
+                        android:layout_marginStart="10dp"
                         app:checkedButton="@+id/btn_lang_asm"
                         app:singleSelection="true">
 
@@ -173,7 +179,11 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="@string/btn_asm_gputils"
-                            android:textSize="11sp"
+                            android:textSize="10sp"
+                            android:minHeight="30dp"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:padding="2dp"
                             android:lines="1"
                             android:ellipsize="end"
                             android:textColor="#FFFFFF" />
@@ -185,7 +195,11 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="@string/btn_c_sdcc"
-                            android:textSize="11sp"
+                            android:textSize="10sp"
+                            android:minHeight="30dp"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:padding="2dp"
                             android:lines="1"
                             android:ellipsize="end"
                             android:textColor="#FFFFFF" />
@@ -196,8 +210,8 @@
                     android:id="@+id/divider_language"
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:layout_marginTop="8dp"
-                    android:layout_marginBottom="8dp"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="4dp"
                     android:background="#333333" />
 
                 <LinearLayout
@@ -211,13 +225,13 @@
                         android:layout_height="wrap_content"
                         android:text="@string/label_project"
                         android:textColor="@color/secondary"
-                        android:textSize="14sp"
+                        android:textSize="12sp"
                         android:textStyle="bold" />
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
+                        android:layout_marginStart="6dp"
                         app:hintEnabled="false">
 
                         <com.google.android.material.textfield.TextInputEditText
@@ -227,11 +241,11 @@
                             android:background="#CCCCCC"
                             android:hint="@string/hint_project_name"
                             android:inputType="text"
-                            android:padding="8dp"
+                            android:padding="4dp"
                             android:lines="1"
                             android:textColor="#000000"
                             android:textColorHint="#555555"
-                            android:textSize="14sp" />
+                            android:textSize="12sp" />
                     </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>
             </LinearLayout>
@@ -242,34 +256,37 @@
             android:id="@+id/card_editor"
             android:layout_width="0dp"
             android:layout_height="0dp"
-            android:layout_margin="8dp"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="4dp"
+            android:layout_marginTop="2dp"
+            android:layout_marginBottom="2dp"
             app:cardBackgroundColor="#1E1E1E"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="4dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="3dp"
             app:layout_constraintBottom_toTopOf="@+id/card_logs"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/card_pic_selector"
-            app:layout_constraintVertical_weight="1.4">
+            app:layout_constraintVertical_weight="2.3">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:orientation="vertical"
-                android:padding="8dp">
+                android:padding="4dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/label_editor"
                     android:textColor="@color/secondary"
-                    android:textSize="12sp"
+                    android:textSize="11sp"
                     android:textStyle="bold" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
+                    android:layout_marginTop="2dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
@@ -292,7 +309,7 @@
                     android:id="@+id/scroll_editor"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:layout_marginTop="6dp"
+                    android:layout_marginTop="2dp"
                     android:fillViewport="true">
 
                     <LinearLayout
@@ -307,10 +324,13 @@
                             android:background="#151515"
                             android:fontFamily="monospace"
                             android:gravity="top|end"
-                            android:padding="12dp"
+                            android:paddingStart="4dp"
+                            android:paddingEnd="4dp"
+                            android:paddingTop="4dp"
+                            android:paddingBottom="4dp"
                             android:text="1"
                             android:textColor="#8FA0AE"
-                            android:textSize="12sp" />
+                            android:textSize="11sp" />
 
                         <EditText
                             android:id="@+id/edit_asm"
@@ -322,11 +342,14 @@
                             android:gravity="top"
                             android:hint="@string/hint_editor_asm"
                             android:inputType="textMultiLine|textNoSuggestions|textVisiblePassword"
-                            android:minHeight="200dp"
-                            android:padding="12dp"
+                            android:minHeight="120dp"
+                            android:paddingStart="6dp"
+                            android:paddingEnd="6dp"
+                            android:paddingTop="4dp"
+                            android:paddingBottom="4dp"
                             android:textColor="#B2FF59"
                             android:textColorHint="#546E7A"
-                            android:textSize="14sp" />
+                            android:textSize="13sp" />
                     </LinearLayout>
                 </ScrollView>
             </LinearLayout>
@@ -337,15 +360,18 @@
             android:id="@+id/card_logs"
             android:layout_width="0dp"
             android:layout_height="0dp"
-            android:layout_margin="8dp"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="4dp"
+            android:layout_marginTop="2dp"
+            android:layout_marginBottom="2dp"
             app:cardBackgroundColor="#0D1117"
-            app:cardCornerRadius="12dp"
+            app:cardCornerRadius="8dp"
             app:cardElevation="2dp"
             app:layout_constraintBottom_toTopOf="@+id/button_layout"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/card_editor"
-            app:layout_constraintVertical_weight="1.6"
+            app:layout_constraintVertical_weight="1.2"
             app:strokeColor="#30363D"
             app:strokeWidth="1dp">
 
@@ -360,10 +386,10 @@
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
                     android:background="#161B22"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="8dp"
-                    android:paddingTop="2dp"
-                    android:paddingBottom="2dp">
+                    android:paddingStart="8dp"
+                    android:paddingEnd="4dp"
+                    android:paddingTop="1dp"
+                    android:paddingBottom="1dp">
 
                     <TextView
                         android:id="@+id/text_terminal_title"
@@ -373,7 +399,7 @@
                         android:text="@string/label_terminal"
                         android:textColor="#8B949E"
                         android:textStyle="bold"
-                        android:textSize="11sp" />
+                        android:textSize="10sp" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_toggle_terminal_size"
@@ -382,13 +408,13 @@
                         android:layout_height="wrap_content"
                         android:text="@string/btn_expand_terminal"
                         android:textColor="#C792EA"
-                        android:textSize="11sp"
+                        android:textSize="10sp"
                         android:minHeight="0dp"
                         android:minWidth="0dp"
-                        android:paddingStart="6dp"
-                        android:paddingEnd="6dp"
-                        android:paddingTop="2dp"
-                        android:paddingBottom="2dp" />
+                        android:paddingStart="4dp"
+                        android:paddingEnd="4dp"
+                        android:paddingTop="1dp"
+                        android:paddingBottom="1dp" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_clear_logs"
@@ -397,13 +423,13 @@
                         android:layout_height="wrap_content"
                         android:text="@string/btn_clear"
                         android:textColor="#58A6FF"
-                        android:textSize="11sp"
+                        android:textSize="10sp"
                         android:minHeight="0dp"
                         android:minWidth="0dp"
-                        android:paddingStart="6dp"
-                        android:paddingEnd="6dp"
-                        android:paddingTop="2dp"
-                        android:paddingBottom="2dp" />
+                        android:paddingStart="4dp"
+                        android:paddingEnd="4dp"
+                        android:paddingTop="1dp"
+                        android:paddingBottom="1dp" />
                 </LinearLayout>
 
                 <com.diamon.ptc.views.LogScrollView
@@ -412,7 +438,7 @@
                     android:layout_height="0dp"
                     android:layout_weight="1"
                     android:background="#0A0E17"
-                    android:padding="8dp"
+                    android:padding="4dp"
                     android:descendantFocusability="blocksDescendants">
 
                     <TextView
@@ -424,57 +450,77 @@
                         android:text="@string/terminal_ready"
                         android:textColor="#00FF66"
                         android:textIsSelectable="true"
-                        android:lineSpacingExtra="2dp"
-                        android:textSize="12sp" />
+                        android:lineSpacingExtra="1dp"
+                        android:textSize="11sp" />
                 </com.diamon.ptc.views.LogScrollView>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Action Buttons Section -->
+        <!-- Action Buttons Section (Single Compact Row) -->
         <LinearLayout
             android:id="@+id/button_layout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="8dp"
+            android:orientation="horizontal"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="2dp"
             app:layout_constraintBottom_toTopOf="@+id/adView_banner"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent">
 
-            <LinearLayout
-                android:layout_width="match_parent"
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_assemble"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:layout_weight="1.2"
+                android:layout_marginEnd="2dp"
+                android:text="@string/btn_assemble"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:minHeight="36dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
+                app:backgroundTint="@color/primary"
+                app:cornerRadius="6dp" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_assemble"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1.2"
-                    android:layout_marginEnd="4dp"
-                    android:text="@string/btn_assemble"
-                    app:backgroundTint="@color/primary"
-                    app:cornerRadius="8dp" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_view_hex"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="0.8"
-                    android:layout_marginStart="4dp"
-                    android:text="@string/btn_view_hex"
-                    app:backgroundTint="@color/secondary"
-                    app:cornerRadius="8dp" />
-            </LinearLayout>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_view_hex"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.9"
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="2dp"
+                android:text="@string/btn_view_hex"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:minHeight="36dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
+                app:backgroundTint="@color/secondary"
+                app:cornerRadius="6dp" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_export"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_weight="0.9"
+                android:layout_marginStart="2dp"
                 android:text="@string/btn_export"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:minHeight="36dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
                 app:backgroundTint="@color/primary_variant"
-                app:cornerRadius="8dp" />
+                app:cornerRadius="6dp" />
 
         </LinearLayout>
 

@@ -28,7 +28,7 @@
     <string name="btn_assemble">ENSAMBLAR</string>
     <string name="btn_compile">COMPILAR</string>
     <string name="btn_view_hex">VER HEX</string>
-    <string name="btn_export">EXPORTAR ARCHIVOS GENERADOS</string>
+    <string name="btn_export">EXPORTAR</string>
 
     <!-- activity_main.xml - Loading overlay -->
     <string name="loading_message">Preparando herramientas…\nSolo tomará un momento la primera vez.</string>

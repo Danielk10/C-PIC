@@ -28,7 +28,7 @@
     <string name="btn_assemble">ASSEMBLE</string>
     <string name="btn_compile">COMPILE</string>
     <string name="btn_view_hex">VIEW HEX</string>
-    <string name="btn_export">EXPORT GENERATED FILES</string>
+    <string name="btn_export">EXPORT</string>
 
     <!-- activity_main.xml - Loading overlay -->
     <string name="loading_message">Preparing tools…\nThis will only take a moment the first time.</string>
