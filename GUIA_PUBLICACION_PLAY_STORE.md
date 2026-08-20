@@ -45,10 +45,10 @@ python3 upload_play_store.py \
   --aab_path /tmp/calculo/outputs/bundle/release/app-release.aab \
   --service_account_json /ruta/a/tu/google-play-api.json \
   --track production \
-  --release_notes "- Compatibilidad actualizada con Android 16 (API 37).
+  --release_notes "- Compatibilidad actualizada con Android 17 (API 37).
 - Optimización de binarios nativos ARM64 con alineación de páginas a 16 KB.
 - Actualización de dependencias y mejoras generales de estabilidad." \
-  --release_notes_en "- Updated compatibility with Android 16 (API 37).
+  --release_notes_en "- Updated compatibility with Android 17 (API 37).
 - Native ARM64 binary optimization with 16 KB page alignment.
 - Updated dependencies and general stability improvements."
 ```

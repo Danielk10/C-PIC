@@ -2,7 +2,7 @@
 **Paquete**: `com.diamon.ptc` (C PIC Compiler)
 **Arquitectura Objetivo**: `arm64-v8a` (64 bits)
 
-Este informe técnico documenta el análisis detallado de las dependencias dinámicas (`DT_NEEDED`), símbolos compartidos (`SONAME`), alineación de segmentos de memoria ELF y compatibilidad con las especificaciones de **Android 15 y Android 16 (API 37)**.
+Este informe técnico documenta el análisis detallado de las dependencias dinámicas (`DT_NEEDED`), símbolos compartidos (`SONAME`), alineación de segmentos de memoria ELF y compatibilidad con las especificaciones de **Android 15, Android 16 y Android 17 (API 37)**.
 
 ---
 

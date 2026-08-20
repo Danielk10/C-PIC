@@ -3,7 +3,7 @@
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Android-green.svg)
 ![API Level](https://img.shields.io/badge/API-23%20to%2037-brightgreen.svg)
-![Android](https://img.shields.io/badge/Android-16%20(API%2037)-blue.svg)
+![Android](https://img.shields.io/badge/Android-17%20(API%2037)-blue.svg)
 ![Architecture](https://img.shields.io/badge/arch-ARM64-orange.svg)
 ![Gradle](https://img.shields.io/badge/Gradle-9.6.0-02303A.svg)
 ![AGP](https://img.shields.io/badge/AGP-9.2.1-34A853.svg)
@@ -48,7 +48,7 @@ Impulsada por **SDCC 4.5.0** (Small Device C Compiler), **GPUTILS 1.5.2** (GNU P
   - Carga automática de plantillas funcionales validadas para cada arquitectura al cambiar de familia.
   - Soporte de múltiples pestañas y proyectos independientes.
 - ✅ **Alineación ELF a 16 KB (`max-page-size=16384`)**:
-  - Todos los 72 binarios y librerías dinámicas están alineados a 16 KB, garantizando compatibilidad con **Android 15** y **Android 16**.
+  - Todos los 72 binarios y librerías dinámicas están alineados a 16 KB, garantizando compatibilidad total con **Android 15, Android 16 y Android 17**.
 - ✅ **Cumplimiento Estricto de Google Play**:
   - Ejecutables y librerías empaquetados bajo el estándar `lib<nombre>.so` en `jniLibs/arm64-v8a/` y reconstruidos transparentemente en tiempo de ejecución.
 - ✅ **Internacionalización Completa**: Interfaz y mensajes completamente localizados en español e inglés sin cadenas hardcodeadas.
@@ -78,8 +78,8 @@ Impulsada por **SDCC 4.5.0** (Small Device C Compiler), **GPUTILS 1.5.2** (GNU P
 
 | Componente | Versión / Valor |
 |---|---|
-| **Android Compile SDK** | `android-37` (Android 16) |
-| **Android Target SDK** | `37` (Android 16) |
+| **Android Compile SDK** | `android-37` (Android 17) |
+| **Android Target SDK** | `37` (Android 17) |
 | **Android Min SDK** | `23` (Android 6.0 Marshmallow) |
 | **Android Build Tools** | `37.0.0` |
 | **Gradle** | `9.6.0` |
@@ -136,34 +136,43 @@ Los artefactos se generan en el directorio temporal `/tmp/calculo`:
 C-PIC/
 ├── app/
 │   ├── build.gradle                               # Configuración del módulo de aplicación
-│   └── src/main/
-│       ├── AndroidManifest.xml                    # Manifiesto de la aplicación Android
-│       ├── assets/data/data/com.diamon.ptc/files/ # Headers, scripts LKR y librerías precompiladas
-│       │   └── usr/share/
-│       │       ├── gputils/                       # Headers (.inc) y scripts (.lkr) de PIC
-│       │       └── sdcc/                          # Includes C y librerías de las 24 arquitecturas
-│       ├── cpp/                                   # Soporte nativo C/C++ (CMake/NDK)
-│       ├── java/com/diamon/ptc/                   # Código fuente Java
-│       │   ├── MainActivity.java                  # Controlador principal de UI, terminal y editor
-│       │   ├── PortConfig.java                    # Modelo inmutable de configuración de puertos
-│       │   ├── PortRegistry.java                  # Registro estático de las 12 familias SDCC y templates
-│       │   ├── SdccExecutor.java                  # Ejecutor de SDCC y gestión de symlinks libexec
-│       │   ├── GpUtilsExecutor.java               # Ejecutor de herramientas GPUTILS (gpasm/gplink)
-│       │   ├── AssetExtractor.java                # Extractor eficiente de recursos
-│       │   ├── IntelHexParser.java                # Analizador de formatos HEX
-│       │   ├── LogScrollView.java                 # ScrollView con soporte de auto-desplazamiento inteligente
-│       │   └── BillingManager.java                # Gestión de compras in-app y facturación
-│       ├── jniLibs/arm64-v8a/                     # 72 binarios nativos ARM64 (lib*.so)
-│       └── res/                                   # Layouts, recursos gráficos y cadenas localizadas
-│           ├── layout/activity_main.xml           # Layout principal con spinners de arquitectura y terminal
-│           ├── values/strings.xml                 # Cadenas en Español
-│           └── values-en/strings.xml              # Cadenas en Inglés
+│   └── src/
+│       ├── main/
+│       │   ├── AndroidManifest.xml                # Manifiesto de la aplicación Android
+│       │   ├── assets/data/data/com.diamon.ptc/   # Headers, scripts LKR y librerías precompiladas
+│       │   │   └── files/usr/share/
+│       │   │       ├── gputils/                   # Headers (.inc) y scripts (.lkr) de PIC
+│       │   │       └── sdcc/                      # Includes C y librerías de las 24 arquitecturas
+│       │   ├── cpp/                               # Soporte nativo C/C++ (CMake/NDK)
+│       │   ├── java/com/diamon/ptc/               # Código fuente Java
+│       │   │   ├── MainActivity.java              # Controlador principal de UI, terminal y editor
+│       │   │   ├── PortConfig.java                # Modelo inmutable de configuración de puertos
+│       │   │   ├── PortRegistry.java              # Registro estático de las 12 familias SDCC y templates
+│       │   │   ├── SdccExecutor.java              # Ejecutor de SDCC y gestión de symlinks libexec
+│       │   │   ├── GpUtilsExecutor.java           # Ejecutor de herramientas GPUTILS (gpasm/gplink)
+│       │   │   ├── AssetExtractor.java            # Extractor eficiente de recursos
+│       │   │   ├── IntelHexParser.java            # Analizador de formatos HEX
+│       │   │   ├── FileManager.java               # Gestión de exportación y SAF
+│       │   │   ├── BillingManager.java            # Gestión de compras in-app y facturación
+│       │   │   ├── views/LogScrollView.java       # ScrollView con soporte de auto-desplazamiento inteligente
+│       │   │   └── policy/PolicyActivity.java     # Pantalla de política de privacidad
+│       │   ├── jniLibs/arm64-v8a/                 # 72 binarios nativos ARM64 (lib*.so)
+│       │   └── res/                               # Layouts, recursos gráficos y cadenas localizadas
+│       │       ├── layout/activity_main.xml       # Layout principal con spinners de arquitectura y terminal
+│       │       ├── values/strings.xml             # Cadenas en Español
+│       │       └── values-en/strings.xml          # Cadenas en Inglés
+│       └── test/java/com/diamon/ptc/              # Suite de 20 pruebas unitarias automatizadas
+│           ├── PortRegistryTest.java              # Validación de familias y arquitecturas
+│           ├── ProjectSourceProcessingTest.java   # Procesamiento de fuentes, headers y exportación
+│           ├── IntelHexParserTest.java            # Validación de análisis de registros HEX
+│           └── LocalSdccMultiPortCompilationTest.java # Compilación real multi-puerto
 ├── fake_root/                                     # Estructura base inmutable de referencia
 ├── libs/                                          # Librerías dinámicas compartidas de soporte
 ├── setup-sdk.sh                                   # Script instalador del SDK 37 y NDK 30
 ├── upload_play_store.py                           # Script de subida automática a Google Play
 ├── GEMINI.md                                      # Especificación de arquitectura y compilación
 ├── GUIA_PUBLICACION_PLAY_STORE.md                 # Guía de publicación en Google Play
+├── RELEASE_NOTES_v1.3.0.md                        # Notas del lanzamiento v1.3.0
 ├── NOMBRES_BINARIOS_VS_ANTIGUOS.md                # Correspondencia de binarios lib*.so vs originales
 ├── REPORTE_LIMPIEZA_ASSETS.md                     # Auditoría de limpieza y ahorro en assets
 ├── REPORTE_ANALISIS_DEPENDENCIAS.md               # Análisis de dependencias DT_NEEDED y 16KB
@@ -175,11 +184,12 @@ C-PIC/
 
 ## 📚 Documentación Técnica Adicional
 
-1. **[GEMINI.md](GEMINI.md)**: Arquitectura del proyecto, variables de entorno y firma.
-2. **[NOMBRES_BINARIOS_VS_ANTIGUOS.md](NOMBRES_BINARIOS_VS_ANTIGUOS.md)**: Mapeo de los 60 ejecutables y 12 librerías nativas adaptadas a Google Play.
-3. **[REPORTE_LIMPIEZA_ASSETS.md](REPORTE_LIMPIEZA_ASSETS.md)**: Detalle del ahorro de espacio de más de 150 MB al depurar fuentes y binarios redundantes.
-4. **[REPORTE_ANALISIS_DEPENDENCIAS.md](REPORTE_ANALISIS_DEPENDENCIAS.md)**: Análisis de dependencias `DT_NEEDED` y alineación estricta de páginas a 16 KB.
-5. **[GUIA_PUBLICACION_PLAY_STORE.md](GUIA_PUBLICACION_PLAY_STORE.md)**: Procedimiento para el despliegue a Google Play Console.
+1. **[RELEASE_NOTES_v1.3.0.md](RELEASE_NOTES_v1.3.0.md)**: Notas completas del lanzamiento actual v1.3.0.
+2. **[GEMINI.md](GEMINI.md)**: Arquitectura del proyecto, variables de entorno y firma.
+3. **[GUIA_PUBLICACION_PLAY_STORE.md](GUIA_PUBLICACION_PLAY_STORE.md)**: Procedimiento para el despliegue a Google Play Console.
+4. **[NOMBRES_BINARIOS_VS_ANTIGUOS.md](NOMBRES_BINARIOS_VS_ANTIGUOS.md)**: Mapeo de los 60 ejecutables y 12 librerías nativas adaptadas a Google Play.
+5. **[REPORTE_LIMPIEZA_ASSETS.md](REPORTE_LIMPIEZA_ASSETS.md)**: Detalle del ahorro de espacio de más de 150 MB al depurar fuentes y binarios redundantes.
+6. **[REPORTE_ANALISIS_DEPENDENCIAS.md](REPORTE_ANALISIS_DEPENDENCIAS.md)**: Análisis de dependencias `DT_NEEDED` y alineación estricta de páginas a 16 KB.
 
 ---
 

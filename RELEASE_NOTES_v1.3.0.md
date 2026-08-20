@@ -41,9 +41,9 @@ Esta versión representa una evolución integral de la aplicación, transformán
 ---
 
 ## 📱 Especificaciones Técnicas
-- **Target SDK**: Android 16 (API 37) | **Min SDK**: Android 6.0 (API 23)
+- **Target SDK**: Android 17 (API 37) | **Min SDK**: Android 6.0 (API 23)
 - **Compiladores Integrados**: SDCC 4.5.0 + GPUTILS 1.5.2 + Suite ucSim
-- **Alineación ELF**: 16 KB (`-Wl,-z,max-page-size=16384`) para Android 15/16
+- **Alineación ELF**: 16 KB (`-Wl,-z,max-page-size=16384`) para Android 15/16/17
 - **Gradle**: 9.6.0 | **AGP**: 9.2.1 | **NDK**: 30.0.14904198 rc1 | **CMake**: 4.1.2
 
 ---
