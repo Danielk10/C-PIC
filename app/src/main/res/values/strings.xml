@@ -35,6 +35,8 @@
 
     <!-- activity_main.xml - Logs & Terminal -->
     <string name="label_terminal">TERMINAL DE SALIDA</string>
+    <string name="btn_expand_terminal">Expandir</string>
+    <string name="btn_restore_terminal">Reducir</string>
     <string name="btn_clear">Limpiar</string>
     <string name="terminal_ready">--- Terminal lista ---</string>
     <string name="terminal_reset">--- Terminal reiniciada ---</string>

@@ -380,9 +380,14 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    private boolean isTerminalExpanded = false;
+
     private void setupListeners() {
         if (binding.btnClearLogs != null) {
             binding.btnClearLogs.setOnClickListener(v -> clearTerminal());
+        }
+        if (binding.btnToggleTerminalSize != null) {
+            binding.btnToggleTerminalSize.setOnClickListener(v -> toggleTerminalSize());
         }
         binding.btnAssemble.setOnClickListener(v -> assembleCode());
         binding.btnViewHex.setOnClickListener(v -> viewGeneratedFile(".hex"));
@@ -2319,6 +2324,27 @@ public class MainActivity extends AppCompatActivity {
         }
         binding.textLogs.setText("");
         log(getString(R.string.terminal_reset));
+    }
+
+    public void toggleTerminalSize() {
+        isTerminalExpanded = !isTerminalExpanded;
+        if (isTerminalExpanded) {
+            binding.cardEditor.setVisibility(View.GONE);
+            if (binding.cardPicSelector != null) {
+                binding.cardPicSelector.setVisibility(View.GONE);
+            }
+            if (binding.btnToggleTerminalSize != null) {
+                binding.btnToggleTerminalSize.setText(R.string.btn_restore_terminal);
+            }
+        } else {
+            binding.cardEditor.setVisibility(View.VISIBLE);
+            if (binding.cardPicSelector != null) {
+                binding.cardPicSelector.setVisibility(View.VISIBLE);
+            }
+            if (binding.btnToggleTerminalSize != null) {
+                binding.btnToggleTerminalSize.setText(R.string.btn_expand_terminal);
+            }
+        }
     }
 
     private void updateLogs(String text) {

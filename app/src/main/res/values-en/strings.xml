@@ -35,6 +35,8 @@
 
     <!-- activity_main.xml - Logs & Terminal -->
     <string name="label_terminal">OUTPUT TERMINAL</string>
+    <string name="btn_expand_terminal">Expand</string>
+    <string name="btn_restore_terminal">Collapse</string>
     <string name="btn_clear">Clear</string>
     <string name="terminal_ready">--- Terminal ready ---</string>
     <string name="terminal_reset">--- Terminal reset ---</string>
