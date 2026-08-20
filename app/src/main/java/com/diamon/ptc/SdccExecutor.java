@@ -205,6 +205,12 @@ public class SdccExecutor {
             File libexecBase = new File(usrDir, "libexec/sdcc/aarch64-unknown-linux-gnu/12.1.0");
             if (!libexecBase.exists()) libexecBase.mkdirs();
 
+            File libexec450 = new File(usrDir, "libexec/sdcc/aarch64-unknown-linux-gnu/4.5.0");
+            if (!libexec450.exists()) libexec450.mkdirs();
+
+            File libexecArch = new File(usrDir, "libexec/sdcc/aarch64-unknown-linux-gnu");
+            if (!libexecArch.exists()) libexecArch.mkdirs();
+
             File libexecGeneric = new File(usrDir, "libexec/sdcc");
             if (!libexecGeneric.exists()) libexecGeneric.mkdirs();
 
@@ -225,6 +231,8 @@ public class SdccExecutor {
                             createSymlink(new File(binDir, baseName), file.getAbsolutePath());
                             createSymlink(new File(binDir, "sdcc-" + baseName), file.getAbsolutePath());
                             createSymlink(new File(libexecBase, baseName), file.getAbsolutePath());
+                            createSymlink(new File(libexec450, baseName), file.getAbsolutePath());
+                            createSymlink(new File(libexecArch, baseName), file.getAbsolutePath());
                             createSymlink(new File(libexecGeneric, baseName), file.getAbsolutePath());
 
                             // Alias para ensambladores: sdas8051 -> as8051, sdas6500 -> as6500, etc.
@@ -232,6 +240,8 @@ public class SdccExecutor {
                                 String asName = "as" + baseName.substring(4);
                                 createSymlink(new File(binDir, asName), file.getAbsolutePath());
                                 createSymlink(new File(libexecBase, asName), file.getAbsolutePath());
+                                createSymlink(new File(libexec450, asName), file.getAbsolutePath());
+                                createSymlink(new File(libexecArch, asName), file.getAbsolutePath());
                                 createSymlink(new File(libexecGeneric, asName), file.getAbsolutePath());
                             }
                         }
@@ -246,6 +256,8 @@ public class SdccExecutor {
             String libgplink = new File(nativeLibDir, "libgplink.so").getAbsolutePath();
 
             createSymlink(new File(libexecBase, "cc1"), libcc1);
+            createSymlink(new File(libexec450, "cc1"), libcc1);
+            createSymlink(new File(libexecArch, "cc1"), libcc1);
             createSymlink(new File(libexecGeneric, "cc1"), libcc1);
             createSymlink(new File(binDir, "cc1"), libcc1);
             createSymlink(new File(binDir, "sdcc-cc1"), libcc1);
