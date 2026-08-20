@@ -170,8 +170,7 @@ C-PIC/
 ├── libs/                                          # Librerías dinámicas compartidas de soporte
 ├── setup-sdk.sh                                   # Script instalador del SDK 37 y NDK 30
 ├── upload_play_store.py                           # Script de subida automática a Google Play
-├── GEMINI.md                                      # Especificación de arquitectura y compilación
-├── GUIA_PUBLICACION_PLAY_STORE.md                 # Guía de publicación en Google Play
+├── RELEASE_NOTES_v1.4.0.md                        # Notas del lanzamiento v1.4.0
 ├── RELEASE_NOTES_v1.3.0.md                        # Notas del lanzamiento v1.3.0
 ├── NOMBRES_BINARIOS_VS_ANTIGUOS.md                # Correspondencia de binarios lib*.so vs originales
 ├── REPORTE_LIMPIEZA_ASSETS.md                     # Auditoría de limpieza y ahorro en assets
@@ -184,12 +183,13 @@ C-PIC/
 
 ## 📚 Documentación Técnica Adicional
 
-1. **[RELEASE_NOTES_v1.3.0.md](RELEASE_NOTES_v1.3.0.md)**: Notas completas del lanzamiento actual v1.3.0.
-2. **[GEMINI.md](GEMINI.md)**: Arquitectura del proyecto, variables de entorno y firma.
-3. **[GUIA_PUBLICACION_PLAY_STORE.md](GUIA_PUBLICACION_PLAY_STORE.md)**: Procedimiento para el despliegue a Google Play Console.
-4. **[NOMBRES_BINARIOS_VS_ANTIGUOS.md](NOMBRES_BINARIOS_VS_ANTIGUOS.md)**: Mapeo de los 60 ejecutables y 12 librerías nativas adaptadas a Google Play.
-5. **[REPORTE_LIMPIEZA_ASSETS.md](REPORTE_LIMPIEZA_ASSETS.md)**: Detalle del ahorro de espacio de más de 150 MB al depurar fuentes y binarios redundantes.
-6. **[REPORTE_ANALISIS_DEPENDENCIAS.md](REPORTE_ANALISIS_DEPENDENCIAS.md)**: Análisis de dependencias `DT_NEEDED` y alineación estricta de páginas a 16 KB.
+1. **[RELEASE_NOTES_v1.4.0.md](RELEASE_NOTES_v1.4.0.md)**: Notas completas del lanzamiento actual v1.4.0.
+2. **[RELEASE_NOTES_v1.3.0.md](RELEASE_NOTES_v1.3.0.md)**: Notas del lanzamiento previo v1.3.0.
+3. **[GEMINI.md](GEMINI.md)**: Arquitectura del proyecto, variables de entorno y firma.
+4. **[GUIA_PUBLICACION_PLAY_STORE.md](GUIA_PUBLICACION_PLAY_STORE.md)**: Procedimiento para el despliegue a Google Play Console.
+5. **[NOMBRES_BINARIOS_VS_ANTIGUOS.md](NOMBRES_BINARIOS_VS_ANTIGUOS.md)**: Mapeo de los 60 ejecutables y 12 librerías nativas adaptadas a Google Play.
+6. **[REPORTE_LIMPIEZA_ASSETS.md](REPORTE_LIMPIEZA_ASSETS.md)**: Detalle del ahorro de espacio de más de 150 MB al depurar fuentes y binarios redundantes.
+7. **[REPORTE_ANALISIS_DEPENDENCIAS.md](REPORTE_ANALISIS_DEPENDENCIAS.md)**: Análisis de dependencias `DT_NEEDED` y alineación estricta de páginas a 16 KB.
 
 ---
 

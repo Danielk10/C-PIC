@@ -1841,7 +1841,7 @@ public class MainActivity extends AppCompatActivity {
                 TreeMap<Integer, Byte> memory = IntelHexParser.parseBinary(data);
                 showAdvancedHexViewer(memory);
             } catch (Exception e) {
-                log("Error reading " + target.getName() + ": " + e.getMessage());
+                log(getString(R.string.log_error_reading_file, target.getName(), e.getMessage()));
             }
         } else if (target.getName().toLowerCase(Locale.US).endsWith(".hex") || target.getName().toLowerCase(Locale.US).endsWith(".ihx")) {
             String content = FileManager.readFile(target);

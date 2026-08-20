@@ -170,5 +170,6 @@
     <string name="dialog_select_viewer_format">Which file format do you want to inspect?</string>
     <string name="format_hex_file">Intel HEX File (.hex)</string>
     <string name="format_bin_file">Flat Binary File (.bin)</string>
+    <string name="log_error_reading_file">[ERROR] Error reading %1$s: %2$s</string>
 </resources>
 
