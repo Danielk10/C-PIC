@@ -2,10 +2,6 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
-        android:id="@+id/action_clear_logs"
-        android:title="@string/menu_clear_logs"
-        app:showAsAction="ifRoom" />
-    <item
         android:id="@+id/action_clear_editor"
         android:title="@string/menu_clear_editor"
         app:showAsAction="never" />

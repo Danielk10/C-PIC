@@ -335,10 +335,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(android.view.MenuItem item) {
         int id = item.getItemId();
-        if (id == R.id.action_clear_logs) {
-            clearTerminal();
-            return true;
-        } else if (id == R.id.action_clear_editor) {
+        if (id == R.id.action_clear_editor) {
             confirmClearEditor();
             return true;
         } else if (id == R.id.action_about) {

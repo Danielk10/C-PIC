@@ -44,7 +44,6 @@
     <string name="btn_close_viewer">Cerrar Visor</string>
 
     <!-- menu/main_menu.xml -->
-    <string name="menu_clear_logs">Limpiar Logs</string>
     <string name="menu_clear_editor">Limpiar Editor</string>
     <string name="menu_import_sources">Cargar archivos fuente</string>
     <string name="menu_about">Acerca de / Licencias</string>
