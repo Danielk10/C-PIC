@@ -29,6 +29,84 @@ public class SdccExecutor {
         this.gpUtilsShareDir = new File(workDir, "usr/share/gputils");
     }
 
+    public interface ProcessListener {
+        void onProcessOutput(String chunk);
+    }
+
+    public int executeSdccStreaming(File workingDir, List<String> visibleArgs, List<String> extraArgs, ProcessListener listener) {
+        return executeBinaryStreaming(workingDir, "sdcc", visibleArgs, extraArgs, listener);
+    }
+
+    public int executeBinaryStreaming(File workingDir, String binaryName, List<String> visibleArgs, List<String> extraArgs, ProcessListener listener) {
+        File binaryFile = new File(nativeLibDir, "lib" + binaryName + ".so");
+        if (!binaryFile.exists()) {
+            String err = "Error: No se encontro el binario " + binaryFile.getAbsolutePath() + "\n";
+            Log.e(TAG, err);
+            if (listener != null) listener.onProcessOutput(err);
+            return -1;
+        }
+
+        List<String> command = new ArrayList<>();
+        command.add(binaryFile.getAbsolutePath());
+
+        // Internal include and lib paths for SDCC (hidden from user terminal prompt)
+        command.add("-I" + new File(sdccShareDir, "include").getAbsolutePath());
+        command.add("-I" + new File(sdccShareDir, "non-free/include").getAbsolutePath());
+        command.add("-L" + new File(sdccShareDir, "lib").getAbsolutePath());
+        command.add("-L" + new File(sdccShareDir, "non-free/lib").getAbsolutePath());
+
+        if (extraArgs != null) {
+            command.addAll(extraArgs);
+        }
+        if (visibleArgs != null) {
+            command.addAll(visibleArgs);
+        }
+
+        setupSymlinks();
+
+        try {
+            ProcessBuilder pb = new ProcessBuilder(command);
+            pb.directory(workingDir != null ? workingDir : workDir);
+            pb.redirectErrorStream(true);
+
+            Map<String, String> env = pb.environment();
+            env.put("SDCC_HOME", new File(workDir, "usr").getAbsolutePath());
+
+            File usrLibDir = new File(new File(workDir, "usr"), "lib");
+            if (!usrLibDir.exists()) usrLibDir.mkdirs();
+            env.put("LD_LIBRARY_PATH", usrLibDir.getAbsolutePath() + ":" + nativeLibDir.getAbsolutePath());
+
+            env.put("GPUTILS_HEADER_PATH", new File(gpUtilsShareDir, "header").getAbsolutePath());
+            env.put("GPUTILS_LKR_PATH", new File(gpUtilsShareDir, "lkr").getAbsolutePath());
+
+            String path = env.get("PATH");
+            String binPath = new File(workDir, "usr/bin").getAbsolutePath();
+            env.put("PATH", binPath + ":" + nativeLibDir.getAbsolutePath() + (path != null ? ":" + path : ""));
+
+            Process process = pb.start();
+
+            try (java.io.InputStream in = process.getInputStream();
+                 InputStreamReader reader = new InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8)) {
+                char[] buffer = new char[512];
+                int read;
+                while ((read = reader.read(buffer)) != -1) {
+                    String chunk = new String(buffer, 0, read);
+                    if (listener != null) {
+                        listener.onProcessOutput(chunk);
+                    }
+                }
+            }
+
+            return process.waitFor();
+        } catch (Exception e) {
+            Log.e(TAG, "Error ejecutando " + binaryName + ": " + e.getMessage(), e);
+            if (listener != null) {
+                listener.onProcessOutput("Error: " + e.getMessage() + "\n");
+            }
+            return -1;
+        }
+    }
+
     public String executeSdcc(String... args) {
         return executeBinary(workDir, "sdcc", args);
     }

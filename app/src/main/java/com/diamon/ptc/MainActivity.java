@@ -142,6 +142,13 @@ public class MainActivity extends AppCompatActivity {
     private BillingManager billingManager;
     private String adsPrice = null;
 
+    private final List<StringBuilder> consoleLines = new ArrayList<>();
+    private int currentLineIndex = -1;
+    private boolean cursorAtStartOfLine = false;
+    private final Handler logHandler = new Handler(Looper.getMainLooper());
+    private boolean isLogUpdatePending = false;
+    private volatile boolean isCompiling = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -165,6 +172,9 @@ public class MainActivity extends AppCompatActivity {
         setupLogCopySupport();
         renderCurrentModule();
         initResources();
+
+        log("--- C PIC Compiler Iniciado ---");
+        log(currentModeIsC ? "Modo C (SDCC) activo." : "Modo ASM (GPUTILS) activo.");
 
         // Initialize BillingManager for in-app purchases
         billingManager = new BillingManager(this, new BillingManager.BillingListener() {
@@ -278,7 +288,7 @@ public class MainActivity extends AppCompatActivity {
                     if (result.getResultCode() == RESULT_OK && result.getData() != null && result.getData().getData() != null) {
                         Uri uri = result.getData().getData();
                         saveExportUri(uri);
-                        updateLogs("Carpeta de exportación actualizada: " + uri);
+                        log("Carpeta de exportación actualizada: " + uri);
                         exportToSelectedFolder(uri);
                     }
                 });
@@ -326,8 +336,7 @@ public class MainActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(android.view.MenuItem item) {
         int id = item.getItemId();
         if (id == R.id.action_clear_logs) {
-            binding.textLogs.setText("Logs reiniciados.");
-            updateLogs("Sistema listo.");
+            clearTerminal();
             return true;
         } else if (id == R.id.action_clear_editor) {
             confirmClearEditor();
@@ -352,6 +361,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupListeners() {
+        if (binding.btnClearLogs != null) {
+            binding.btnClearLogs.setOnClickListener(v -> clearTerminal());
+        }
         binding.btnAssemble.setOnClickListener(v -> assembleCode());
         binding.btnViewHex.setOnClickListener(v -> viewGeneratedFile(".hex"));
         binding.btnExport.setOnClickListener(v -> exportFiles());
@@ -393,7 +405,7 @@ public class MainActivity extends AppCompatActivity {
                     .putBoolean(KEY_SELECTED_LANGUAGE, currentModeIsC)
                     .apply();
             renderCurrentModule();
-            updateLogs(isCurrentCMode() ? "Modo C (SDCC)" : "Modo ASM (GPUTILS)");
+            log(isCurrentCMode() ? "Modo C (SDCC) seleccionado." : "Modo ASM (GPUTILS) seleccionado.");
         });
     }
     
@@ -930,10 +942,10 @@ public class MainActivity extends AppCompatActivity {
             boolean extracted = AssetExtractor.areAssetsExtracted(this);
             if (!extracted) {
                 mainHandler.post(() -> binding.loadingOverlay.setVisibility(View.VISIBLE));
-                updateLogs("Preparando recursos (GPUTILS + SDCC)...");
+                log("Preparando recursos (GPUTILS + SDCC)...");
                 boolean success = AssetExtractor.extractAssets(this, "data/data/com.diamon.ptc/files/usr", new File(getFilesDir(), "usr"));
                 mainHandler.post(() -> binding.loadingOverlay.setVisibility(View.GONE));
-                updateLogs(success ? "Recursos extraídos correctamente." : "Error al extraer recursos.");
+                log(success ? "Recursos extraídos correctamente." : "[ERROR] Error al extraer recursos.");
             }
             if (sdcc != null) {
                 sdcc.setupSymlinks();
@@ -998,17 +1010,17 @@ public class MainActivity extends AppCompatActivity {
         ModuleState state = getCurrentState();
 
         if (state.files.isEmpty()) {
-            updateLogs("No hay archivos para compilar.");
+            log("No hay archivos para compilar.");
             return;
         }
 
         if (!hasAtLeastOneNonEmptySource(state)) {
-            updateLogs("No hay archivos de entrada válidos. Agrega código en al menos una pestaña.");
+            log("No hay archivos de entrada válidos. Agrega código en al menos una pestaña.");
             return;
         }
 
         if (!runToolchainPreflightChecks(isCurrentCMode())) {
-            updateLogs("Prechequeo de herramientas falló. Revisa los logs.");
+            log("Prechequeo de herramientas falló. Revisa la terminal.");
             return;
         }
 
@@ -1020,7 +1032,7 @@ public class MainActivity extends AppCompatActivity {
 
         File projectDir = getProjectDir(projectName);
         if (!projectDir.exists() && !projectDir.mkdirs()) {
-            updateLogs("No se pudo crear directorio de proyecto.");
+            log("No se pudo crear directorio de proyecto.");
             return;
         }
 
@@ -1031,7 +1043,7 @@ public class MainActivity extends AppCompatActivity {
         for (String fileName : snapshotFiles.keySet()) {
             boolean saved = FileManager.writeToFile(new File(projectDir, fileName), snapshotFiles.get(fileName));
             if (!saved) {
-                updateLogs("No se pudo guardar fuente: " + fileName);
+                log("No se pudo guardar fuente: " + fileName);
                 return;
             }
         }
@@ -1066,11 +1078,10 @@ public class MainActivity extends AppCompatActivity {
     private boolean runToolchainPreflightChecks(boolean forCModule) {
         List<String> issues = forCModule ? sdcc.getSetupIssues() : gpUtils.getSetupIssues();
         if (issues.isEmpty()) {
-            updateLogs("Prechequeo " + (forCModule ? "SDCC" : "GPUTILS") + " OK.");
             return true;
         }
         for (String issue : issues) {
-            updateLogs("Prechequeo: " + issue);
+            log("[PRECHEQUEO] " + issue);
         }
         return false;
     }
@@ -1078,165 +1089,181 @@ public class MainActivity extends AppCompatActivity {
     private void assembleAsmProject(File projectDir, String selectedPic, LinkedHashMap<String, String> snapshotFiles,
                                     String activeFileName, String projectName) {
         executor.execute(() -> {
-            List<String> asmFiles = collectSourceFiles(snapshotFiles, ".asm");
-            if (asmFiles.isEmpty()) {
-                updateLogs("Agrega al menos un archivo .asm para ensamblar.");
-                return;
-            }
-
-            // Si el archivo activo es asm, lo priorizamos como punto de entrada.
-            // Si no, buscamos uno que coincida con el nombre del proyecto.
-            String projectMain = projectName + ".asm";
-            String preferredEntry = (activeFileName != null && activeFileName.endsWith(".asm")) 
-                                    ? activeFileName 
-                                    : projectMain;
-                                    
-            prioritizeMainSource(asmFiles, preferredEntry);
-
-            // El nombre base de salida será el del nombre del proyecto
-            String outputBaseName = projectName;
-
-            List<String> objectFiles = new ArrayList<>();
-            String compilePrefix = "Compilando ASM";
-            for (String asmFile : asmFiles) {
-                if (!new File(projectDir, asmFile).exists()) {
-                    updateLogs("No se encontró el archivo fuente: " + asmFile);
+            isCompiling = true;
+            try {
+                List<String> asmFiles = collectSourceFiles(snapshotFiles, ".asm");
+                if (asmFiles.isEmpty()) {
+                    log("Error: Agrega al menos un archivo .asm para ensamblar.");
                     return;
                 }
 
-                updateLogs(compilePrefix + " " + asmFile + "...");
-                String asmResult = gpUtils.executeGpasm(projectDir,
-                        "-c",
-                        "-I", projectDir.getAbsolutePath(),
-                        "-p", selectedPic.toLowerCase(Locale.US),
-                        asmFile);
-                updateLogs("Log GPASM para " + asmFile + ":\n" + asmResult);
-                if (didCommandFail(asmResult)) {
-                    updateLogs("Error en " + asmFile + ". Se cancela el enlace.");
+                String projectMain = projectName + ".asm";
+                String preferredEntry = (activeFileName != null && activeFileName.endsWith(".asm")) 
+                                        ? activeFileName 
+                                        : projectMain;
+                                        
+                prioritizeMainSource(asmFiles, preferredEntry);
+
+                String outputBaseName = projectName;
+
+                List<String> objectFiles = new ArrayList<>();
+                for (String asmFile : asmFiles) {
+                    if (!new File(projectDir, asmFile).exists()) {
+                        log("No se encontró el archivo fuente: " + asmFile);
+                        return;
+                    }
+
+                    List<String> visibleArgs = new ArrayList<>(Arrays.asList(
+                            "-c",
+                            "-p", selectedPic.toLowerCase(Locale.US),
+                            asmFile
+                    ));
+
+                    List<String> extraArgs = new ArrayList<>(Arrays.asList(
+                            "-I", projectDir.getAbsolutePath()
+                    ));
+
+                    log("$ gpasm " + String.join(" ", visibleArgs));
+                    int exitCode = gpUtils.executeGpasmStreaming(projectDir, visibleArgs, extraArgs, this::logRaw);
+
+                    if (exitCode != 0) {
+                        log("[ERROR] Falló gpasm para " + asmFile + " (código " + exitCode + "). Se cancela el enlace.");
+                        return;
+                    }
+
+                    String objectName = getBaseName(asmFile) + ".o";
+                    File objectFile = new File(projectDir, objectName);
+                    if (!objectFile.exists()) {
+                        log("[ERROR] No se generó el objeto esperado: " + objectName);
+                        return;
+                    }
+                    objectFiles.add(objectName);
+                }
+
+                if (objectFiles.isEmpty()) {
+                    log("[ERROR] No hay objetos ASM para enlazar.");
                     return;
                 }
 
-                String objectName = getBaseName(asmFile) + ".o";
-                File objectFile = new File(projectDir, objectName);
-                if (!objectFile.exists()) {
-                    updateLogs("No se generó el objeto esperado: " + objectName);
+                List<String> linkArgs = new ArrayList<>();
+                linkArgs.add("-o");
+                linkArgs.add(outputBaseName + ".hex");
+                linkArgs.addAll(objectFiles);
+
+                log("$ gplink " + String.join(" ", linkArgs));
+                int linkResult = gpUtils.executeGplinkStreaming(projectDir, linkArgs, null, this::logRaw);
+                if (linkResult != 0) {
+                    log("[ERROR] Falló el enlace GPLINK (código " + linkResult + "). No se generó HEX.");
                     return;
                 }
-                objectFiles.add(objectName);
+
+                checkGenerationSuccess(projectDir, ".hex", false);
+            } finally {
+                isCompiling = false;
             }
-
-            if (objectFiles.isEmpty()) {
-                updateLogs("No hay objetos ASM para enlazar.");
-                return;
-            }
-
-            List<String> linkArgs = new ArrayList<>();
-            linkArgs.add("-o");
-            linkArgs.add(outputBaseName + ".hex");
-            linkArgs.addAll(objectFiles);
-
-            updateLogs("Enlazando ASM del proyecto...");
-            String linkResult = gpUtils.executeBinary(projectDir, "gplink", linkArgs.toArray(new String[0]));
-            updateLogs("Log GPLINK completo:\n" + linkResult);
-            if (didCommandFail(linkResult)) {
-                updateLogs("Falló el enlace ASM. No se generó HEX.");
-                return;
-            }
-
-            checkGenerationSuccess(projectDir, ".hex", false);
         });
     }
 
     private void compileCProject(File projectDir, String selectedPic, LinkedHashMap<String, String> snapshotFiles,
                                  String activeFileName, String projectName) {
         executor.execute(() -> {
-            List<String> cFiles = collectSourceFiles(snapshotFiles, ".c");
+            isCompiling = true;
+            try {
+                List<String> cFiles = collectSourceFiles(snapshotFiles, ".c");
 
-            if (cFiles.isEmpty()) {
-                updateLogs("Agrega al menos un archivo .c para compilar.");
-                return;
-            }
-
-            String arch = selectedPic.toUpperCase(Locale.US).startsWith("18") ? "pic16" : "pic14";
-            
-            String projectMain = projectName + ".c";
-            String preferredEntry = (activeFileName != null && activeFileName.endsWith(".c")) 
-                                    ? activeFileName 
-                                    : projectMain;
-            prioritizeMainSource(cFiles, preferredEntry);
-
-            String outputBaseName = projectName;
-            
-            List<String> objFiles = new ArrayList<>();
-            for (String cFile : cFiles) {
-                if (!new File(projectDir, cFile).exists()) {
-                    updateLogs("No se encontró el archivo fuente: " + cFile);
+                if (cFiles.isEmpty()) {
+                    log("Error: Agrega al menos un archivo .c para compilar.");
                     return;
                 }
 
-                updateLogs("Compilando C " + cFile + " (Arch: " + arch + ")...");
-                List<String> compileArgs = new ArrayList<>(Arrays.asList(
+                String arch = selectedPic.toUpperCase(Locale.US).startsWith("18") ? "pic16" : "pic14";
+                
+                String projectMain = projectName + ".c";
+                String preferredEntry = (activeFileName != null && activeFileName.endsWith(".c")) 
+                                        ? activeFileName 
+                                        : projectMain;
+                prioritizeMainSource(cFiles, preferredEntry);
+
+                String outputBaseName = projectName;
+                
+                List<String> objFiles = new ArrayList<>();
+                for (String cFile : cFiles) {
+                    if (!new File(projectDir, cFile).exists()) {
+                        log("No se encontró el archivo fuente: " + cFile);
+                        return;
+                    }
+
+                    List<String> visibleArgs = new ArrayList<>(Arrays.asList(
+                            "-m" + arch,
+                            "-p" + selectedPic.toLowerCase(Locale.US),
+                            "--use-non-free",
+                            "-c",
+                            cFile
+                    ));
+
+                    List<String> extraArgs = new ArrayList<>(Arrays.asList(
+                            "-I" + projectDir.getAbsolutePath()
+                    ));
+
+                    log("$ sdcc " + String.join(" ", visibleArgs));
+                    int compileResult = sdcc.executeSdccStreaming(projectDir, visibleArgs, extraArgs, this::logRaw);
+                    
+                    if (compileResult != 0) {
+                        log("[ERROR] Error en " + cFile + " (código " + compileResult + "). Se detiene la compilación.");
+                        return;
+                    }
+
+                    String baseName = getBaseName(cFile);
+                    File objFile = new File(projectDir, baseName + ".o");
+                    
+                    // Si no encontramos el .o, buscar .rel
+                    if (!objFile.exists()) {
+                         File relFile = new File(projectDir, baseName + ".rel");
+                         if (relFile.exists()) {
+                             objFile = relFile;
+                         }
+                    }
+
+                    if (!objFile.exists()) {
+                        log("[ERROR] No se generó archivo objeto para " + cFile);
+                        return;
+                    }
+                    
+                    objFiles.add(objFile.getName());
+                }
+
+                if (objFiles.isEmpty()) {
+                    log("[ERROR] No hay objetos C para enlazar.");
+                    return;
+                }
+
+                List<String> linkArgs = new ArrayList<>(Arrays.asList(
                         "-m" + arch,
                         "-p" + selectedPic.toLowerCase(Locale.US),
                         "--use-non-free",
-                        "-c",
-                        "-I" + projectDir.getAbsolutePath(),
-                        cFile
+                        "--out-fmt-ihx"
                 ));
-                
-                String compileResult = sdcc.executeSdcc(projectDir, compileArgs.toArray(new String[0]));
-                updateLogs("Log SDCC para " + cFile + ":\n" + compileResult);
-                
-                if (didCommandFail(compileResult)) {
-                    updateLogs("Error en " + cFile + ". Se detiene la compilación.");
+                linkArgs.addAll(objFiles);
+                linkArgs.add("-o");
+                linkArgs.add(outputBaseName + ".hex");
+
+                List<String> extraLinkArgs = new ArrayList<>(Arrays.asList(
+                        "-I" + projectDir.getAbsolutePath()
+                ));
+
+                log("$ sdcc " + String.join(" ", linkArgs));
+                int result = sdcc.executeSdccStreaming(projectDir, linkArgs, extraLinkArgs, this::logRaw);
+                if (result != 0) {
+                    log("[ERROR] Falló el enlace C (código " + result + "). No se generó HEX.");
                     return;
                 }
 
-                String baseName = getBaseName(cFile);
-                File objFile = new File(projectDir, baseName + ".o");
-                
-                // Si no encontramos el .o, buscar .rel
-                if (!objFile.exists()) {
-                     File relFile = new File(projectDir, baseName + ".rel");
-                     if (relFile.exists()) {
-                         objFile = relFile;
-                     }
-                }
-
-                if (!objFile.exists()) {
-                    updateLogs("ERROR CRÍTICO: No se generó archivo objeto para " + cFile);
-                    return;
-                }
-                
-                objFiles.add(objFile.getName());
+                // Normalizar salidas
+                normalizeCOutputArtifacts(projectDir, outputBaseName);
+                checkGenerationSuccess(projectDir, ".hex", true);
+            } finally {
+                isCompiling = false;
             }
-
-            if (objFiles.isEmpty()) {
-                updateLogs("No hay objetos C para enlazar.");
-                return;
-            }
-
-            List<String> linkArgs = new ArrayList<>(Arrays.asList(
-                    "-m" + arch,
-                    "-p" + selectedPic.toLowerCase(Locale.US),
-                    "--use-non-free",
-                    "--out-fmt-ihx",
-                    "-I" + projectDir.getAbsolutePath()));
-            linkArgs.addAll(objFiles);
-            linkArgs.add("-o");
-            linkArgs.add(outputBaseName + ".hex");
-
-            updateLogs("Enlazando proyecto C...");
-            String result = sdcc.executeSdcc(projectDir, linkArgs.toArray(new String[0]));
-            updateLogs("Log SDCC enlace:\n" + result);
-            if (didCommandFail(result)) {
-                updateLogs("Falló el enlace C. No se generó HEX.");
-                return;
-            }
-
-            // Normalizar salidas
-            normalizeCOutputArtifacts(projectDir, outputBaseName);
-            checkGenerationSuccess(projectDir, ".hex", true);
         });
     }
 
@@ -1297,7 +1324,7 @@ public class MainActivity extends AppCompatActivity {
                 if (!name.equals(hexTarget.getName())) {
                      if (hexTarget.exists()) hexTarget.delete();
                      f.renameTo(hexTarget);
-                     updateLogs("Renombrado salida: " + name + " -> " + hexTarget.getName());
+                     log("Renombrado salida: " + name + " -> " + hexTarget.getName());
                 }
             }
         }
@@ -1306,7 +1333,7 @@ public class MainActivity extends AppCompatActivity {
     private void checkGenerationSuccess(File projectDir, String extension, boolean isCModule) {
         File[] files = projectDir.listFiles();
         if (files == null) {
-            updateLogs("No se encontró salida para " + extension);
+            log("No se encontró salida para " + extension);
             return;
         }
 
@@ -1327,15 +1354,15 @@ public class MainActivity extends AppCompatActivity {
 
         Collections.sort(generatedFiles);
         if (!generatedFiles.isEmpty()) {
-            updateLogs("Archivos generados: " + TextUtils.join(", ", generatedFiles));
+            log("Archivos en proyecto: " + TextUtils.join(", ", generatedFiles));
         }
 
         if (expectedFile != null) {
-            updateLogs(isCModule ? "✓ Compilación exitosa." : "✓ Ensamblado exitoso.");
-            updateLogs("> ¡Operación completada! Archivo generado: " + expectedFile.getName());
+            log(isCModule ? "[OK] Compilación exitosa." : "[OK] Ensamblado exitoso.");
+            log("Salida generada: " + expectedFile.getName());
             return;
         }
-        updateLogs("No se generó salida esperada (" + extension + "). Revisa logs de error.");
+        log("[WARN] No se generó la salida esperada (" + extension + "). Revisa los logs.");
     }
 
     private File getProjectDir(String projectName) {
@@ -1766,13 +1793,127 @@ public class MainActivity extends AppCompatActivity {
                 .apply();
     }
 
+    private boolean isScrollAtBottom() {
+        if (binding.scrollLogs == null || binding.textLogs == null) return true;
+        int scrollY = binding.scrollLogs.getScrollY();
+        int scrollHeight = binding.scrollLogs.getHeight();
+        int contentHeight = binding.textLogs.getHeight();
+        if (contentHeight == 0) return true;
+        return (scrollY + scrollHeight) >= (contentHeight - 100);
+    }
+
+    private final Runnable logUpdater = new Runnable() {
+        @Override
+        public void run() {
+            if (isFinishing() || isDestroyed()) {
+                isLogUpdatePending = false;
+                return;
+            }
+            String fullLogs;
+            synchronized (consoleLines) {
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < consoleLines.size(); i++) {
+                    if (i > 0) {
+                        sb.append("\n");
+                    }
+                    sb.append(consoleLines.get(i).toString());
+                }
+                fullLogs = sb.toString();
+                isLogUpdatePending = false;
+            }
+
+            final boolean wasAtBottom = isScrollAtBottom();
+            final int scrollY = binding.scrollLogs.getScrollY();
+
+            binding.textLogs.setText(fullLogs);
+
+            boolean shouldScrollToBottom = wasAtBottom || isCompiling;
+
+            if (shouldScrollToBottom) {
+                binding.scrollLogs.post(() -> binding.scrollLogs.fullScroll(View.FOCUS_DOWN));
+            } else {
+                binding.scrollLogs.post(() -> binding.scrollLogs.setScrollY(scrollY));
+            }
+        }
+    };
+
+    public void log(String message) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            appendLogOnUi(message);
+        } else {
+            runOnUiThread(() -> appendLogOnUi(message));
+        }
+    }
+
+    public void logRaw(String chunk) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            appendRawLogOnUi(chunk);
+        } else {
+            runOnUiThread(() -> appendRawLogOnUi(chunk));
+        }
+    }
+
+    private void appendLogOnUi(String message) {
+        appendRawLogOnUi(message + "\n");
+    }
+
+    private void appendRawLogOnUi(String text) {
+        synchronized (consoleLines) {
+            if (consoleLines.isEmpty()) {
+                consoleLines.add(new StringBuilder());
+                currentLineIndex = 0;
+            }
+
+            for (int i = 0; i < text.length(); i++) {
+                char c = text.charAt(i);
+                if (c == '\n') {
+                    consoleLines.add(new StringBuilder());
+                    currentLineIndex = consoleLines.size() - 1;
+                    cursorAtStartOfLine = false;
+                } else if (c == '\r') {
+                    cursorAtStartOfLine = true;
+                } else if (c == '\b') {
+                    StringBuilder currentLine = consoleLines.get(currentLineIndex);
+                    if (currentLine.length() > 0) {
+                        currentLine.setLength(currentLine.length() - 1);
+                    }
+                } else {
+                    StringBuilder currentLine = consoleLines.get(currentLineIndex);
+                    if (cursorAtStartOfLine) {
+                        currentLine.setLength(0);
+                        cursorAtStartOfLine = false;
+                    }
+                    currentLine.append(c);
+                }
+            }
+
+            while (consoleLines.size() > 1000) {
+                consoleLines.remove(0);
+                currentLineIndex--;
+            }
+            if (currentLineIndex < 0) {
+                currentLineIndex = 0;
+            }
+        }
+
+        if (!isLogUpdatePending) {
+            isLogUpdatePending = true;
+            logHandler.postDelayed(logUpdater, 80);
+        }
+    }
+
+    public void clearTerminal() {
+        synchronized (consoleLines) {
+            consoleLines.clear();
+            currentLineIndex = -1;
+            cursorAtStartOfLine = false;
+        }
+        binding.textLogs.setText("");
+        log(getString(R.string.terminal_reset));
+    }
+
     private void updateLogs(String text) {
-        mainHandler.post(() -> {
-            String time = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
-            String current = binding.textLogs.getText().toString();
-            binding.textLogs.setText(current + "\n[" + time + "] " + text);
-            binding.scrollLogs.post(() -> binding.scrollLogs.fullScroll(View.FOCUS_DOWN));
-        });
+        log(text);
     }
 
     static {

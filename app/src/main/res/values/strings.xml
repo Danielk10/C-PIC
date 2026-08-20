@@ -30,8 +30,12 @@
     <!-- activity_main.xml - Loading overlay -->
     <string name="loading_message">Preparando herramientas…\nSolo tomará un momento la primera vez.</string>
 
-    <!-- activity_main.xml - Logs -->
-    <string name="log_waiting">Esperando operación…</string>
+    <!-- activity_main.xml - Logs & Terminal -->
+    <string name="log_waiting">--- Terminal lista ---</string>
+    <string name="label_terminal">TERMINAL DE SALIDA</string>
+    <string name="btn_clear">Limpiar</string>
+    <string name="terminal_ready">--- Terminal lista ---</string>
+    <string name="terminal_reset">--- Terminal reiniciada ---</string>
 
     <!-- popup_hex_viewer.xml -->
     <string name="hex_header_addr">ADDR</string>

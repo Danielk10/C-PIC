@@ -27,6 +27,76 @@ public class GpUtilsExecutor {
         this.gpUtilsShareDir = new File(workDir, "usr/share/gputils");
     }
 
+    public interface ProcessListener {
+        void onProcessOutput(String chunk);
+    }
+
+    public int executeGpasmStreaming(File workingDir, List<String> visibleArgs, List<String> extraArgs, ProcessListener listener) {
+        return executeBinaryStreaming(workingDir, "gpasm", visibleArgs, extraArgs, listener);
+    }
+
+    public int executeGplinkStreaming(File workingDir, List<String> visibleArgs, List<String> extraArgs, ProcessListener listener) {
+        return executeBinaryStreaming(workingDir, "gplink", visibleArgs, extraArgs, listener);
+    }
+
+    public int executeBinaryStreaming(File workingDir, String binaryName, List<String> visibleArgs, List<String> extraArgs, ProcessListener listener) {
+        File binaryFile = new File(nativeLibDir, "lib" + binaryName + ".so");
+        if (!binaryFile.exists()) {
+            String err = "Error: No se encontro el binario " + binaryFile.getAbsolutePath() + "\n";
+            Log.e(TAG, err);
+            if (listener != null) listener.onProcessOutput(err);
+            return -1;
+        }
+
+        setupSymlinks();
+
+        List<String> command = new ArrayList<>();
+        command.add(binaryFile.getAbsolutePath());
+        if (extraArgs != null) {
+            command.addAll(extraArgs);
+        }
+        if (visibleArgs != null) {
+            command.addAll(visibleArgs);
+        }
+
+        try {
+            ProcessBuilder pb = new ProcessBuilder(command);
+            pb.directory(workingDir != null ? workingDir : workDir);
+            pb.redirectErrorStream(true);
+
+            Map<String, String> env = pb.environment();
+            env.put("GPUTILS_HEADER_PATH", new File(gpUtilsShareDir, "header").getAbsolutePath());
+            env.put("GPUTILS_LKR_PATH", new File(gpUtilsShareDir, "lkr").getAbsolutePath());
+            env.put("LD_LIBRARY_PATH", nativeLibDir.getAbsolutePath() + ":" + new File(workDir, "usr/lib").getAbsolutePath());
+
+            String path = env.get("PATH");
+            String binPath = new File(workDir, "usr/bin").getAbsolutePath();
+            env.put("PATH", binPath + ":" + nativeLibDir.getAbsolutePath() + (path != null ? ":" + path : ""));
+
+            Process process = pb.start();
+
+            try (java.io.InputStream in = process.getInputStream();
+                 InputStreamReader reader = new InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8)) {
+                char[] buffer = new char[512];
+                int read;
+                while ((read = reader.read(buffer)) != -1) {
+                    String chunk = new String(buffer, 0, read);
+                    if (listener != null) {
+                        listener.onProcessOutput(chunk);
+                    }
+                }
+            }
+
+            return process.waitFor();
+        } catch (Exception e) {
+            Log.e(TAG, "Error ejecutando " + binaryName + ": " + e.getMessage(), e);
+            if (listener != null) {
+                listener.onProcessOutput("Error: " + e.getMessage() + "\n");
+            }
+            return -1;
+        }
+    }
+
     public String executeGpasm(String... args) {
         return executeBinary(workDir, "gpasm", args);
     }

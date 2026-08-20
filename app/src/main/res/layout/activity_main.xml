@@ -263,13 +263,13 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Log Section -->
+        <!-- Terminal Section -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/card_logs"
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:layout_margin="8dp"
-            app:cardBackgroundColor="#121212"
+            app:cardBackgroundColor="#0D1117"
             app:cardCornerRadius="12dp"
             app:cardElevation="2dp"
             app:layout_constraintBottom_toTopOf="@+id/button_layout"
@@ -277,26 +277,73 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/card_editor"
             app:layout_constraintVertical_weight="1"
-            app:strokeColor="#333333"
+            app:strokeColor="#30363D"
             app:strokeWidth="1dp">
 
-            <ScrollView
-                android:id="@+id/scroll_logs"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:padding="8dp">
+                android:orientation="vertical">
 
-                <TextView
-                    android:id="@+id/text_logs"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:fontFamily="monospace"
-                    android:longClickable="true"
-                    android:text="@string/log_waiting"
-                    android:textColor="#03DAC5"
-                    android:textIsSelectable="true"
-                    android:textSize="12sp" />
-            </ScrollView>
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:background="#161B22"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="2dp"
+                    android:paddingBottom="2dp">
+
+                    <TextView
+                        android:id="@+id/text_terminal_title"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/label_terminal"
+                        android:textColor="#8B949E"
+                        android:textStyle="bold"
+                        android:textSize="11sp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_clear_logs"
+                        style="@style/Widget.MaterialComponents.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/btn_clear"
+                        android:textColor="#58A6FF"
+                        android:textSize="11sp"
+                        android:minHeight="0dp"
+                        android:minWidth="0dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:paddingTop="2dp"
+                        android:paddingBottom="2dp" />
+                </LinearLayout>
+
+                <com.diamon.ptc.views.LogScrollView
+                    android:id="@+id/scroll_logs"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:background="#0A0E17"
+                    android:padding="8dp"
+                    android:descendantFocusability="blocksDescendants">
+
+                    <TextView
+                        android:id="@+id/text_logs"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="monospace"
+                        android:longClickable="true"
+                        android:text="@string/terminal_ready"
+                        android:textColor="#00FF66"
+                        android:textIsSelectable="true"
+                        android:lineSpacingExtra="2dp"
+                        android:textSize="12sp" />
+                </com.diamon.ptc.views.LogScrollView>
+            </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
         <!-- Action Buttons Section -->

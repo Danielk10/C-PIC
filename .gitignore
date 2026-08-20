@@ -38,3 +38,6 @@ pc-api-*.json
 
 # VSCode
 .vscode/
+
+# Git filter artifacts
+.git-rewrite/
