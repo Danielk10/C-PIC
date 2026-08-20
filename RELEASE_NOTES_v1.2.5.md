@@ -7,8 +7,8 @@ Esta versión incluye una importante modernización del entorno de desarrollo, c
 ## 🌟 Novedades y Mejoras
 
 ### 📱 Compatibilidad y Plataforma
-- **Android Target SDK 37**: Actualización a la API 37 de Android (Android 16) con soporte hacia atrás desde Android 6.0 (API 23).
-- **Alineación de páginas a 16 KB**: Optimizaciones en las bibliotecas nativas ARM64 (`arm64-v8a`) para garantizar compatibilidad total con los requisitos de Android 15 y Android 16.
+- **Android Target SDK 37**: Actualización a la API 37 de Android (Android 17) con soporte hacia atrás desde Android 6.0 (API 23).
+- **Alineación de páginas a 16 KB**: Optimizaciones en las bibliotecas nativas ARM64 (`arm64-v8a`) para garantizar compatibilidad total con los requisitos de Android 15, Android 16 y Android 17.
 - **Herramientas de Compilación Modernizadas**:
   - Android Gradle Plugin (AGP) **9.2.1**
   - Gradle Wrapper **9.6.0**
