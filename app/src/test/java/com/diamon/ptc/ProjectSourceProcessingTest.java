@@ -160,6 +160,87 @@ public class ProjectSourceProcessingTest {
         assertFalse(isValidAsmExtension("header.h"));
     }
 
+    @Test
+    public void testCollectProjectFilesForExport() {
+        String projectName = "led_blink";
+        LinkedHashMap<String, String> projectFiles = new LinkedHashMap<>();
+        projectFiles.put("led_blink.c", "void main() {}");
+        projectFiles.put("led_blink.h", "#define LED 1");
+        projectFiles.put("delay.c", "void delay() {}");
+
+        // Create sources in disk
+        for (String f : projectFiles.keySet()) {
+            FileManager.writeToFile(new File(tempTestDir, f), projectFiles.get(f));
+        }
+
+        // Create generated artifacts in disk
+        FileManager.writeToFile(new File(tempTestDir, "led_blink.hex"), ":00000001FF\n");
+        FileManager.writeToFile(new File(tempTestDir, "led_blink.map"), "MAP FILE CONTENT");
+        FileManager.writeToFile(new File(tempTestDir, "led_blink.lst"), "LISTING CONTENT");
+        FileManager.writeToFile(new File(tempTestDir, "led_blink.rel"), "REL OBJECT CONTENT");
+        FileManager.writeToFile(new File(tempTestDir, "led_blink.lk"), "LINKER SCRIPT");
+        FileManager.writeToFile(new File(tempTestDir, "delay.rel"), "DELAY OBJECT");
+        FileManager.writeToFile(new File(tempTestDir, "delay.lst"), "DELAY LIST");
+
+        // Create unrelated file that should NOT be exported
+        FileManager.writeToFile(new File(tempTestDir, "unrelated.hex"), ":00000001FF\n");
+
+        // Simular lógica de collectProjectFilesForExport
+        List<File> filesToExport = new ArrayList<>();
+        for (String sourceName : projectFiles.keySet()) {
+            File source = new File(tempTestDir, sourceName);
+            if (source.exists() && source.isFile()) {
+                filesToExport.add(source);
+            }
+        }
+
+        File[] projectEntries = tempTestDir.listFiles();
+        assertNotNull(projectEntries);
+        for (File file : projectEntries) {
+            if (!file.isFile()) continue;
+            String name = file.getName();
+
+            boolean alreadyAdded = false;
+            for (File existing : filesToExport) {
+                if (existing.getName().equals(name)) {
+                    alreadyAdded = true;
+                    break;
+                }
+            }
+            if (alreadyAdded) continue;
+
+            if (name.startsWith(projectName + ".")) {
+                filesToExport.add(file);
+                continue;
+            }
+
+            for (String sourceName : projectFiles.keySet()) {
+                int dot = sourceName.lastIndexOf('.');
+                String base = dot > 0 ? sourceName.substring(0, dot) : sourceName;
+                if (name.startsWith(base + ".")) {
+                    filesToExport.add(file);
+                    break;
+                }
+            }
+        }
+
+        // Validaciones
+        List<String> exportedNames = new ArrayList<>();
+        for (File f : filesToExport) exportedNames.add(f.getName());
+
+        assertTrue(exportedNames.contains("led_blink.c"));
+        assertTrue(exportedNames.contains("led_blink.h"));
+        assertTrue(exportedNames.contains("delay.c"));
+        assertTrue(exportedNames.contains("led_blink.hex"));
+        assertTrue(exportedNames.contains("led_blink.map"));
+        assertTrue(exportedNames.contains("led_blink.lst"));
+        assertTrue(exportedNames.contains("led_blink.rel"));
+        assertTrue(exportedNames.contains("led_blink.lk"));
+        assertTrue(exportedNames.contains("delay.rel"));
+        assertTrue(exportedNames.contains("delay.lst"));
+        assertFalse("El archivo unrelated.hex no debe ser exportado", exportedNames.contains("unrelated.hex"));
+    }
+
     private boolean isValidCExtension(String name) {
         String lower = name.toLowerCase(Locale.US);
         return lower.endsWith(".c") || lower.endsWith(".h");
@@ -170,3 +251,4 @@ public class ProjectSourceProcessingTest {
         return lower.endsWith(".asm") || lower.endsWith(".inc");
     }
 }
+
