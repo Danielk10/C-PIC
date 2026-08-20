@@ -173,8 +173,8 @@ public class MainActivity extends AppCompatActivity {
         renderCurrentModule();
         initResources();
 
-        log("--- C PIC Compiler Iniciado ---");
-        log(currentModeIsC ? "Modo C (SDCC) activo." : "Modo ASM (GPUTILS) activo.");
+        log(getString(R.string.log_app_started));
+        log(getString(currentModeIsC ? R.string.log_mode_c_active : R.string.log_mode_asm_active));
 
         // Initialize BillingManager for in-app purchases
         billingManager = new BillingManager(this, new BillingManager.BillingListener() {
@@ -288,7 +288,7 @@ public class MainActivity extends AppCompatActivity {
                     if (result.getResultCode() == RESULT_OK && result.getData() != null && result.getData().getData() != null) {
                         Uri uri = result.getData().getData();
                         saveExportUri(uri);
-                        log("Carpeta de exportación actualizada: " + uri);
+                        log(getString(R.string.log_export_folder_updated, uri.toString()));
                         exportToSelectedFolder(uri);
                     }
                 });
@@ -402,7 +402,7 @@ public class MainActivity extends AppCompatActivity {
                     .putBoolean(KEY_SELECTED_LANGUAGE, currentModeIsC)
                     .apply();
             renderCurrentModule();
-            log(isCurrentCMode() ? "Modo C (SDCC) seleccionado." : "Modo ASM (GPUTILS) seleccionado.");
+            log(getString(isCurrentCMode() ? R.string.log_mode_c_selected : R.string.log_mode_asm_selected));
         });
     }
     
@@ -549,7 +549,7 @@ public class MainActivity extends AppCompatActivity {
             
             state.files.put(defaultName, "");
             state.activeFile = defaultName;
-            updateLogs("Se creó una pestaña por defecto: " + defaultName);
+            log(getString(R.string.log_default_tab_created, defaultName));
         } else if (fileName.equals(state.activeFile)) {
             state.activeFile = state.files.keySet().iterator().next();
         }
@@ -567,7 +567,7 @@ public class MainActivity extends AppCompatActivity {
         File file = new File(getProjectDir(projectName), fileName);
         if (file.exists()) {
             if (file.delete()) {
-                updateLogs("Archivo desligado del proyecto al cerrar pestaña: " + fileName);
+                log(getString(R.string.log_file_detached, fileName));
             }
         }
     }
@@ -589,22 +589,22 @@ public class MainActivity extends AppCompatActivity {
                 .setPositiveButton(getString(R.string.btn_add), (d, w) -> {
                     String rawName = input.getText().toString().trim();
                     if (rawName.isEmpty()) {
-                        updateLogs("Nombre de archivo inválido.");
+                        log(getString(R.string.log_invalid_filename));
                         return;
                     }
 
                     String name = applyDefaultExtensionIfMissing(rawName);
                     
                     if (!isValidExtensionForCurrentMode(name)) {
-                        updateLogs(isCurrentCMode()
-                                ? "En modo C solo se permiten .c y .h"
-                                : "En modo ASM solo se permiten .asm y .inc");
+                        log(getString(isCurrentCMode()
+                                ? R.string.log_ext_allowed_c
+                                : R.string.log_ext_allowed_asm));
                         return;
                     }
 
                     ModuleState state = getCurrentState();
                     if (state.files.containsKey(name)) {
-                        updateLogs("Ese archivo ya existe en el proyecto.");
+                        log(getString(R.string.log_file_already_exists));
                         return;
                     }
 
@@ -663,7 +663,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void importSourceFiles(List<Uri> uris) {
         if (uris == null || uris.isEmpty()) {
-            updateLogs("No se seleccionaron archivos para importar.");
+            log(getString(R.string.log_no_files_selected_import));
             return;
         }
 
@@ -677,14 +677,14 @@ public class MainActivity extends AppCompatActivity {
         for (Uri uri : uris) {
             String name = resolveDisplayName(uri);
             if (name == null || name.trim().isEmpty()) {
-                updateLogs("No se pudo identificar nombre de archivo: " + uri);
+                log(getString(R.string.log_cant_identify_filename, uri.toString()));
                 continue;
             }
 
             boolean isCFile = isCSourceFile(name);
             boolean isAsmFile = isAsmSourceFile(name);
             if (!isCFile && !isAsmFile) {
-                updateLogs("Archivo omitido por extensión no válida (.c/.h/.asm/.inc): " + name);
+                log(getString(R.string.log_file_skipped_ext, name));
                 continue;
             }
 
@@ -703,10 +703,10 @@ public class MainActivity extends AppCompatActivity {
 
             if (isCFile) {
                 importedToC++;
-                updateLogs("Archivo importado en módulo C: " + uniqueName);
+                log(getString(R.string.log_file_imported_c, uniqueName));
             } else {
                 importedToAsm++;
-                updateLogs("Archivo importado en módulo ASM: " + uniqueName);
+                log(getString(R.string.log_file_imported_asm, uniqueName));
             }
         }
 
@@ -723,9 +723,9 @@ public class MainActivity extends AppCompatActivity {
             }
             refreshTabs();
             loadActiveFileInEditor();
-            updateLogs("> ¡Importación exitosa! " + totalImported + " archivo(s).");
+            log(getString(R.string.log_import_success, totalImported));
         } else {
-            updateLogs("No se importó ningún archivo válido.");
+            log(getString(R.string.log_no_valid_files_imported));
         }
     }
 
@@ -762,7 +762,7 @@ public class MainActivity extends AppCompatActivity {
             }
         } catch (Exception e) {
             Log.e(TAG, "No se pudo leer archivo importado", e);
-            updateLogs("No se pudo leer: " + uri);
+            log(getString(R.string.log_cant_read_uri, uri.toString()));
         }
         return builder.toString();
     }
@@ -793,22 +793,12 @@ public class MainActivity extends AppCompatActivity {
                     binding.editAsm.setText("");
                     saveActiveEditorContent();
                 })
-                .setNegativeButton("Cancelar", null)
+                .setNegativeButton(getString(R.string.btn_cancel), null)
                 .show();
     }
 
     private void showAboutDialog() {
-        String message = "<b>C PIC Compiler</b><br><br>" +
-                "Esta aplicación es una interfaz gráfica (GUI) profesional para las herramientas GPUTILS y SDCC.<br><br>" +
-                "<b>GPUTILS:</b><br>" +
-                "Colección de herramientas de código abierto para microcontroladores Microchip PIC.<br><br>" +
-                "Sitio web: <a href='https://sourceforge.net/projects/gputils/'>sourceforge.net/projects/gputils/</a><br><br>" +
-                "<b>SDCC (Small Device C Compiler):</b><br>" +
-                "Compilador de C para microcontroladores de 8 bits.<br><br>" +
-                "Sitio web: <a href='https://sourceforge.net/projects/sdcc/'>sourceforge.net/projects/sdcc/</a><br><br>" +
-                "<b>Licencia del Proyecto:</b><br>" +
-                "C PIC Compiler es software libre y está bajo la licencia GNU GPL v3.0.<br><br>" +
-                "Los binarios incluidos de GPUTILS y SDCC también se distribuyen bajo sus propias licencias GPL.";
+        String message = getString(R.string.dialog_about_message);
 
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle(getString(R.string.dialog_about_title))
@@ -939,10 +929,10 @@ public class MainActivity extends AppCompatActivity {
             boolean extracted = AssetExtractor.areAssetsExtracted(this);
             if (!extracted) {
                 mainHandler.post(() -> binding.loadingOverlay.setVisibility(View.VISIBLE));
-                log("Preparando recursos (GPUTILS + SDCC)...");
+                log(getString(R.string.log_preparing_resources));
                 boolean success = AssetExtractor.extractAssets(this, "data/data/com.diamon.ptc/files/usr", new File(getFilesDir(), "usr"));
                 mainHandler.post(() -> binding.loadingOverlay.setVisibility(View.GONE));
-                log(success ? "Recursos extraídos correctamente." : "[ERROR] Error al extraer recursos.");
+                log(getString(success ? R.string.log_resources_extracted : R.string.log_resources_extract_error));
             }
             if (sdcc != null) {
                 sdcc.setupSymlinks();
@@ -1007,17 +997,17 @@ public class MainActivity extends AppCompatActivity {
         ModuleState state = getCurrentState();
 
         if (state.files.isEmpty()) {
-            log("No hay archivos para compilar.");
+            log(getString(R.string.log_no_files_to_compile));
             return;
         }
 
         if (!hasAtLeastOneNonEmptySource(state)) {
-            log("No hay archivos de entrada válidos. Agrega código en al menos una pestaña.");
+            log(getString(R.string.log_no_valid_input_files));
             return;
         }
 
         if (!runToolchainPreflightChecks(isCurrentCMode())) {
-            log("Prechequeo de herramientas falló. Revisa la terminal.");
+            log(getString(R.string.log_preflight_failed));
             return;
         }
 
@@ -1029,7 +1019,7 @@ public class MainActivity extends AppCompatActivity {
 
         File projectDir = getProjectDir(projectName);
         if (!projectDir.exists() && !projectDir.mkdirs()) {
-            log("No se pudo crear directorio de proyecto.");
+            log(getString(R.string.log_cant_create_project_dir));
             return;
         }
 
@@ -1040,7 +1030,7 @@ public class MainActivity extends AppCompatActivity {
         for (String fileName : snapshotFiles.keySet()) {
             boolean saved = FileManager.writeToFile(new File(projectDir, fileName), snapshotFiles.get(fileName));
             if (!saved) {
-                log("No se pudo guardar fuente: " + fileName);
+                log(getString(R.string.log_cant_save_source, fileName));
                 return;
             }
         }
@@ -1090,7 +1080,7 @@ public class MainActivity extends AppCompatActivity {
             try {
                 List<String> asmFiles = collectSourceFiles(snapshotFiles, ".asm");
                 if (asmFiles.isEmpty()) {
-                    log("Error: Agrega al menos un archivo .asm para ensamblar.");
+                    log(getString(R.string.log_add_asm_source));
                     return;
                 }
 
@@ -1106,7 +1096,7 @@ public class MainActivity extends AppCompatActivity {
                 List<String> objectFiles = new ArrayList<>();
                 for (String asmFile : asmFiles) {
                     if (!new File(projectDir, asmFile).exists()) {
-                        log("No se encontró el archivo fuente: " + asmFile);
+                        log(getString(R.string.log_source_not_found, asmFile));
                         return;
                     }
 
@@ -1124,21 +1114,21 @@ public class MainActivity extends AppCompatActivity {
                     int exitCode = gpUtils.executeGpasmStreaming(projectDir, visibleArgs, extraArgs, this::logRaw);
 
                     if (exitCode != 0) {
-                        log("[ERROR] Falló gpasm para " + asmFile + " (código " + exitCode + "). Se cancela el enlace.");
+                        log(getString(R.string.log_gpasm_failed, asmFile, exitCode));
                         return;
                     }
 
                     String objectName = getBaseName(asmFile) + ".o";
                     File objectFile = new File(projectDir, objectName);
                     if (!objectFile.exists()) {
-                        log("[ERROR] No se generó el objeto esperado: " + objectName);
+                        log(getString(R.string.log_object_not_generated, objectName));
                         return;
                     }
                     objectFiles.add(objectName);
                 }
 
                 if (objectFiles.isEmpty()) {
-                    log("[ERROR] No hay objetos ASM para enlazar.");
+                    log(getString(R.string.log_no_asm_objects_to_link));
                     return;
                 }
 
@@ -1150,7 +1140,7 @@ public class MainActivity extends AppCompatActivity {
                 log("$ gplink " + String.join(" ", linkArgs));
                 int linkResult = gpUtils.executeGplinkStreaming(projectDir, linkArgs, null, this::logRaw);
                 if (linkResult != 0) {
-                    log("[ERROR] Falló el enlace GPLINK (código " + linkResult + "). No se generó HEX.");
+                    log(getString(R.string.log_gplink_failed, linkResult));
                     return;
                 }
 
@@ -1169,7 +1159,7 @@ public class MainActivity extends AppCompatActivity {
                 List<String> cFiles = collectSourceFiles(snapshotFiles, ".c");
 
                 if (cFiles.isEmpty()) {
-                    log("Error: Agrega al menos un archivo .c para compilar.");
+                    log(getString(R.string.log_add_c_source));
                     return;
                 }
 
@@ -1186,7 +1176,7 @@ public class MainActivity extends AppCompatActivity {
                 List<String> objFiles = new ArrayList<>();
                 for (String cFile : cFiles) {
                     if (!new File(projectDir, cFile).exists()) {
-                        log("No se encontró el archivo fuente: " + cFile);
+                        log(getString(R.string.log_source_not_found, cFile));
                         return;
                     }
 
@@ -1206,7 +1196,7 @@ public class MainActivity extends AppCompatActivity {
                     int compileResult = sdcc.executeSdccStreaming(projectDir, visibleArgs, extraArgs, this::logRaw);
                     
                     if (compileResult != 0) {
-                        log("[ERROR] Error en " + cFile + " (código " + compileResult + "). Se detiene la compilación.");
+                        log(getString(R.string.log_sdcc_compile_failed, cFile, compileResult));
                         return;
                     }
 
@@ -1222,7 +1212,7 @@ public class MainActivity extends AppCompatActivity {
                     }
 
                     if (!objFile.exists()) {
-                        log("[ERROR] No se generó archivo objeto para " + cFile);
+                        log(getString(R.string.log_sdcc_object_not_generated, cFile));
                         return;
                     }
                     
@@ -1230,7 +1220,7 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 if (objFiles.isEmpty()) {
-                    log("[ERROR] No hay objetos C para enlazar.");
+                    log(getString(R.string.log_no_c_objects_to_link));
                     return;
                 }
 
@@ -1251,7 +1241,7 @@ public class MainActivity extends AppCompatActivity {
                 log("$ sdcc " + String.join(" ", linkArgs));
                 int result = sdcc.executeSdccStreaming(projectDir, linkArgs, extraLinkArgs, this::logRaw);
                 if (result != 0) {
-                    log("[ERROR] Falló el enlace C (código " + result + "). No se generó HEX.");
+                    log(getString(R.string.log_sdcc_link_failed, result));
                     return;
                 }
 
@@ -1321,7 +1311,7 @@ public class MainActivity extends AppCompatActivity {
                 if (!name.equals(hexTarget.getName())) {
                      if (hexTarget.exists()) hexTarget.delete();
                      f.renameTo(hexTarget);
-                     log("Renombrado salida: " + name + " -> " + hexTarget.getName());
+                     log(getString(R.string.log_renamed_output, name, hexTarget.getName()));
                 }
             }
         }
@@ -1330,7 +1320,7 @@ public class MainActivity extends AppCompatActivity {
     private void checkGenerationSuccess(File projectDir, String extension, boolean isCModule) {
         File[] files = projectDir.listFiles();
         if (files == null) {
-            log("No se encontró salida para " + extension);
+            log(getString(R.string.log_no_output_found, extension));
             return;
         }
 
@@ -1351,15 +1341,15 @@ public class MainActivity extends AppCompatActivity {
 
         Collections.sort(generatedFiles);
         if (!generatedFiles.isEmpty()) {
-            log("Archivos en proyecto: " + TextUtils.join(", ", generatedFiles));
+            log(getString(R.string.log_project_files, TextUtils.join(", ", generatedFiles)));
         }
 
         if (expectedFile != null) {
-            log(isCModule ? "[OK] Compilación exitosa." : "[OK] Ensamblado exitoso.");
-            log("Salida generada: " + expectedFile.getName());
+            log(getString(isCModule ? R.string.log_compile_success : R.string.log_assemble_success));
+            log(getString(R.string.log_generated_output, expectedFile.getName()));
             return;
         }
-        log("[WARN] No se generó la salida esperada (" + extension + "). Revisa los logs.");
+        log(getString(R.string.log_no_expected_output, extension));
     }
 
     private File getProjectDir(String projectName) {
@@ -1417,7 +1407,7 @@ public class MainActivity extends AppCompatActivity {
     private void viewGeneratedFile(String extension) {
         String projectName = resolveProjectName();
         if (projectName == null) {
-            updateLogs("Primero compila o ensambla un proyecto.");
+            log(getString(R.string.log_compile_first));
             return;
         }
 
@@ -1431,13 +1421,13 @@ public class MainActivity extends AppCompatActivity {
         }
 
         if (target == null || !target.exists()) {
-            updateLogs("No existe archivo " + extension + " para el proyecto actual.");
+            log(getString(R.string.log_no_file_for_project, extension));
             return;
         }
 
         String content = FileManager.readFile(target);
         if (content.isEmpty()) {
-            updateLogs("Archivo vacío: " + target.getName());
+            log(getString(R.string.log_empty_file, target.getName()));
             return;
         }
 
@@ -1463,7 +1453,7 @@ public class MainActivity extends AppCompatActivity {
         new AlertDialog.Builder(this)
                 .setTitle(title)
                 .setMessage(content)
-                .setPositiveButton("Cerrar", null)
+                .setPositiveButton(getString(R.string.btn_close), null)
                 .show();
     }
 
@@ -1614,7 +1604,7 @@ public class MainActivity extends AppCompatActivity {
         executor.execute(() -> {
             List<File> filesToExport = collectProjectFilesForExport(projectDir, projectName);
             if (filesToExport.isEmpty()) {
-                updateLogs("No hay archivos en el proyecto para exportar.");
+                log(getString(R.string.log_no_files_to_export));
                 return;
             }
 
@@ -1627,9 +1617,9 @@ public class MainActivity extends AppCompatActivity {
             }
 
             int finalCount = count;
-            updateLogs(finalCount > 0
-                    ? "> ¡Exportación exitosa! " + finalCount + " archivos guardados."
-                    : "No fue posible exportar archivos.");
+            log(finalCount > 0
+                    ? getString(R.string.log_export_success, finalCount)
+                    : getString(R.string.log_export_failed));
         });
     }
 
@@ -1708,7 +1698,7 @@ public class MainActivity extends AppCompatActivity {
         } catch (SecurityException sec) {
             Log.e(TAG, "Permiso SAF perdido", sec);
             clearSavedExportUri();
-            updateLogs("Permiso de carpeta perdido. Selecciona nuevamente una carpeta de destino.");
+            log(getString(R.string.log_saf_permission_lost));
             mainHandler.post(() -> launchFolderPicker(false));
             return false;
         } catch (Exception e) {
@@ -1723,7 +1713,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void persistCurrentModuleSources(File projectDir) {
         if (!projectDir.exists() && !projectDir.mkdirs()) {
-            updateLogs("No se pudo preparar directorio para exportación.");
+            log(getString(R.string.log_cant_prep_export_dir));
             return;
         }
 
@@ -1732,7 +1722,7 @@ public class MainActivity extends AppCompatActivity {
         for (String fileName : snapshotFiles.keySet()) {
             boolean saved = FileManager.writeToFile(new File(projectDir, fileName), snapshotFiles.get(fileName));
             if (!saved) {
-                updateLogs("No se pudo guardar fuente para exportar: " + fileName);
+                log(getString(R.string.log_cant_save_source_export, fileName));
             }
         }
     }
@@ -1756,7 +1746,7 @@ public class MainActivity extends AppCompatActivity {
                     .apply();
         } catch (SecurityException sec) {
             Log.e(TAG, "No se pudo persistir permiso SAF", sec);
-            updateLogs("No se pudo guardar permiso de carpeta. Vuelve a seleccionarla.");
+            log(getString(R.string.log_cant_save_saf_permission));
         }
     }
 

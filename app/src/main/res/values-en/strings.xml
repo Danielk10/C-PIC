@@ -31,7 +31,6 @@
     <string name="loading_message">Preparing tools…\nThis will only take a moment the first time.</string>
 
     <!-- activity_main.xml - Logs & Terminal -->
-    <string name="log_waiting">--- Terminal ready ---</string>
     <string name="label_terminal">OUTPUT TERMINAL</string>
     <string name="btn_clear">Clear</string>
     <string name="terminal_ready">--- Terminal ready ---</string>
@@ -68,6 +67,7 @@
     <string name="dialog_clear_editor_title">Clear Editor</string>
     <string name="dialog_clear_editor_msg">Delete the content of the active file?</string>
     <string name="dialog_about_title">About / Licenses</string>
+    <string name="dialog_about_message"><![CDATA[<b>C PIC Compiler</b><br><br>This application is a professional Graphical User Interface (GUI) for GPUTILS and SDCC toolchains.<br><br><b>GPUTILS:</b><br>Collection of open-source tools for Microchip PIC microcontrollers.<br><br>Website: <a href="https://sourceforge.net/projects/gputils/">sourceforge.net/projects/gputils/</a><br><br><b>SDCC (Small Device C Compiler):</b><br>Retargettable C compiler for 8-bit microcontrollers.<br><br>Website: <a href="https://sourceforge.net/projects/sdcc/">sourceforge.net/projects/sdcc/</a><br><br><b>Project License:</b><br>C PIC Compiler is free software released under the GNU GPL v3.0 license.<br><br>Included GPUTILS and SDCC binaries are also distributed under their respective GPL licenses.]]></string>
 
     <!-- Toasts -->
     <string name="toast_no_log_text">No text in log to copy.</string>
@@ -82,4 +82,63 @@
     <string name="iap_product_unavailable">Product not available at this time.</string>
     <string name="iap_billing_unavailable">Purchase service not available.</string>
     <string name="iap_already_purchased">You have already purchased the ad-free version.</string>
+
+    <!-- Terminal Log Messages -->
+    <string name="log_app_started">--- C PIC Compiler Started ---</string>
+    <string name="log_mode_c_active">C Mode (SDCC) active.</string>
+    <string name="log_mode_asm_active">ASM Mode (GPUTILS) active.</string>
+    <string name="log_mode_c_selected">C Mode (SDCC) selected.</string>
+    <string name="log_mode_asm_selected">ASM Mode (GPUTILS) selected.</string>
+    <string name="log_export_folder_updated">Export folder updated: %s</string>
+    <string name="log_default_tab_created">Default tab created: %s</string>
+    <string name="log_file_detached">File detached from project upon closing tab: %s</string>
+    <string name="log_invalid_filename">Invalid filename.</string>
+    <string name="log_ext_allowed_c">Only .c and .h files are allowed in C mode</string>
+    <string name="log_ext_allowed_asm">Only .asm and .inc files are allowed in ASM mode</string>
+    <string name="log_file_already_exists">That file already exists in the project.</string>
+    <string name="log_no_files_selected_import">No files selected to import.</string>
+    <string name="log_cant_identify_filename">Could not identify filename: %s</string>
+    <string name="log_file_skipped_ext">File skipped due to invalid extension (.c/.h/.asm/.inc): %s</string>
+    <string name="log_file_imported_c">File imported into C module: %s</string>
+    <string name="log_file_imported_asm">File imported into ASM module: %s</string>
+    <string name="log_import_success">> Import successful! %d file(s).</string>
+    <string name="log_no_valid_files_imported">No valid files were imported.</string>
+    <string name="log_cant_read_uri">Could not read: %s</string>
+    <string name="log_preparing_resources">Preparing resources (GPUTILS + SDCC)...</string>
+    <string name="log_resources_extracted">Resources extracted successfully.</string>
+    <string name="log_resources_extract_error">[ERROR] Error extracting resources.</string>
+    <string name="log_no_files_to_compile">No files to compile.</string>
+    <string name="log_no_valid_input_files">No valid input files. Add code to at least one tab.</string>
+    <string name="log_preflight_failed">Toolchain preflight check failed. Check terminal.</string>
+    <string name="log_cant_create_project_dir">Could not create project directory.</string>
+    <string name="log_cant_save_source">Could not save source file: %s</string>
+    <string name="log_add_asm_source">Error: Add at least one .asm file to assemble.</string>
+    <string name="log_source_not_found">Source file not found: %s</string>
+    <string name="log_gpasm_failed">[ERROR] gpasm failed for %1$s (code %2$d). Linking aborted.</string>
+    <string name="log_object_not_generated">[ERROR] Expected object file was not generated: %s</string>
+    <string name="log_no_asm_objects_to_link">[ERROR] No ASM object files to link.</string>
+    <string name="log_gplink_failed">[ERROR] GPLINK linking failed (code %d). HEX was not generated.</string>
+    <string name="log_add_c_source">Error: Add at least one .c file to compile.</string>
+    <string name="log_sdcc_compile_failed">[ERROR] Error in %1$s (code %2$d). Compilation stopped.</string>
+    <string name="log_sdcc_object_not_generated">[ERROR] No object file generated for %s</string>
+    <string name="log_no_c_objects_to_link">[ERROR] No C object files to link.</string>
+    <string name="log_sdcc_link_failed">[ERROR] C linking failed (code %d). HEX was not generated.</string>
+    <string name="log_renamed_output">Renamed output: %1$s -> %2$s</string>
+    <string name="log_no_output_found">No output found for %s</string>
+    <string name="log_project_files">Files in project: %s</string>
+    <string name="log_compile_success">[OK] Compilation successful.</string>
+    <string name="log_assemble_success">[OK] Assembly successful.</string>
+    <string name="log_generated_output">Output generated: %s</string>
+    <string name="log_no_expected_output">[WARN] Expected output was not generated (%s). Check logs.</string>
+    <string name="log_compile_first">Please compile or assemble a project first.</string>
+    <string name="log_no_file_for_project">No %s file exists for current project.</string>
+    <string name="log_empty_file">Empty file: %s</string>
+    <string name="log_no_files_to_export">No files in project to export.</string>
+    <string name="log_export_success">> Export successful! %d file(s) saved.</string>
+    <string name="log_export_failed">Could not export files.</string>
+    <string name="log_cant_prep_export_dir">Could not prepare export directory.</string>
+    <string name="log_cant_save_source_export">Could not save source for export: %s</string>
+    <string name="log_cant_save_saf_permission">Could not save folder permission. Please select it again.</string>
+    <string name="log_saf_permission_lost">Folder permission lost. Please select target folder again.</string>
 </resources>
+
