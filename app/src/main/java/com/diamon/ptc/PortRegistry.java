@@ -29,6 +29,7 @@ public final class PortRegistry {
                 .headerUpperCase(true)
                 .useNonFree(true)
                 .defaultDevice("16F628A")
+                .simulatorBinary("ucsim_p1516")
                 .defaultCCode(
                         "#include <pic14/pic16f628a.h>\n\n" +
                         "// Ejemplo básico para PIC16F628A\n" +
@@ -70,6 +71,7 @@ public final class PortRegistry {
                 .headerPrefix("")
                 .headerUpperCase(false)
                 .defaultDevice("8052")
+                .simulatorBinary("s51")
                 .defaultCCode(
                         "#include <8052.h>\n\n" +
                         "// Blink LED on P1.0 - 8051\n" +
@@ -101,6 +103,7 @@ public final class PortRegistry {
                 .headerIncludeDir("sdcc/include/ds390")
                 .headerExtension(".h")
                 .defaultDevice(null)
+                .simulatorBinary("s51")
                 .defaultCCode(
                         "#include <stdint.h>\n\n" +
                         "// Ejemplo básico para Dallas DS390/DS400\n" +
@@ -129,6 +132,7 @@ public final class PortRegistry {
                         new String[]{"Z80", "Z180", "Z80N (ZX Spectrum Next)", "eZ80 (Z80 mode)", "R800 (MSX)"}
                 )
                 .defaultDevice(null)
+                .simulatorBinary("ucsim_z80")
                 .defaultCCode(
                         "#include <stdint.h>\n\n" +
                         "// Z80 example\n" +
@@ -155,6 +159,7 @@ public final class PortRegistry {
                 .headerIncludeDir("sdcc/include/rab")
                 .headerExtension(".h")
                 .defaultDevice(null)
+                .simulatorBinary("ucsim_rxk")
                 .defaultCCode(
                         "// Rabbit 2000 example\n" +
                         "#include <stdint.h>\n\n" +
@@ -172,6 +177,7 @@ public final class PortRegistry {
         // ═══════════════════════════════════════════════════════════════
         PORTS.add(new PortConfig.Builder("SM83 (Game Boy)", "sm83")
                 .defaultDevice(null)
+                .simulatorBinary("ucsim_z80")
                 .defaultCCode(
                         "#include <stdint.h>\n\n" +
                         "// Game Boy SM83 example\n" +
@@ -194,6 +200,7 @@ public final class PortRegistry {
         // ═══════════════════════════════════════════════════════════════
         PORTS.add(new PortConfig.Builder("TLCS-90 (Toshiba)", "tlcs90")
                 .defaultDevice(null)
+                .simulatorBinary("ucsim_tlcs")
                 .defaultCCode(
                         "#include <stdint.h>\n\n" +
                         "// Ejemplo básico para Toshiba TLCS-90\n" +
@@ -218,6 +225,7 @@ public final class PortRegistry {
         // ═══════════════════════════════════════════════════════════════
         PORTS.add(new PortConfig.Builder("STM8 (ST)", "stm8")
                 .defaultDevice(null)
+                .simulatorBinary("ucsim_stm8")
                 .defaultCCode(
                         "#include <stdint.h>\n\n" +
                         "// Ejemplo básico para STM8 (STM8S103)\n" +
@@ -252,6 +260,7 @@ public final class PortRegistry {
                 .headerIncludeDir("sdcc/include/hc08")
                 .headerExtension(".h")
                 .defaultDevice(null)
+                .simulatorBinary("ucsim_m68hc08")
                 .defaultCCode(
                         "#include <hc08/mc68hc908gp32.h>\n\n" +
                         "// Ejemplo básico para HC08/S08\n" +
@@ -282,6 +291,7 @@ public final class PortRegistry {
                         new String[]{"PDK13 (13-bit)", "PDK14 (14-bit)", "PDK15 (15-bit)"}
                 )
                 .defaultDevice(null)
+                .simulatorBinary("ucsim_pdk")
                 .defaultCCode(
                         "#include <stdint.h>\n\n" +
                         "// Ejemplo básico para Padauk PDK14\n" +
@@ -311,6 +321,7 @@ public final class PortRegistry {
                         new String[]{"MOS 6502", "WDC 65C02"}
                 )
                 .defaultDevice(null)
+                .simulatorBinary("ucsim_mos6502")
                 .defaultCCode(
                         "#include <stdint.h>\n\n" +
                         "// Ejemplo básico para MOS 6502 / 65C02\n" +
@@ -336,6 +347,7 @@ public final class PortRegistry {
         // ═══════════════════════════════════════════════════════════════
         PORTS.add(new PortConfig.Builder("F8 (Fairchild)", "f8")
                 .defaultDevice(null)
+                .simulatorBinary("ucsim_f8")
                 .defaultCCode(
                         "#include <stdint.h>\n\n" +
                         "// Ejemplo básico para Fairchild F8\n" +

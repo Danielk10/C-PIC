@@ -58,6 +58,9 @@ public class PortConfig {
     /** Formato de salida para el linker (--out-fmt-ihx, etc.) */
     public final String outputFormat;
 
+    /** Nombre del binario simulador ucSim/s51 correspondiente (ej: "s51", "ucsim_z80", "ucsim_stm8") */
+    public final String simulatorBinary;
+
     private PortConfig(Builder builder) {
         this.familyName = builder.familyName;
         this.sdccArch = builder.sdccArch;
@@ -76,6 +79,7 @@ public class PortConfig {
         this.editorHintAsm = builder.editorHintAsm;
         this.defaultDevice = builder.defaultDevice;
         this.outputFormat = builder.outputFormat;
+        this.simulatorBinary = builder.simulatorBinary;
     }
 
     /** Resuelve la arquitectura SDCC real para un sub-índice del spinner */
@@ -114,6 +118,7 @@ public class PortConfig {
         String editorHintAsm;
         String defaultDevice;
         String outputFormat = "--out-fmt-ihx";
+        String simulatorBinary = "s51";
 
         public Builder(String familyName, String sdccArch) {
             this.familyName = familyName;
@@ -139,6 +144,7 @@ public class PortConfig {
         public Builder editorHintAsm(String hint) { this.editorHintAsm = hint; return this; }
         public Builder defaultDevice(String device) { this.defaultDevice = device; return this; }
         public Builder outputFormat(String fmt) { this.outputFormat = fmt; return this; }
+        public Builder simulatorBinary(String sim) { this.simulatorBinary = sim; return this; }
 
         public PortConfig build() {
             return new PortConfig(this);

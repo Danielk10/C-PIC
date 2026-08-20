@@ -57,4 +57,16 @@ public class IntelHexParser {
         }
         return memory;
     }
+
+    /**
+     * Parsear datos binarios planos (.bin) y devolver un mapa de dirección -> datos comenzando en 0x0000.
+     */
+    public static TreeMap<Integer, Byte> parseBinary(byte[] binaryData) {
+        TreeMap<Integer, Byte> memory = new TreeMap<>();
+        if (binaryData == null) return memory;
+        for (int i = 0; i < binaryData.length; i++) {
+            memory.put(i, binaryData[i]);
+        }
+        return memory;
+    }
 }

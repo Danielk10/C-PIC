@@ -144,4 +144,30 @@
     <string name="log_cant_save_saf_permission">No se pudo guardar permiso de carpeta. Vuelve a seleccionarla.</string>
     <string name="log_saf_permission_lost">Permiso de carpeta perdido. Selecciona nuevamente una carpeta de destino.</string>
     <string name="log_precheck_issue">[PRECHEQUEO] %s</string>
+
+    <!-- Herramientas Opcionales (packihx, makebin, ucSim) -->
+    <string name="menu_optional_tools">Herramientas Opcionales</string>
+    <string name="dialog_optional_tools_title">Herramientas de Post-Procesamiento</string>
+    <string name="opt_packihx_title">Normalizar HEX con packihx</string>
+    <string name="opt_packihx_desc">Empaqueta y normaliza los registros del archivo Intel HEX generado para programadores estrictos.</string>
+    <string name="opt_makebin_title">Generar Binario Plano (.bin) con makebin</string>
+    <string name="opt_makebin_desc">Convierte el archivo HEX en una imagen binaria plana (.bin) para programadores de memoria EEPROM/ROM.</string>
+    <string name="opt_auto_apply_title">Aplicar automáticamente al compilar</string>
+    <string name="opt_auto_apply_desc">Ejecuta las utilidades seleccionadas automáticamente tras cada compilación exitosa.</string>
+    <string name="btn_run_packihx">Ejecutar packihx</string>
+    <string name="btn_run_makebin">Ejecutar makebin</string>
+    <string name="btn_run_simulator">Simular con ucSim</string>
+    <string name="log_packihx_started">--- Ejecutando packihx sobre %s ---</string>
+    <string name="log_packihx_success">[packihx] HEX normalizado con éxito: %s</string>
+    <string name="log_packihx_failed">[packihx] Error al ejecutar packihx (código %d).</string>
+    <string name="log_makebin_started">--- Ejecutando makebin sobre %s ---</string>
+    <string name="log_makebin_success">[makebin] Binario plano generado con éxito: %1$s (%2$d bytes)</string>
+    <string name="log_makebin_failed">[makebin] Error al ejecutar makebin (código %d).</string>
+    <string name="log_simulator_started">--- Iniciando simulación con %1$s para %2$s ---</string>
+    <string name="log_simulator_finished">--- Simulación finalizada con éxito (código %d) ---</string>
+    <string name="log_simulator_failed">[ERROR] No se pudo ejecutar el simulador %s.</string>
+    <string name="log_no_hex_for_tool">Error: Primero compila el proyecto para generar el archivo .hex.</string>
+    <string name="dialog_select_viewer_format">¿Qué formato de archivo deseas inspeccionar?</string>
+    <string name="format_hex_file">Archivo Intel HEX (.hex)</string>
+    <string name="format_bin_file">Archivo Binario Plano (.bin)</string>
 </resources>

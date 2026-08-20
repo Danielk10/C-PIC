@@ -144,5 +144,31 @@
     <string name="log_cant_save_saf_permission">Could not save folder permission. Please select it again.</string>
     <string name="log_saf_permission_lost">Folder permission lost. Please select target folder again.</string>
     <string name="log_precheck_issue">[PRECHECK] %s</string>
+
+    <!-- Optional Tools (packihx, makebin, ucSim) -->
+    <string name="menu_optional_tools">Optional Tools</string>
+    <string name="dialog_optional_tools_title">Post-Processing &amp; Simulation Tools</string>
+    <string name="opt_packihx_title">Normalize HEX with packihx</string>
+    <string name="opt_packihx_desc">Packs and normalizes generated Intel HEX records for strict programmers.</string>
+    <string name="opt_makebin_title">Generate Flat Binary (.bin) with makebin</string>
+    <string name="opt_makebin_desc">Converts HEX output into a flat binary (.bin) image for EEPROM/ROM programmers.</string>
+    <string name="opt_auto_apply_title">Auto-apply after compilation</string>
+    <string name="opt_auto_apply_desc">Automatically runs selected utilities after each successful build.</string>
+    <string name="btn_run_packihx">Run packihx</string>
+    <string name="btn_run_makebin">Run makebin</string>
+    <string name="btn_run_simulator">Simulate with ucSim</string>
+    <string name="log_packihx_started">--- Running packihx on %s ---</string>
+    <string name="log_packihx_success">[packihx] HEX normalized successfully: %s</string>
+    <string name="log_packihx_failed">[packihx] Error running packihx (code %d).</string>
+    <string name="log_makebin_started">--- Running makebin on %s ---</string>
+    <string name="log_makebin_success">[makebin] Flat binary generated successfully: %1$s (%2$d bytes)</string>
+    <string name="log_makebin_failed">[makebin] Error running makebin (code %d).</string>
+    <string name="log_simulator_started">--- Starting simulation with %1$s for %2$s ---</string>
+    <string name="log_simulator_finished">--- Simulation finished successfully (code %d) ---</string>
+    <string name="log_simulator_failed">[ERROR] Could not execute simulator %s.</string>
+    <string name="log_no_hex_for_tool">Error: Compile the project first to generate the .hex file.</string>
+    <string name="dialog_select_viewer_format">Which file format do you want to inspect?</string>
+    <string name="format_hex_file">Intel HEX File (.hex)</string>
+    <string name="format_bin_file">Flat Binary File (.bin)</string>
 </resources>
 

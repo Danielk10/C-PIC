@@ -78,6 +78,9 @@ public class MainActivity extends AppCompatActivity {
     private static final String KEY_C_COUNTER = "c_counter";
     private static final String KEY_SELECTED_LANGUAGE = "selected_language";
     private static final String KEY_SELECTED_PIC = "selected_pic";
+    private static final String KEY_OPT_PACKIHX = "pref_opt_packihx";
+    private static final String KEY_OPT_MAKEBIN = "pref_opt_makebin";
+    private static final String KEY_OPT_AUTO_APPLY = "pref_opt_auto_apply";
 
     private static final String DEFAULT_ASM = "; Código de prueba para PIC16F628A\n" +
             "    PROCESSOR 16F628A\n" +
@@ -360,6 +363,9 @@ public class MainActivity extends AppCompatActivity {
             return true;
         } else if (id == R.id.action_import_sources) {
             launchSourceFilePicker();
+            return true;
+        } else if (id == R.id.action_optional_tools) {
+            showOptionalToolsDialog();
             return true;
         } else if (id == R.id.action_change_export_folder) {
             launchFolderPicker(true);
@@ -1298,6 +1304,7 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
 
+                applyOptionalPostProcessing(projectDir, outputBaseName);
                 checkGenerationSuccess(projectDir, ".hex", false);
             } finally {
                 isCompiling = false;
@@ -1423,6 +1430,7 @@ public class MainActivity extends AppCompatActivity {
 
                 // Normalizar salidas
                 normalizeCOutputArtifacts(projectDir, outputBaseName);
+                applyOptionalPostProcessing(projectDir, outputBaseName);
                 checkGenerationSuccess(projectDir, ".hex", true);
             } finally {
                 isCompiling = false;
@@ -1580,6 +1588,197 @@ public class MainActivity extends AppCompatActivity {
         return max + 1;
     }
 
+    private void applyOptionalPostProcessing(File projectDir, String outputBaseName) {
+        android.content.SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        boolean optPackihx = prefs.getBoolean(KEY_OPT_PACKIHX, false);
+        boolean optMakebin = prefs.getBoolean(KEY_OPT_MAKEBIN, false);
+        boolean optAutoApply = prefs.getBoolean(KEY_OPT_AUTO_APPLY, true);
+
+        if (!optAutoApply && !optPackihx && !optMakebin) {
+            return;
+        }
+
+        File hexTarget = new File(projectDir, outputBaseName + ".hex");
+        if (!hexTarget.exists()) {
+            hexTarget = findFirstWithExtension(projectDir, ".hex");
+            if (hexTarget == null) {
+                hexTarget = findFirstWithExtension(projectDir, ".ihx");
+            }
+        }
+
+        if (hexTarget == null || !hexTarget.exists()) {
+            return;
+        }
+
+        if (optPackihx) {
+            log(getString(R.string.log_packihx_started, hexTarget.getName()));
+            int packResult = sdcc.executePackihx(projectDir, hexTarget, hexTarget, this::logRaw);
+            if (packResult == 0) {
+                log(getString(R.string.log_packihx_success, hexTarget.getName()));
+            } else {
+                log(getString(R.string.log_packihx_failed, packResult));
+            }
+        }
+
+        if (optMakebin) {
+            log(getString(R.string.log_makebin_started, hexTarget.getName()));
+            boolean isGameBoy = currentPort != null && "sm83".equalsIgnoreCase(currentPort.sdccArch);
+            File binTarget = new File(projectDir, outputBaseName + ".bin");
+            int binResult = sdcc.executeMakebin(projectDir, isGameBoy, hexTarget, binTarget, this::logRaw);
+            if (binResult == 0 && binTarget.exists()) {
+                log(getString(R.string.log_makebin_success, binTarget.getName(), binTarget.length()));
+            } else {
+                log(getString(R.string.log_makebin_failed, binResult));
+            }
+        }
+    }
+
+    private void showOptionalToolsDialog() {
+        android.content.SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_optional_tools, null);
+
+        com.google.android.material.checkbox.MaterialCheckBox chkPackihx = view.findViewById(R.id.chk_packihx);
+        com.google.android.material.checkbox.MaterialCheckBox chkMakebin = view.findViewById(R.id.chk_makebin);
+        com.google.android.material.checkbox.MaterialCheckBox chkAutoApply = view.findViewById(R.id.chk_auto_apply);
+
+        chkPackihx.setChecked(prefs.getBoolean(KEY_OPT_PACKIHX, false));
+        chkMakebin.setChecked(prefs.getBoolean(KEY_OPT_MAKEBIN, false));
+        chkAutoApply.setChecked(prefs.getBoolean(KEY_OPT_AUTO_APPLY, true));
+
+        chkPackihx.setOnCheckedChangeListener((btn, isChecked) -> {
+            prefs.edit().putBoolean(KEY_OPT_PACKIHX, isChecked).apply();
+        });
+        chkMakebin.setOnCheckedChangeListener((btn, isChecked) -> {
+            prefs.edit().putBoolean(KEY_OPT_MAKEBIN, isChecked).apply();
+        });
+        chkAutoApply.setOnCheckedChangeListener((btn, isChecked) -> {
+            prefs.edit().putBoolean(KEY_OPT_AUTO_APPLY, isChecked).apply();
+        });
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(R.string.dialog_optional_tools_title)
+                .setView(view)
+                .setPositiveButton(R.string.btn_close, null)
+                .create();
+
+        View btnPackihx = view.findViewById(R.id.btn_run_packihx_action);
+        if (btnPackihx != null) {
+            btnPackihx.setOnClickListener(v -> {
+                dialog.dismiss();
+                runPackihxNow();
+            });
+        }
+
+        View btnMakebin = view.findViewById(R.id.btn_run_makebin_action);
+        if (btnMakebin != null) {
+            btnMakebin.setOnClickListener(v -> {
+                dialog.dismiss();
+                runMakebinNow();
+            });
+        }
+
+        View btnSim = view.findViewById(R.id.btn_run_simulator_action);
+        if (btnSim != null) {
+            btnSim.setOnClickListener(v -> {
+                dialog.dismiss();
+                runSimulatorNow();
+            });
+        }
+
+        dialog.show();
+    }
+
+    private void runPackihxNow() {
+        String projectName = resolveProjectName();
+        if (projectName == null) {
+            log(getString(R.string.log_compile_first));
+            return;
+        }
+        File projectDir = getProjectDir(projectName);
+        File hexFile = findFirstWithExtension(projectDir, ".hex");
+        if (hexFile == null) {
+            hexFile = findFirstWithExtension(projectDir, ".ihx");
+        }
+        if (hexFile == null || !hexFile.exists()) {
+            log(getString(R.string.log_no_hex_for_tool));
+            return;
+        }
+
+        File finalHex = hexFile;
+        executor.execute(() -> {
+            log(getString(R.string.log_packihx_started, finalHex.getName()));
+            int result = sdcc.executePackihx(projectDir, finalHex, finalHex, this::logRaw);
+            if (result == 0) {
+                log(getString(R.string.log_packihx_success, finalHex.getName()));
+            } else {
+                log(getString(R.string.log_packihx_failed, result));
+            }
+        });
+    }
+
+    private void runMakebinNow() {
+        String projectName = resolveProjectName();
+        if (projectName == null) {
+            log(getString(R.string.log_compile_first));
+            return;
+        }
+        File projectDir = getProjectDir(projectName);
+        File hexFile = findFirstWithExtension(projectDir, ".hex");
+        if (hexFile == null) {
+            hexFile = findFirstWithExtension(projectDir, ".ihx");
+        }
+        if (hexFile == null || !hexFile.exists()) {
+            log(getString(R.string.log_no_hex_for_tool));
+            return;
+        }
+
+        File finalHex = hexFile;
+        executor.execute(() -> {
+            log(getString(R.string.log_makebin_started, finalHex.getName()));
+            boolean isGameBoy = currentPort != null && "sm83".equalsIgnoreCase(currentPort.sdccArch);
+            File binTarget = new File(projectDir, projectName + ".bin");
+            int result = sdcc.executeMakebin(projectDir, isGameBoy, finalHex, binTarget, this::logRaw);
+            if (result == 0 && binTarget.exists()) {
+                log(getString(R.string.log_makebin_success, binTarget.getName(), binTarget.length()));
+            } else {
+                log(getString(R.string.log_makebin_failed, result));
+            }
+        });
+    }
+
+    private void runSimulatorNow() {
+        String projectName = resolveProjectName();
+        if (projectName == null) {
+            log(getString(R.string.log_compile_first));
+            return;
+        }
+        File projectDir = getProjectDir(projectName);
+        File hexFile = findFirstWithExtension(projectDir, ".hex");
+        if (hexFile == null) {
+            hexFile = findFirstWithExtension(projectDir, ".ihx");
+        }
+        if (hexFile == null || !hexFile.exists()) {
+            log(getString(R.string.log_no_hex_for_tool));
+            return;
+        }
+
+        String simName = (currentPort != null && currentPort.simulatorBinary != null) 
+                         ? currentPort.simulatorBinary 
+                         : "s51";
+        String familyName = (currentPort != null) ? currentPort.familyName : "MCS-51";
+
+        File finalHex = hexFile;
+        executor.execute(() -> {
+            log(getString(R.string.log_simulator_started, simName, familyName));
+            int result = sdcc.executeSimulator(projectDir, simName, finalHex, "step 20; state; quit", this::logRaw);
+            if (result == 0) {
+                log(getString(R.string.log_simulator_finished, result));
+            } else {
+                log(getString(R.string.log_simulator_failed, simName));
+            }
+        });
+    }
+
     private void viewGeneratedFile(String extension) {
         String projectName = resolveProjectName();
         if (projectName == null) {
@@ -1588,12 +1787,39 @@ public class MainActivity extends AppCompatActivity {
         }
 
         File projectDir = getProjectDir(projectName);
-        
-        // Buscar primero el archivo que coincide con el proyecto
+        File hexTarget = new File(projectDir, projectName + ".hex");
+        if (!hexTarget.exists()) hexTarget = findFirstWithExtension(projectDir, ".hex");
+        if (hexTarget == null) hexTarget = findFirstWithExtension(projectDir, ".ihx");
+
+        File binTarget = new File(projectDir, projectName + ".bin");
+        if (!binTarget.exists()) binTarget = findFirstWithExtension(projectDir, ".bin");
+
+        if (hexTarget != null && hexTarget.exists() && binTarget != null && binTarget.exists()) {
+            final File finalHex = hexTarget;
+            final File finalBin = binTarget;
+            new AlertDialog.Builder(this)
+                    .setTitle(R.string.dialog_select_viewer_format)
+                    .setItems(new CharSequence[]{
+                            getString(R.string.format_hex_file) + " (" + finalHex.getName() + ")",
+                            getString(R.string.format_bin_file) + " (" + finalBin.getName() + ")"
+                    }, (d, which) -> {
+                        if (which == 0) {
+                            displayHexOrBinFile(finalHex);
+                        } else {
+                            displayHexOrBinFile(finalBin);
+                        }
+                    })
+                    .setNegativeButton(R.string.btn_cancel, null)
+                    .show();
+            return;
+        }
+
         File target = new File(projectDir, projectName + extension);
         if (!target.exists()) {
-             // Si no existe con nombre exacto, buscar cualquiera con la extensión
-             target = findFirstWithExtension(projectDir, extension);
+            target = findFirstWithExtension(projectDir, extension);
+        }
+        if (target == null && ".hex".equalsIgnoreCase(extension)) {
+            target = binTarget;
         }
 
         if (target == null || !target.exists()) {
@@ -1601,15 +1827,32 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        String content = FileManager.readFile(target);
-        if (content.isEmpty()) {
-            log(getString(R.string.log_empty_file, target.getName()));
-            return;
-        }
+        displayHexOrBinFile(target);
+    }
 
-        if (target.getName().toLowerCase(Locale.US).endsWith(".hex")) {
-            showAdvancedHexViewer(content);
+    private void displayHexOrBinFile(File target) {
+        if (target.getName().toLowerCase(Locale.US).endsWith(".bin")) {
+            try {
+                byte[] data = java.nio.file.Files.readAllBytes(target.toPath());
+                if (data.length == 0) {
+                    log(getString(R.string.log_empty_file, target.getName()));
+                    return;
+                }
+                TreeMap<Integer, Byte> memory = IntelHexParser.parseBinary(data);
+                showAdvancedHexViewer(memory);
+            } catch (Exception e) {
+                log("Error reading " + target.getName() + ": " + e.getMessage());
+            }
+        } else if (target.getName().toLowerCase(Locale.US).endsWith(".hex") || target.getName().toLowerCase(Locale.US).endsWith(".ihx")) {
+            String content = FileManager.readFile(target);
+            if (content.isEmpty()) {
+                log(getString(R.string.log_empty_file, target.getName()));
+                return;
+            }
+            TreeMap<Integer, Byte> memory = IntelHexParser.parse(content);
+            showAdvancedHexViewer(memory);
         } else {
+            String content = FileManager.readFile(target);
             showSimpleTextViewer(target.getName(), content);
         }
     }
@@ -1634,6 +1877,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showAdvancedHexViewer(String content) {
+        TreeMap<Integer, Byte> memory = IntelHexParser.parse(content);
+        showAdvancedHexViewer(memory);
+    }
+
+    private void showAdvancedHexViewer(TreeMap<Integer, Byte> memory) {
         View popupView = LayoutInflater.from(this).inflate(R.layout.popup_hex_viewer, null);
         PopupWindow popupWindow = new PopupWindow(
                 popupView,
@@ -1643,8 +1891,6 @@ public class MainActivity extends AppCompatActivity {
 
         ListView listView = popupView.findViewById(R.id.list_hex);
         List<String[]> rows = new ArrayList<>();
-        TreeMap<Integer, Byte> memory = IntelHexParser.parse(content);
-
         if (!memory.isEmpty()) {
             List<Integer> addresses = new ArrayList<>(memory.keySet());
             Collections.sort(addresses);

@@ -10,6 +10,10 @@
         android:title="@string/menu_import_sources"
         app:showAsAction="never" />
     <item
+        android:id="@+id/action_optional_tools"
+        android:title="@string/menu_optional_tools"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_about"
         android:title="@string/menu_about"
         app:showAsAction="never" />

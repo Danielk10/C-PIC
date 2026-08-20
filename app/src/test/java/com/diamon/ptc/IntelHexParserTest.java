@@ -51,4 +51,25 @@ public class IntelHexParserTest {
         assertNotNull(malformedMem);
         assertTrue(malformedMem.isEmpty());
     }
+
+    @Test
+    public void testParseBinary() {
+        byte[] data = new byte[]{(byte) 0x12, (byte) 0x34, (byte) 0xAB, (byte) 0xCD};
+        TreeMap<Integer, Byte> memory = IntelHexParser.parseBinary(data);
+        assertNotNull(memory);
+        assertEquals(4, memory.size());
+        assertEquals((byte) 0x12, (byte) memory.get(0));
+        assertEquals((byte) 0x34, (byte) memory.get(1));
+        assertEquals((byte) 0xAB, (byte) memory.get(2));
+        assertEquals((byte) 0xCD, (byte) memory.get(3));
+
+        // Test empty/null binary
+        TreeMap<Integer, Byte> nullMem = IntelHexParser.parseBinary(null);
+        assertNotNull(nullMem);
+        assertTrue(nullMem.isEmpty());
+
+        TreeMap<Integer, Byte> emptyMem = IntelHexParser.parseBinary(new byte[0]);
+        assertNotNull(emptyMem);
+        assertTrue(emptyMem.isEmpty());
+    }
 }

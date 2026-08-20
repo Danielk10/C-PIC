@@ -167,4 +167,50 @@ public class PortRegistryTest {
         assertNotNull(outOfBoundsHigh);
         assertEquals("PIC (Microchip)", outOfBoundsHigh.familyName);
     }
+
+    @Test
+    public void testSimulatorBinaryMappings() {
+        for (int i = 0; i < PortRegistry.getPortCount(); i++) {
+            PortConfig port = PortRegistry.getPort(i);
+            assertNotNull("El simulador no debe ser nulo para " + port.familyName, port.simulatorBinary);
+            assertFalse("El nombre del simulador no debe estar vacío para " + port.familyName, port.simulatorBinary.trim().isEmpty());
+        }
+
+        // Validate specific mappings
+        PortConfig pic = PortRegistry.getPort(PortRegistry.findIndexByFamily("PIC (Microchip)"));
+        assertEquals("ucsim_p1516", pic.simulatorBinary);
+
+        PortConfig mcs51 = PortRegistry.getPort(PortRegistry.findIndexByFamily("MCS-51 (8051)"));
+        assertEquals("s51", mcs51.simulatorBinary);
+
+        PortConfig ds390 = PortRegistry.getPort(PortRegistry.findIndexByFamily("DS390 (Dallas)"));
+        assertEquals("s51", ds390.simulatorBinary);
+
+        PortConfig z80 = PortRegistry.getPort(PortRegistry.findIndexByFamily("Z80 Family"));
+        assertEquals("ucsim_z80", z80.simulatorBinary);
+
+        PortConfig rabbit = PortRegistry.getPort(PortRegistry.findIndexByFamily("Rabbit (R2K/R3K)"));
+        assertEquals("ucsim_rxk", rabbit.simulatorBinary);
+
+        PortConfig sm83 = PortRegistry.getPort(PortRegistry.findIndexByFamily("SM83 (Game Boy)"));
+        assertEquals("ucsim_z80", sm83.simulatorBinary);
+
+        PortConfig tlcs = PortRegistry.getPort(PortRegistry.findIndexByFamily("TLCS-90 (Toshiba)"));
+        assertEquals("ucsim_tlcs", tlcs.simulatorBinary);
+
+        PortConfig stm8 = PortRegistry.getPort(PortRegistry.findIndexByFamily("STM8 (ST)"));
+        assertEquals("ucsim_stm8", stm8.simulatorBinary);
+
+        PortConfig hc08 = PortRegistry.getPort(PortRegistry.findIndexByFamily("HC08/S08 (NXP)"));
+        assertEquals("ucsim_m68hc08", hc08.simulatorBinary);
+
+        PortConfig pdk = PortRegistry.getPort(PortRegistry.findIndexByFamily("PDK (Padauk)"));
+        assertEquals("ucsim_pdk", pdk.simulatorBinary);
+
+        PortConfig mos = PortRegistry.getPort(PortRegistry.findIndexByFamily("MOS 6502"));
+        assertEquals("ucsim_mos6502", mos.simulatorBinary);
+
+        PortConfig f8 = PortRegistry.getPort(PortRegistry.findIndexByFamily("F8 (Fairchild)"));
+        assertEquals("ucsim_f8", f8.simulatorBinary);
+    }
 }

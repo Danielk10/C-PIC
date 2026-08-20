@@ -5,10 +5,13 @@ import org.junit.Before;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeMap;
@@ -207,6 +210,69 @@ public class LocalSdccMultiPortCompilationTest {
 
         String hexContent = FileManager.readFile(hexFile);
         assertFalse(hexContent.trim().isEmpty());
+    }
+
+    @Test
+    public void testFullCompilationAndOptionalToolsPipeline() throws Exception {
+        if (!hasSdcc) {
+            System.out.println("SDCC no disponible en el host; omitiendo test de pipeline completo.");
+            return;
+        }
+
+        // 1. Escribir código C para MCS-51
+        writeCodeFile("main_pipeline.c",
+                "#include <stdint.h>\n" +
+                "volatile uint8_t counter = 0;\n" +
+                "void main(void) {\n" +
+                "    while(1) { counter++; }\n" +
+                "}\n");
+
+        // 2. Compilar con SDCC
+        int c1 = runProcess("sdcc", "-mmcs51", "-c", "main_pipeline.c");
+        assertEquals("Compilación SDCC debe ser exitosa", 0, c1);
+        File relFile = new File(testDir, "main_pipeline.rel");
+        assertTrue("Archivo objeto .rel debe existir", relFile.exists());
+
+        // 3. Enlazar con SDCC
+        int l1 = runProcess("sdcc", "-mmcs51", "-o", "pipeline.hex", "main_pipeline.rel");
+        assertEquals("Enlace SDCC debe ser exitoso", 0, l1);
+
+        File hexFile = new File(testDir, "pipeline.hex");
+        if (!hexFile.exists()) {
+            File ihxFile = new File(testDir, "pipeline.ihx");
+            if (ihxFile.exists()) ihxFile.renameTo(hexFile);
+        }
+        assertTrue("El archivo .hex debe existir tras enlace", hexFile.exists());
+
+        // 4. Ejecutar packihx sobre el .hex generado
+        if (isCommandAvailable("packihx")) {
+            ProcessBuilder pb = new ProcessBuilder("packihx", hexFile.getAbsolutePath());
+            pb.directory(testDir);
+            Process p = pb.start();
+            StringBuilder packedOut = new StringBuilder();
+            try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = r.readLine()) != null) packedOut.append(line).append("\n");
+            }
+            int packCode = p.waitFor();
+            assertEquals("packihx sobre salida SDCC debe retornar 0", 0, packCode);
+            assertTrue("packihx debe generar registros válidos", packedOut.toString().contains(":"));
+        }
+
+        // 5. Ejecutar makebin sobre el .hex generado
+        if (isCommandAvailable("makebin")) {
+            File binFile = new File(testDir, "pipeline.bin");
+            int makebinCode = runProcess("makebin", "-p", hexFile.getAbsolutePath(), binFile.getAbsolutePath());
+            assertEquals("makebin sobre salida SDCC debe retornar 0", 0, makebinCode);
+            assertTrue("El archivo .bin generado por makebin debe existir", binFile.exists());
+            assertTrue("El binario debe tener tamaño mayor a 0", binFile.length() > 0);
+
+            // Validar que se pueda parsear con IntelHexParser.parseBinary
+            byte[] binBytes = Files.readAllBytes(binFile.toPath());
+            TreeMap<Integer, Byte> binMem = IntelHexParser.parseBinary(binBytes);
+            assertEquals("El mapa de memoria de parseBinary debe tener el mismo tamaño que los bytes",
+                    binBytes.length, binMem.size());
+        }
     }
 
     private int runProcess(String... args) throws Exception {
