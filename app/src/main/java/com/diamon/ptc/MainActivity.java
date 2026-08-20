@@ -142,6 +142,12 @@ public class MainActivity extends AppCompatActivity {
     private BillingManager billingManager;
     private String adsPrice = null;
 
+    // Multi-port architecture support
+    private static final String KEY_SELECTED_ARCH = "selected_arch";
+    private static final String KEY_SELECTED_SUB_ARCH = "selected_sub_arch";
+    private PortConfig currentPort = PortRegistry.getPort(0);
+    private int currentSubArchIndex = 0;
+
     private final List<StringBuilder> consoleLines = new ArrayList<>();
     private int currentLineIndex = -1;
     private boolean cursorAtStartOfLine = false;
@@ -172,6 +178,7 @@ public class MainActivity extends AppCompatActivity {
         setupLogCopySupport();
         renderCurrentModule();
         initResources();
+        setupArchitectureSpinner();
 
         log(getString(R.string.log_app_started));
         log(getString(currentModeIsC ? R.string.log_mode_c_active : R.string.log_mode_asm_active));
@@ -459,10 +466,13 @@ public class MainActivity extends AppCompatActivity {
         isUpdatingProjectName = true; // Evitar disparar el TextWatcher
         ModuleState state = getCurrentState();
         
-        binding.btnAssemble.setText(isCurrentCMode() ? getString(R.string.btn_compile) : getString(R.string.btn_assemble));
-        binding.editAsm.setHint(isCurrentCMode()
-                ? getString(R.string.hint_editor_c)
-                : getString(R.string.hint_editor_asm));
+        if (currentPort != null && currentPort.hasAsmMode && !currentModeIsC) {
+            binding.btnAssemble.setText(getString(R.string.btn_assemble));
+            binding.editAsm.setHint(currentPort.editorHintAsm != null ? currentPort.editorHintAsm : getString(R.string.hint_editor_asm));
+        } else {
+            binding.btnAssemble.setText(getString(R.string.btn_compile));
+            binding.editAsm.setHint(currentPort != null && currentPort.editorHintC != null ? currentPort.editorHintC : getString(R.string.hint_editor_c));
+        }
 
         // Configurar el EditText con el nombre del usuario.
         // Si el nombre actual es el genérico, dejamos el campo vacío (o con hint)
@@ -900,6 +910,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private boolean isCurrentCMode() {
+        if (currentPort != null && !currentPort.hasAsmMode) {
+            return true;
+        }
         return currentModeIsC;
     }
 
@@ -937,57 +950,185 @@ public class MainActivity extends AppCompatActivity {
             if (sdcc != null) {
                 sdcc.setupSymlinks();
             }
-            loadPicList();
+            loadDeviceList();
         });
     }
 
-    private void loadPicList() {
-        File headerDir = new File(getFilesDir(), "usr/share/gputils/header");
-        List<String> pics = new ArrayList<>();
-        String[] files = headerDir.list();
-        if (files != null) {
-            for (String file : files) {
-                if (file.toLowerCase(Locale.US).endsWith(".inc")) {
-                    String name = file.substring(0, file.length() - 4);
-                    if (name.toLowerCase(Locale.US).startsWith("p")) name = name.substring(1);
-                    pics.add(name.toUpperCase(Locale.US));
+    // ═══════════════════════════════════════════════════════════════════
+    // Multi-port architecture management
+    // ═══════════════════════════════════════════════════════════════════
+
+    private void setupArchitectureSpinner() {
+        String[] families = PortRegistry.getFamilyNames();
+        ArrayAdapter<String> archAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, families);
+        archAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        binding.spinnerArch.setAdapter(archAdapter);
+
+        int savedArch = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getInt(KEY_SELECTED_ARCH, 0);
+        if (savedArch >= 0 && savedArch < families.length) {
+            binding.spinnerArch.setSelection(savedArch);
+        }
+
+        binding.spinnerArch.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().putInt(KEY_SELECTED_ARCH, position).apply();
+                onArchitectureChanged(position);
+            }
+            @Override
+            public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        });
+    }
+
+    private void onArchitectureChanged(int portIndex) {
+        currentPort = PortRegistry.getPort(portIndex);
+
+        // Sub-architecture spinner
+        if (currentPort.hasSubArchitectures()) {
+            binding.rowSubArch.setVisibility(View.VISIBLE);
+            binding.dividerSubArch.setVisibility(View.VISIBLE);
+            ArrayAdapter<String> subAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, currentPort.subArchLabels);
+            subAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            binding.spinnerSubArch.setAdapter(subAdapter);
+
+            int savedSub = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getInt(KEY_SELECTED_SUB_ARCH, 0);
+            if (savedSub >= 0 && savedSub < currentPort.subArchLabels.length) {
+                binding.spinnerSubArch.setSelection(savedSub);
+            }
+            binding.spinnerSubArch.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                    currentSubArchIndex = position;
+                    getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().putInt(KEY_SELECTED_SUB_ARCH, position).apply();
+                    if (currentPort.hasDeviceSelector()) {
+                        loadDeviceList();
+                    }
+                }
+                @Override
+                public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+            });
+        } else {
+            binding.rowSubArch.setVisibility(View.GONE);
+            binding.dividerSubArch.setVisibility(View.GONE);
+            currentSubArchIndex = 0;
+        }
+
+        // Device selector
+        if (currentPort.hasDeviceSelector()) {
+            binding.rowDevice.setVisibility(View.VISIBLE);
+            binding.dividerDevice.setVisibility(View.VISIBLE);
+            binding.labelDevice.setText(currentPort.hasAsmMode ? getString(R.string.label_pic) : getString(R.string.label_device));
+            loadDeviceList();
+        } else {
+            binding.rowDevice.setVisibility(View.GONE);
+            binding.dividerDevice.setVisibility(View.GONE);
+        }
+
+        // Language toggle (ASM/C) — only for PIC
+        if (currentPort.hasAsmMode) {
+            binding.rowLanguage.setVisibility(View.VISIBLE);
+            binding.dividerLanguage.setVisibility(View.VISIBLE);
+        } else {
+            binding.rowLanguage.setVisibility(View.GONE);
+            binding.dividerLanguage.setVisibility(View.GONE);
+            currentModeIsC = true;
+        }
+
+        // Update button text and editor hint
+        if (currentPort.hasAsmMode && !currentModeIsC) {
+            binding.btnAssemble.setText(getString(R.string.btn_assemble));
+            binding.editAsm.setHint(currentPort.editorHintAsm != null ? currentPort.editorHintAsm : getString(R.string.hint_editor_asm));
+        } else {
+            binding.btnAssemble.setText(getString(R.string.btn_compile));
+            binding.editAsm.setHint(currentPort.editorHintC != null ? currentPort.editorHintC : getString(R.string.hint_editor_c));
+        }
+
+        // Si el archivo activo contiene solo código de ejemplo o está vacío, cargar el template del nuevo puerto
+        ModuleState state = getCurrentState();
+        if (state.activeFile != null && state.files.containsKey(state.activeFile)) {
+            String currentContent = state.files.get(state.activeFile);
+            if (isDefaultSampleCode(currentContent)) {
+                String newCode = (currentPort.hasAsmMode && !currentModeIsC && currentPort.defaultAsmCode != null)
+                        ? currentPort.defaultAsmCode
+                        : currentPort.defaultCCode;
+                if (newCode != null && !newCode.isEmpty()) {
+                    state.files.put(state.activeFile, newCode);
                 }
             }
         }
 
-        Collections.sort(pics);
-        if (pics.isEmpty()) pics.add("16F628A");
+        renderCurrentModule();
+    }
 
-        mainHandler.post(() -> {
-            ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, pics);
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            binding.spinnerPic.setAdapter(adapter);
+    private boolean isDefaultSampleCode(String content) {
+        if (content == null || content.trim().isEmpty()) return true;
+        if (content.equals(DEFAULT_C) || content.equals(DEFAULT_ASM)) return true;
+        for (PortConfig p : PortRegistry.getAllPorts()) {
+            if (content.equals(p.defaultCCode)) return true;
+            if (p.defaultAsmCode != null && content.equals(p.defaultAsmCode)) return true;
+        }
+        return false;
+    }
 
-            String savedPic = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getString(KEY_SELECTED_PIC, null);
-            int index = savedPic == null ? -1 : pics.indexOf(savedPic);
-            if (index < 0) index = pics.indexOf("16F628A");
-            if (index < 0) index = pics.indexOf("16F84A");
-            if (index >= 0) {
-                binding.spinnerPic.setSelection(index);
+    private void loadDeviceList() {
+        if (currentPort == null || !currentPort.hasDeviceSelector()) return;
+
+        executor.execute(() -> {
+            File headerDir = new File(getFilesDir(), "usr/share/" + currentPort.headerIncludeDir);
+            List<String> devices = new ArrayList<>();
+            String[] files = headerDir.list();
+            if (files != null) {
+                for (String file : files) {
+                    if (file.toLowerCase(Locale.US).endsWith(currentPort.headerExtension)) {
+                        String name = file.substring(0, file.length() - currentPort.headerExtension.length());
+                        if (currentPort.headerPrefix != null && !currentPort.headerPrefix.isEmpty()
+                                && name.toLowerCase(Locale.US).startsWith(currentPort.headerPrefix.toLowerCase(Locale.US))) {
+                            name = name.substring(currentPort.headerPrefix.length());
+                        }
+                        if (currentPort.headerUpperCase) {
+                            name = name.toUpperCase(Locale.US);
+                        }
+                        if (!name.isEmpty()) {
+                            devices.add(name);
+                        }
+                    }
+                }
             }
 
-            binding.spinnerPic.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
-                    String selected = adapter.getItem(position);
-                    if (selected == null) return;
-                    getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-                            .edit()
-                            .putString(KEY_SELECTED_PIC, selected)
-                            .apply();
-                    binding.editAsm.post(() -> {
-                        binding.editAsm.requestFocus();
-                        binding.editAsm.setSelection(binding.editAsm.getText().length());
-                    });
+            Collections.sort(devices);
+            if (devices.isEmpty() && currentPort.defaultDevice != null) {
+                devices.add(currentPort.defaultDevice);
+            }
+
+            List<String> finalDevices = devices;
+            mainHandler.post(() -> {
+                ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, finalDevices);
+                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                binding.spinnerPic.setAdapter(adapter);
+
+                String savedDevice = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getString(KEY_SELECTED_PIC, null);
+                int index = savedDevice == null ? -1 : finalDevices.indexOf(savedDevice);
+                if (index < 0 && currentPort.defaultDevice != null) {
+                    index = finalDevices.indexOf(currentPort.defaultDevice);
+                }
+                if (index < 0 && !finalDevices.isEmpty()) index = 0;
+                if (index >= 0) {
+                    binding.spinnerPic.setSelection(index);
                 }
 
-                @Override
-                public void onNothingSelected(android.widget.AdapterView<?> parent) { }
+                binding.spinnerPic.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+                    @Override
+                    public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                        String selected = adapter.getItem(position);
+                        if (selected == null) return;
+                        getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                                .edit()
+                                .putString(KEY_SELECTED_PIC, selected)
+                                .apply();
+                    }
+                    @Override
+                    public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+                });
             });
         });
     }
@@ -1011,9 +1152,12 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        String selectedPic = binding.spinnerPic.getSelectedItem() != null
-                ? binding.spinnerPic.getSelectedItem().toString()
-                : "16F628A";
+        String selectedDevice = null;
+        if (currentPort != null && currentPort.hasDeviceSelector() && binding.spinnerPic.getSelectedItem() != null) {
+            selectedDevice = binding.spinnerPic.getSelectedItem().toString();
+        } else if (currentPort != null && currentPort.defaultDevice != null) {
+            selectedDevice = currentPort.defaultDevice;
+        }
 
         String projectName = resolveProjectName();
 
@@ -1035,10 +1179,10 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        if (isCurrentCMode()) {
-            compileCProject(projectDir, selectedPic, snapshotFiles, state.activeFile, projectName);
+        if (currentPort != null && currentPort.hasAsmMode && !currentModeIsC) {
+            assembleAsmProject(projectDir, selectedDevice != null ? selectedDevice : "16F628A", snapshotFiles, state.activeFile, projectName);
         } else {
-            assembleAsmProject(projectDir, selectedPic, snapshotFiles, state.activeFile, projectName);
+            compileCProject(projectDir, selectedDevice, snapshotFiles, state.activeFile, projectName);
         }
     }
 
@@ -1151,7 +1295,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void compileCProject(File projectDir, String selectedPic, LinkedHashMap<String, String> snapshotFiles,
+    private void compileCProject(File projectDir, String selectedDevice, LinkedHashMap<String, String> snapshotFiles,
                                  String activeFileName, String projectName) {
         executor.execute(() -> {
             isCompiling = true;
@@ -1163,7 +1307,21 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
 
-                String arch = selectedPic.toUpperCase(Locale.US).startsWith("18") ? "pic16" : "pic14";
+                String arch;
+                if (currentPort != null && currentPort.hasAsmMode) {
+                    // PIC: auto-detect pic16 or pic14 based on device name or sub-arch
+                    if (selectedDevice != null && selectedDevice.toUpperCase(Locale.US).startsWith("18")) {
+                        arch = "pic16";
+                    } else if (currentSubArchIndex == 1) {
+                        arch = "pic16";
+                    } else {
+                        arch = "pic14";
+                    }
+                } else if (currentPort != null) {
+                    arch = currentPort.resolveArch(currentSubArchIndex);
+                } else {
+                    arch = "pic14";
+                }
                 
                 String projectMain = projectName + ".c";
                 String preferredEntry = (activeFileName != null && activeFileName.endsWith(".c")) 
@@ -1180,13 +1338,16 @@ public class MainActivity extends AppCompatActivity {
                         return;
                     }
 
-                    List<String> visibleArgs = new ArrayList<>(Arrays.asList(
-                            "-m" + arch,
-                            "-p" + selectedPic.toLowerCase(Locale.US),
-                            "--use-non-free",
-                            "-c",
-                            cFile
-                    ));
+                    List<String> visibleArgs = new ArrayList<>();
+                    visibleArgs.add("-m" + arch);
+                    if (currentPort != null && currentPort.hasProcessorFlag && selectedDevice != null && !selectedDevice.isEmpty()) {
+                        visibleArgs.add("-p" + selectedDevice.toLowerCase(Locale.US));
+                    }
+                    if (currentPort != null && currentPort.useNonFree) {
+                        visibleArgs.add("--use-non-free");
+                    }
+                    visibleArgs.add("-c");
+                    visibleArgs.add(cFile);
 
                     List<String> extraArgs = new ArrayList<>(Arrays.asList(
                             "-I" + projectDir.getAbsolutePath()
@@ -1224,12 +1385,17 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
 
-                List<String> linkArgs = new ArrayList<>(Arrays.asList(
-                        "-m" + arch,
-                        "-p" + selectedPic.toLowerCase(Locale.US),
-                        "--use-non-free",
-                        "--out-fmt-ihx"
-                ));
+                List<String> linkArgs = new ArrayList<>();
+                linkArgs.add("-m" + arch);
+                if (currentPort != null && currentPort.hasProcessorFlag && selectedDevice != null && !selectedDevice.isEmpty()) {
+                    linkArgs.add("-p" + selectedDevice.toLowerCase(Locale.US));
+                }
+                if (currentPort != null && currentPort.useNonFree) {
+                    linkArgs.add("--use-non-free");
+                }
+                if (currentPort != null && currentPort.outputFormat != null) {
+                    linkArgs.add(currentPort.outputFormat);
+                }
                 linkArgs.addAll(objFiles);
                 linkArgs.add("-o");
                 linkArgs.add(outputBaseName + ".hex");

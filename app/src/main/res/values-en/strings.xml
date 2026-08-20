@@ -8,7 +8,10 @@
     <string name="ad_banner_id">ca-app-pub-5141499161332805/1220566600</string>
     <string name="ad_interstitial_id">ca-app-pub-5141499161332805/8342402367</string>
 
-    <!-- activity_main.xml - PIC Selector -->
+    <!-- activity_main.xml - Architecture & Device Selectors -->
+    <string name="label_arch">ARCH:</string>
+    <string name="label_variant">VARIANT:</string>
+    <string name="label_device">DEVICE:</string>
     <string name="label_pic">PIC:</string>
     <string name="label_language">LANGUAGE:</string>
     <string name="btn_asm_gputils">ASM (GPUTILS)</string>

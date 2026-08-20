@@ -47,6 +47,7 @@
                 android:orientation="vertical"
                 android:padding="12dp">
 
+                <!-- Row 1: Architecture Selector -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -54,6 +55,70 @@
                     android:orientation="horizontal">
 
                     <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_arch"
+                        android:textColor="@color/secondary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <Spinner
+                        android:id="@+id/spinner_arch"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:theme="@style/ThemeOverlay.AppCompat.Dark" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="8dp"
+                    android:background="#333333" />
+
+                <!-- Row 2: Sub-Architecture Selector (visible only for families with sub-archs) -->
+                <LinearLayout
+                    android:id="@+id/row_sub_arch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_variant"
+                        android:textColor="@color/secondary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <Spinner
+                        android:id="@+id/spinner_sub_arch"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:theme="@style/ThemeOverlay.AppCompat.Dark" />
+                </LinearLayout>
+
+                <View
+                    android:id="@+id/divider_sub_arch"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="8dp"
+                    android:background="#333333"
+                    android:visibility="gone" />
+
+                <!-- Row 3: Device Selector (visible only for families with header files) -->
+                <LinearLayout
+                    android:id="@+id/row_device"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/label_device"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/label_pic"
@@ -70,12 +135,15 @@
                 </LinearLayout>
 
                 <View
+                    android:id="@+id/divider_device"
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginTop="8dp"
                     android:background="#333333" />
 
+                <!-- Row 4: Language Toggle (visible only for families with ASM mode) -->
                 <LinearLayout
+                    android:id="@+id/row_language"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:gravity="center_vertical"
@@ -125,6 +193,7 @@
                 </LinearLayout>
 
                 <View
+                    android:id="@+id/divider_language"
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginTop="8dp"
