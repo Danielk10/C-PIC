@@ -102,11 +102,18 @@ public final class PortRegistry {
                 .headerExtension(".h")
                 .defaultDevice(null)
                 .defaultCCode(
-                        "#include <ds390/serial390.h>\n\n" +
-                        "// DS390 example\n" +
+                        "#include <stdint.h>\n\n" +
+                        "// Ejemplo básico para Dallas DS390/DS400\n" +
+                        "__sfr __at (0x80) P0;\n\n" +
+                        "void delay(uint16_t ms) {\n" +
+                        "    uint16_t i, j;\n" +
+                        "    for(i = 0; i < ms; i++)\n" +
+                        "        for(j = 0; j < 100; j++);\n" +
+                        "}\n\n" +
                         "void main(void) {\n" +
                         "    while(1) {\n" +
-                        "        // Your code here\n" +
+                        "        P0 ^= 0x01;\n" +
+                        "        delay(500);\n" +
                         "    }\n" +
                         "}\n"
                 )
@@ -189,10 +196,17 @@ public final class PortRegistry {
                 .defaultDevice(null)
                 .defaultCCode(
                         "#include <stdint.h>\n\n" +
-                        "// TLCS-90 example\n" +
+                        "// Ejemplo básico para Toshiba TLCS-90\n" +
+                        "#define P0 (*(volatile uint8_t*)0x0000)\n\n" +
+                        "void delay(uint16_t ms) {\n" +
+                        "    uint16_t i;\n" +
+                        "    while(ms--)\n" +
+                        "        for(i = 0; i < 500; i++);\n" +
+                        "}\n\n" +
                         "void main(void) {\n" +
                         "    while(1) {\n" +
-                        "        // Your code here\n" +
+                        "        P0 ^= 0x01;\n" +
+                        "        delay(500);\n" +
                         "    }\n" +
                         "}\n"
                 )
@@ -206,7 +220,7 @@ public final class PortRegistry {
                 .defaultDevice(null)
                 .defaultCCode(
                         "#include <stdint.h>\n\n" +
-                        "// STM8 GPIO registers (STM8S103)\n" +
+                        "// Ejemplo básico para STM8 (STM8S103)\n" +
                         "#define PB_ODR *(volatile uint8_t*)0x5005\n" +
                         "#define PB_DDR *(volatile uint8_t*)0x5007\n" +
                         "#define PB_CR1 *(volatile uint8_t*)0x5008\n\n" +
@@ -216,8 +230,8 @@ public final class PortRegistry {
                         "        for(i = 0; i < 500; i++);\n" +
                         "}\n\n" +
                         "void main(void) {\n" +
-                        "    PB_DDR = 0x20; // PB5 output\n" +
-                        "    PB_CR1 = 0x20; // Push-pull\n" +
+                        "    PB_DDR = 0x20; // PB5 como salida\n" +
+                        "    PB_CR1 = 0x20; // Salida Push-pull\n" +
                         "    while(1) {\n" +
                         "        PB_ODR ^= 0x20;\n" +
                         "        delay(500);\n" +
@@ -239,15 +253,15 @@ public final class PortRegistry {
                 .headerExtension(".h")
                 .defaultDevice(null)
                 .defaultCCode(
-                        "#include <mc68hc908gp32.h>\n\n" +
-                        "// HC08 blink example\n" +
+                        "#include <hc08/mc68hc908gp32.h>\n\n" +
+                        "// Ejemplo básico para HC08/S08\n" +
                         "void delay(unsigned int ms) {\n" +
                         "    unsigned int i, j;\n" +
                         "    for(i = 0; i < ms; i++)\n" +
                         "        for(j = 0; j < 100; j++);\n" +
                         "}\n\n" +
                         "void main(void) {\n" +
-                        "    DDRA = 0xFF;  // Port A output\n" +
+                        "    DDRA = 0xFF;  // Puerto A como salida\n" +
                         "    while(1) {\n" +
                         "        PTA = 0xFF;\n" +
                         "        delay(500);\n" +
@@ -270,16 +284,15 @@ public final class PortRegistry {
                 .defaultDevice(null)
                 .defaultCCode(
                         "#include <stdint.h>\n\n" +
-                        "// Padauk PDK14 example\n" +
-                        "// Registers vary by chip\n" +
-                        "__sfr __at(0x10) PA;\n" +
-                        "__sfr __at(0x11) PAC;\n\n" +
+                        "// Ejemplo básico para Padauk PDK14\n" +
+                        "__sfr __at (0x10) PA;\n" +
+                        "__sfr __at (0x11) PAC;\n\n" +
                         "void delay(void) {\n" +
                         "    uint8_t i;\n" +
                         "    for(i = 0; i < 255; i++);\n" +
                         "}\n\n" +
                         "void main(void) {\n" +
-                        "    PAC = 0xFF; // Port A all outputs\n" +
+                        "    PAC = 0xFF; // Puerto A como salida\n" +
                         "    while(1) {\n" +
                         "        PA ^= 0x01;\n" +
                         "        delay();\n" +
@@ -300,8 +313,7 @@ public final class PortRegistry {
                 .defaultDevice(null)
                 .defaultCCode(
                         "#include <stdint.h>\n\n" +
-                        "// MOS 6502 example\n" +
-                        "// Typical 6522 VIA at $6000\n" +
+                        "// Ejemplo básico para MOS 6502 / 65C02\n" +
                         "#define VIA_PORTB (*(volatile uint8_t*)0x6000)\n" +
                         "#define VIA_DDRB  (*(volatile uint8_t*)0x6002)\n\n" +
                         "void delay(void) {\n" +
@@ -326,10 +338,17 @@ public final class PortRegistry {
                 .defaultDevice(null)
                 .defaultCCode(
                         "#include <stdint.h>\n\n" +
-                        "// Fairchild F8 example\n" +
+                        "// Ejemplo básico para Fairchild F8\n" +
+                        "#define IO_PORT (*(volatile uint8_t*)0x0000)\n\n" +
+                        "void delay(uint16_t count) {\n" +
+                        "    while(count--) {\n" +
+                        "        for(uint8_t i = 0; i < 200; i++);\n" +
+                        "    }\n" +
+                        "}\n\n" +
                         "void main(void) {\n" +
                         "    while(1) {\n" +
-                        "        // Your code here\n" +
+                        "        IO_PORT ^= 0x01;\n" +
+                        "        delay(500);\n" +
                         "    }\n" +
                         "}\n"
                 )

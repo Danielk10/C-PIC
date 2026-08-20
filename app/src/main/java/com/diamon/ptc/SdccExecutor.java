@@ -214,7 +214,7 @@ public class SdccExecutor {
             File libDir = new File(usrDir, "lib");
             if (!libDir.exists()) libDir.mkdirs();
 
-            // Enlazar ejecutables de nativeLibDir en usr/bin
+            // Enlazar ejecutables de nativeLibDir en usr/bin y libexec
             File[] nativeFiles = nativeLibDir.listFiles();
             if (nativeFiles != null) {
                 for (File file : nativeFiles) {
@@ -223,6 +223,17 @@ public class SdccExecutor {
                         String baseName = name.substring(3, name.length() - 3);
                         if (!isSharedLibrary(baseName)) {
                             createSymlink(new File(binDir, baseName), file.getAbsolutePath());
+                            createSymlink(new File(binDir, "sdcc-" + baseName), file.getAbsolutePath());
+                            createSymlink(new File(libexecBase, baseName), file.getAbsolutePath());
+                            createSymlink(new File(libexecGeneric, baseName), file.getAbsolutePath());
+
+                            // Alias para ensambladores: sdas8051 -> as8051, sdas6500 -> as6500, etc.
+                            if (baseName.startsWith("sdas")) {
+                                String asName = "as" + baseName.substring(4);
+                                createSymlink(new File(binDir, asName), file.getAbsolutePath());
+                                createSymlink(new File(libexecBase, asName), file.getAbsolutePath());
+                                createSymlink(new File(libexecGeneric, asName), file.getAbsolutePath());
+                            }
                         }
                     }
                 }
