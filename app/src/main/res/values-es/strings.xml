@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App name -->
+    <string name="app_name">C PIC Compiler</string>
+
+    <!-- AdMob IDs -->
+    <string name="admob_app_id">ca-app-pub-5141499161332805~8263601193</string>
+    <string name="ad_banner_id">ca-app-pub-5141499161332805/1220566600</string>
+    <string name="ad_interstitial_id">ca-app-pub-5141499161332805/8342402367</string>
+
+    <!-- activity_main.xml - Architecture & Device Selectors -->
+    <string name="label_arch">ARCH:</string>
+    <string name="label_variant">VARIANTE:</string>
+    <string name="label_device">DISPOSITIVO:</string>
+    <string name="label_pic">PIC:</string>
+    <string name="label_language">LENGUAJE:</string>
+    <string name="btn_asm_gputils">ASM (GPUTILS)</string>
+    <string name="btn_c_sdcc">C (SDCC)</string>
+    <string name="label_project">PROYECTO:</string>
+    <string name="hint_project_name">nombre_del_proyecto</string>
+
+    <!-- activity_main.xml - Editor -->
+    <string name="label_editor">EDITOR</string>
+    <string name="hint_editor_asm">; Escribe tu código aquí…</string>
+    <string name="hint_editor_c">// Escribe tu código C aquí…</string>
+
+    <!-- activity_main.xml - Buttons -->
+    <string name="btn_assemble">ENSAMBLAR</string>
+    <string name="btn_compile">COMPILAR</string>
+    <string name="btn_view_hex">VER HEX</string>
+    <string name="btn_export">EXPORTAR</string>
+
+    <!-- activity_main.xml - Loading overlay -->
+    <string name="loading_message">Preparando herramientas…\nSolo tomará un momento la primera vez.</string>
+
+    <!-- activity_main.xml - Logs & Terminal -->
+    <string name="label_terminal">TERMINAL DE SALIDA</string>
+    <string name="btn_expand_terminal">Expandir</string>
+    <string name="btn_restore_terminal">Reducir</string>
+    <string name="btn_clear">Limpiar</string>
+    <string name="terminal_ready">--- Terminal lista ---</string>
+    <string name="terminal_reset">--- Terminal reiniciada ---</string>
+
+    <!-- popup_hex_viewer.xml -->
+    <string name="hex_header_addr">ADDR</string>
+    <string name="hex_header_hex">HEX (L-ENDIAN)</string>
+    <string name="hex_header_ascii">ASCII</string>
+    <string name="btn_close_viewer">Cerrar Visor</string>
+
+    <!-- menu/main_menu.xml -->
+    <string name="menu_clear_editor">Limpiar Editor</string>
+    <string name="menu_import_sources">Cargar archivos fuente</string>
+    <string name="menu_about">Acerca de / Licencias</string>
+    <string name="menu_change_export_folder">Cambiar carpeta de exportación</string>
+    <string name="menu_privacy_policy">Política de Privacidad</string>
+
+    <!-- PolicyActivity -->
+    <string name="title_privacy_policy">Política de Privacidad</string>
+
+    <!-- Common buttons -->
+    <string name="btn_close">Cerrar</string>
+    <string name="btn_cancel">Cancelar</string>
+    <string name="btn_yes">Sí</string>
+    <string name="btn_add">Agregar</string>
+
+    <!-- Dialogs -->
+    <string name="dialog_close_file_title">Cerrar archivo</string>
+    <string name="dialog_close_file_msg">¿Eliminar la pestaña \'%s\'?</string>
+    <string name="dialog_new_file_title">Nuevo archivo</string>
+    <string name="hint_new_file_asm">ej: archivo.asm, macros.inc</string>
+    <string name="hint_new_file_c">ej: archivo.c, utils.c, defs.h</string>
+    <string name="dialog_clear_editor_title">Limpiar Editor</string>
+    <string name="dialog_clear_editor_msg">¿Borrar el contenido del archivo activo?</string>
+    <string name="dialog_about_title">Acerca de / Licencias</string>
+    <string name="dialog_about_message"><![CDATA[<b>C PIC Compiler</b><br><br>Esta aplicación es una interfaz gráfica (GUI) profesional para las herramientas GPUTILS y SDCC.<br><br><b>GPUTILS:</b><br>Colección de herramientas de código abierto para microcontroladores Microchip PIC.<br><br>Sitio web: <a href="https://sourceforge.net/projects/gputils/">sourceforge.net/projects/gputils/</a><br><br><b>SDCC (Small Device C Compiler):</b><br>Compilador de C para microcontroladores de 8 bits.<br><br>Sitio web: <a href="https://sourceforge.net/projects/sdcc/">sourceforge.net/projects/sdcc/</a><br><br><b>Licencia del Proyecto:</b><br>C PIC Compiler es software libre y está bajo la licencia GNU GPL v3.0.<br><br>Los binarios incluidos de GPUTILS y SDCC también se distribuyen bajo sus propias licencias GPL.]]></string>
+
+    <!-- Toasts -->
+    <string name="toast_no_log_text">No hay texto en el log para copiar.</string>
+    <string name="toast_clipboard_fail">No se pudo acceder al portapapeles.</string>
+    <string name="toast_logs_copied">Logs copiados al portapapeles.</string>
+
+    <!-- In-App Purchase - Remove Ads -->
+    <string name="menu_remove_ads">Quitar Anuncios</string>
+    <string name="iap_purchase_success">¡Compra exitosa! Los anuncios han sido eliminados.</string>
+    <string name="iap_purchase_restored">Compra restaurada. Los anuncios han sido eliminados.</string>
+    <string name="iap_purchase_error">Error al procesar la compra. Inténtalo de nuevo.</string>
+    <string name="iap_product_unavailable">Producto no disponible en este momento.</string>
+    <string name="iap_billing_unavailable">Servicio de compras no disponible.</string>
+    <string name="iap_already_purchased">Ya has adquirido la versión sin anuncios.</string>
+
+    <!-- Terminal Log Messages -->
+    <string name="log_app_started">--- C PIC Compiler Iniciado ---</string>
+    <string name="log_mode_c_active">Modo C (SDCC) activo.</string>
+    <string name="log_mode_asm_active">Modo ASM (GPUTILS) activo.</string>
+    <string name="log_mode_c_selected">Modo C (SDCC) seleccionado.</string>
+    <string name="log_mode_asm_selected">Modo ASM (GPUTILS) seleccionado.</string>
+    <string name="log_export_folder_updated">Carpeta de exportación actualizada: %s</string>
+    <string name="log_default_tab_created">Se creó una pestaña por defecto: %s</string>
+    <string name="log_file_detached">Archivo desligado del proyecto al cerrar pestaña: %s</string>
+    <string name="log_invalid_filename">Nombre de archivo inválido.</string>
+    <string name="log_ext_allowed_c">En modo C solo se permiten .c y .h</string>
+    <string name="log_ext_allowed_asm">En modo ASM solo se permiten .asm y .inc</string>
+    <string name="log_file_already_exists">Ese archivo ya existe en el proyecto.</string>
+    <string name="log_no_files_selected_import">No se seleccionaron archivos para importar.</string>
+    <string name="log_cant_identify_filename">No se pudo identificar nombre de archivo: %s</string>
+    <string name="log_file_skipped_ext">Archivo omitido por extensión no válida (.c/.h/.asm/.inc): %s</string>
+    <string name="log_file_imported_c">Archivo importado en módulo C: %s</string>
+    <string name="log_file_imported_asm">Archivo importado en módulo ASM: %s</string>
+    <string name="log_import_success">> ¡Importación exitosa! %d archivo(s).</string>
+    <string name="log_no_valid_files_imported">No se importó ningún archivo válido.</string>
+    <string name="log_cant_read_uri">No se pudo leer: %s</string>
+    <string name="log_preparing_resources">Preparando recursos (GPUTILS + SDCC)...</string>
+    <string name="log_resources_extracted">Recursos extraídos correctamente.</string>
+    <string name="log_resources_extract_error">[ERROR] Error al extraer recursos.</string>
+    <string name="log_no_files_to_compile">No hay archivos para compilar.</string>
+    <string name="log_no_valid_input_files">No hay archivos de entrada válidos. Agrega código en al menos una pestaña.</string>
+    <string name="log_preflight_failed">Prechequeo de herramientas falló. Revisa la terminal.</string>
+    <string name="log_cant_create_project_dir">No se pudo crear directorio de proyecto.</string>
+    <string name="log_cant_save_source">No se pudo guardar fuente: %s</string>
+    <string name="log_add_asm_source">Error: Agrega al menos un archivo .asm para ensamblar.</string>
+    <string name="log_source_not_found">No se encontró el archivo fuente: %s</string>
+    <string name="log_gpasm_failed">[ERROR] Falló gpasm para %1$s (código %2$d). Se cancela el enlace.</string>
+    <string name="log_object_not_generated">[ERROR] No se generó el objeto esperado: %s</string>
+    <string name="log_no_asm_objects_to_link">[ERROR] No hay objetos ASM para enlazar.</string>
+    <string name="log_gplink_failed">[ERROR] Falló el enlace GPLINK (código %d). No se generó HEX.</string>
+    <string name="log_add_c_source">Error: Agrega al menos un archivo .c para compilar.</string>
+    <string name="log_sdcc_compile_failed">[ERROR] Error en %1$s (código %2$d). Se detiene la compilación.</string>
+    <string name="log_sdcc_object_not_generated">[ERROR] No se generó archivo objeto para %s</string>
+    <string name="log_no_c_objects_to_link">[ERROR] No hay objetos C para enlazar.</string>
+    <string name="log_sdcc_link_failed">[ERROR] Falló el enlace C (código %d). No se generó HEX.</string>
+    <string name="log_renamed_output">Renombrado salida: %1$s -> %2$s</string>
+    <string name="log_no_output_found">No se encontró salida para %s</string>
+    <string name="log_project_files">Archivos en proyecto: %s</string>
+    <string name="log_compile_success">[OK] Compilación exitosa.</string>
+    <string name="log_assemble_success">[OK] Ensamblado exitoso.</string>
+    <string name="log_generated_output">Salida generada: %s</string>
+    <string name="log_no_expected_output">[WARN] No se generó la salida esperada (%s). Revisa los logs.</string>
+    <string name="log_compile_first">Primero compila o ensambla un proyecto.</string>
+    <string name="log_no_file_for_project">No existe archivo %s para el proyecto actual.</string>
+    <string name="log_empty_file">Archivo vacío: %s</string>
+    <string name="log_no_files_to_export">No hay archivos en el proyecto para exportar.</string>
+    <string name="log_export_success">> ¡Exportación exitosa! %d archivos guardados.</string>
+    <string name="log_export_failed">No fue posible exportar archivos.</string>
+    <string name="log_cant_prep_export_dir">No se pudo preparar directorio para exportación.</string>
+    <string name="log_cant_save_source_export">No se pudo guardar fuente para exportar: %s</string>
+    <string name="log_cant_save_saf_permission">No se pudo guardar permiso de carpeta. Vuelve a seleccionarla.</string>
+    <string name="log_saf_permission_lost">Permiso de carpeta perdido. Selecciona nuevamente una carpeta de destino.</string>
+    <string name="log_precheck_issue">[PRECHEQUEO] %s</string>
+
+    <!-- Herramientas Opcionales (packihx, makebin, ucSim) -->
+    <string name="menu_optional_tools">Herramientas Opcionales</string>
+    <string name="dialog_optional_tools_title">Herramientas de Post-Procesamiento</string>
+    <string name="opt_packihx_title">Normalizar HEX con packihx</string>
+    <string name="opt_packihx_desc">Empaqueta y normaliza los registros del archivo Intel HEX generado para programadores estrictos.</string>
+    <string name="opt_makebin_title">Generar Binario Plano (.bin) con makebin</string>
+    <string name="opt_makebin_desc">Convierte el archivo HEX en una imagen binaria plana (.bin) para programadores de memoria EEPROM/ROM.</string>
+    <string name="opt_auto_apply_title">Aplicar automáticamente al compilar</string>
+    <string name="opt_auto_apply_desc">Ejecuta las utilidades seleccionadas automáticamente tras cada compilación exitosa.</string>
+    <string name="opt_actions_header">Acciones Inmediatas (Bajo Demanda)</string>
+    <string name="btn_run_packihx">Ejecutar packihx</string>
+    <string name="btn_run_makebin">Ejecutar makebin</string>
+    <string name="btn_run_simulator">Simular con ucSim</string>
+    <string name="log_packihx_started">--- Ejecutando packihx sobre %s ---</string>
+    <string name="log_packihx_success">[packihx] HEX normalizado con éxito: %s</string>
+    <string name="log_packihx_failed">[packihx] Error al ejecutar packihx (código %d).</string>
+    <string name="log_makebin_started">--- Ejecutando makebin sobre %s ---</string>
+    <string name="log_makebin_success">[makebin] Binario plano generado con éxito: %1$s (%2$d bytes)</string>
+    <string name="log_makebin_failed">[makebin] Error al ejecutar makebin (código %d).</string>
+    <string name="log_simulator_started">--- Iniciando simulación con %1$s para %2$s ---</string>
+    <string name="log_simulator_finished">--- Simulación finalizada con éxito (código %d) ---</string>
+    <string name="log_simulator_failed">[ERROR] No se pudo ejecutar el simulador %s.</string>
+    <string name="log_no_hex_for_tool">Error: Primero compila el proyecto para generar el archivo .hex.</string>
+    <string name="dialog_select_viewer_format">¿Qué formato de archivo deseas inspeccionar?</string>
+    <string name="format_hex_file">Archivo Intel HEX (.hex)</string>
+    <string name="format_bin_file">Archivo Binario Plano (.bin)</string>
+    <string name="log_error_reading_file">[ERROR] Error al leer %1$s: %2$s</string>
+</resources>

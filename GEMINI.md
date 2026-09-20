@@ -67,3 +67,18 @@ Para compilar el proyecto manteniendo el espacio de trabajo limpio, los artefact
 ## 4. Publicación en Google Play Store
 
 El repositorio incluye el script automatizado [`upload_play_store.py`](upload_play_store.py) y su guía completa [`GUIA_PUBLICACION_PLAY_STORE.md`](GUIA_PUBLICACION_PLAY_STORE.md) para realizar despliegues directos a la consola de Google Play.
+
+---
+
+## 5. Idioma por Defecto en Recursos de la App
+
+- **Idioma Base Obligatorio**: El directorio principal de recursos [`app/src/main/res/values/strings.xml`](app/src/main/res/values/strings.xml) debe contener **estrictamente el idioma inglés** como idioma por defecto para cualquier usuario a nivel global cuyo idioma no coincida con una variante específica.
+- **Localización al Español**: La traducción completa al español debe residir obligatoriamente en [`app/src/main/res/values-es/strings.xml`](app/src/main/res/values-es/strings.xml).
+- **Paridad Lingüística**: Se debe mantener paridad exacta del 100% de claves entre los recursos base (inglés) y las variantes regionales.
+
+---
+
+## 6. Notas de Lanzamiento Bilingües Obligatorias
+
+Siempre que se preparen, redacten o presenten notas de lanzamiento (Release Notes para GitHub Releases o Google Play Store), **deben mostrarse y documentarse obligatoriamente en ambos idiomas: inglés y español**.
+
