@@ -170,6 +170,7 @@ C-PIC/
 ├── libs/                                          # Librerías dinámicas compartidas de soporte
 ├── setup-sdk.sh                                   # Script instalador del SDK 37 y NDK 30
 ├── upload_play_store.py                           # Script de subida automática a Google Play
+├── RELEASE_NOTES_v1.4.1.md                        # Notas del lanzamiento v1.4.1
 ├── RELEASE_NOTES_v1.4.0.md                        # Notas del lanzamiento v1.4.0
 ├── RELEASE_NOTES_v1.3.0.md                        # Notas del lanzamiento v1.3.0
 ├── NOMBRES_BINARIOS_VS_ANTIGUOS.md                # Correspondencia de binarios lib*.so vs originales
@@ -183,8 +184,9 @@ C-PIC/
 
 ## 📚 Documentación Técnica Adicional
 
-1. **[RELEASE_NOTES_v1.4.0.md](RELEASE_NOTES_v1.4.0.md)**: Notas completas del lanzamiento actual v1.4.0.
-2. **[RELEASE_NOTES_v1.3.0.md](RELEASE_NOTES_v1.3.0.md)**: Notas del lanzamiento previo v1.3.0.
+1. **[RELEASE_NOTES_v1.4.1.md](RELEASE_NOTES_v1.4.1.md)**: Notas completas del lanzamiento actual v1.4.1.
+2. **[RELEASE_NOTES_v1.4.0.md](RELEASE_NOTES_v1.4.0.md)**: Notas del lanzamiento previo v1.4.0.
+3. **[RELEASE_NOTES_v1.3.0.md](RELEASE_NOTES_v1.3.0.md)**: Notas del lanzamiento v1.3.0.
 3. **[GEMINI.md](GEMINI.md)**: Arquitectura del proyecto, variables de entorno y firma.
 4. **[GUIA_PUBLICACION_PLAY_STORE.md](GUIA_PUBLICACION_PLAY_STORE.md)**: Procedimiento para el despliegue a Google Play Console.
 5. **[NOMBRES_BINARIOS_VS_ANTIGUOS.md](NOMBRES_BINARIOS_VS_ANTIGUOS.md)**: Mapeo de los 60 ejecutables y 12 librerías nativas adaptadas a Google Play.

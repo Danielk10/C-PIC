@@ -50,12 +50,15 @@ import com.diamon.ptc.policy.PolicyActivity;
 import com.google.android.material.button.MaterialButton;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.InputStreamReader;
+import java.io.FileOutputStream;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -81,6 +84,8 @@ public class MainActivity extends AppCompatActivity {
     private static final String KEY_OPT_PACKIHX = "pref_opt_packihx";
     private static final String KEY_OPT_MAKEBIN = "pref_opt_makebin";
     private static final String KEY_OPT_AUTO_APPLY = "pref_opt_auto_apply";
+    private static final String KEY_HAS_TERMINAL_CACHE = "has_terminal_cache";
+    private static final String TERMINAL_CACHE_FILE = "terminal_cache.tmp";
 
     private static final String DEFAULT_ASM = "; Código de prueba para PIC16F628A\n" +
             "    PROCESSOR 16F628A\n" +
@@ -183,8 +188,17 @@ public class MainActivity extends AppCompatActivity {
         initResources();
         setupArchitectureSpinner();
 
-        log(getString(R.string.log_app_started));
-        log(getString(currentModeIsC ? R.string.log_mode_c_active : R.string.log_mode_asm_active));
+        boolean restored = false;
+        if (savedInstanceState != null && savedInstanceState.getBoolean(KEY_HAS_TERMINAL_CACHE, false)) {
+            restored = restoreTerminalCache();
+        } else {
+            deleteTerminalCache();
+        }
+
+        if (!restored) {
+            log(getString(R.string.log_app_started));
+            log(getString(currentModeIsC ? R.string.log_mode_c_active : R.string.log_mode_asm_active));
+        }
 
         // Initialize BillingManager for in-app purchases
         billingManager = new BillingManager(this, new BillingManager.BillingListener() {
@@ -2317,6 +2331,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void clearTerminal() {
+        deleteTerminalCache();
         synchronized (consoleLines) {
             consoleLines.clear();
             currentLineIndex = -1;
@@ -2324,6 +2339,74 @@ public class MainActivity extends AppCompatActivity {
         }
         binding.textLogs.setText("");
         log(getString(R.string.terminal_reset));
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        synchronized (consoleLines) {
+            if (!consoleLines.isEmpty()) {
+                saveTerminalCache();
+                outState.putBoolean(KEY_HAS_TERMINAL_CACHE, true);
+            }
+        }
+    }
+
+    private void saveTerminalCache() {
+        File cacheFile = new File(getCacheDir(), TERMINAL_CACHE_FILE);
+        try (BufferedWriter writer = new BufferedWriter(
+                new OutputStreamWriter(new FileOutputStream(cacheFile), StandardCharsets.UTF_8))) {
+            synchronized (consoleLines) {
+                for (int i = 0; i < consoleLines.size(); i++) {
+                    writer.write(consoleLines.get(i).toString());
+                    writer.newLine();
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error guardando cache de terminal", e);
+        }
+    }
+
+    private boolean restoreTerminalCache() {
+        File cacheFile = new File(getCacheDir(), TERMINAL_CACHE_FILE);
+        if (!cacheFile.exists() || cacheFile.length() == 0) {
+            return false;
+        }
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(new FileInputStream(cacheFile), StandardCharsets.UTF_8))) {
+            StringBuilder fullText = new StringBuilder();
+            synchronized (consoleLines) {
+                consoleLines.clear();
+                String line;
+                boolean first = true;
+                while ((line = reader.readLine()) != null) {
+                    consoleLines.add(new StringBuilder(line));
+                    if (!first) {
+                        fullText.append("\n");
+                    }
+                    fullText.append(line);
+                    first = false;
+                }
+                currentLineIndex = Math.max(0, consoleLines.size() - 1);
+                cursorAtStartOfLine = false;
+            }
+            binding.textLogs.setText(fullText.toString());
+            binding.scrollLogs.post(() -> binding.scrollLogs.fullScroll(View.FOCUS_DOWN));
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "Error restaurando cache de terminal", e);
+            return false;
+        } finally {
+            // Se limpia inmediatamente el archivo temporal tras cargarlo en memoria
+            deleteTerminalCache();
+        }
+    }
+
+    private void deleteTerminalCache() {
+        File cacheFile = new File(getCacheDir(), TERMINAL_CACHE_FILE);
+        if (cacheFile.exists()) {
+            cacheFile.delete();
+        }
     }
 
     public void toggleTerminalSize() {
@@ -2386,6 +2469,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (isFinishing()) {
+            deleteTerminalCache();
+        }
         executor.shutdown();
         if (billingManager != null) {
             billingManager.destroy();

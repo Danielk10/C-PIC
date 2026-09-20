@@ -447,6 +447,7 @@
                         android:layout_height="wrap_content"
                         android:fontFamily="monospace"
                         android:longClickable="true"
+                        android:saveEnabled="false"
                         android:text="@string/terminal_ready"
                         android:textColor="#00FF66"
                         android:textIsSelectable="true"
