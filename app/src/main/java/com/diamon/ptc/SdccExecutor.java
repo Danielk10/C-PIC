@@ -10,15 +10,12 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Ejecutor para el compilador SDCC.
  */
 public class SdccExecutor {
     private static final String TAG = "SdccExecutor";
-    /** Timeout máximo para subprocesos nativos (en segundos). */
-    private static final int PROCESS_TIMEOUT_SECONDS = 120;
 
     private final File workDir;
     private final File nativeLibDir;
@@ -192,13 +189,7 @@ public class SdccExecutor {
                 }
             }
 
-            boolean finished = process.waitFor(PROCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            if (!finished) {
-                process.destroyForcibly();
-                if (listener != null) listener.onProcessOutput("Error: packihx excedio el tiempo limite.\n");
-                return -1;
-            }
-            int exitCode = process.exitValue();
+            int exitCode = process.waitFor();
             if (exitCode == 0 && hexBuffer.length() > 0) {
                 File target = (outputFile != null) ? outputFile : inputFile;
                 try (java.io.FileOutputStream fos = new java.io.FileOutputStream(target)) {
@@ -271,20 +262,11 @@ public class SdccExecutor {
     }
 
     /**
-     * Espera a que un proceso termine con timeout.
-     * Si expira el timeout, destruye el proceso y retorna -1.
+     * Espera a que un proceso termine e interpreta señales de terminación nativas (SIGSEGV, SIGABRT, etc.).
      */
     private int waitForProcess(Process process, String binaryName, ProcessListener listener) {
         try {
-            boolean finished = process.waitFor(PROCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            if (!finished) {
-                process.destroyForcibly();
-                String msg = "Error: " + binaryName + " excedio el tiempo limite de " + PROCESS_TIMEOUT_SECONDS + "s y fue terminado.\n";
-                Log.e(TAG, msg);
-                if (listener != null) listener.onProcessOutput(msg);
-                return -1;
-            }
-            int exitCode = process.exitValue();
+            int exitCode = process.waitFor();
             if (exitCode != 0) {
                 String signalDesc = describeSignalExit(exitCode);
                 if (signalDesc != null) {
@@ -378,12 +360,7 @@ public class SdccExecutor {
                 }
             }
 
-            boolean finished = process.waitFor(PROCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            if (!finished) {
-                process.destroyForcibly();
-                return "Error: SDCC excedio el tiempo limite de " + PROCESS_TIMEOUT_SECONDS + "s y fue terminado.";
-            }
-            int exitCode = process.exitValue();
+            int exitCode = process.waitFor();
             String result = output.toString().trim();
             StringBuilder fullLog = new StringBuilder();
             fullLog.append("Comando: ").append(String.join(" ", command)).append("\n");

@@ -10,15 +10,12 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Clase para ejecutar los binarios de GPUTILS (gpasm, gpdasm, gplink, etc.).
  */
 public class GpUtilsExecutor {
     private static final String TAG = "GpUtilsExecutor";
-    /** Timeout máximo para subprocesos nativos (en segundos). */
-    private static final int PROCESS_TIMEOUT_SECONDS = 120;
 
     private final File workDir;
     private final File nativeLibDir;
@@ -90,15 +87,7 @@ public class GpUtilsExecutor {
                 }
             }
 
-            boolean finished = process.waitFor(PROCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            if (!finished) {
-                process.destroyForcibly();
-                String msg = "Error: " + binaryName + " excedio el tiempo limite de " + PROCESS_TIMEOUT_SECONDS + "s y fue terminado.\n";
-                Log.e(TAG, msg);
-                if (listener != null) listener.onProcessOutput(msg);
-                return -1;
-            }
-            int exitCode = process.exitValue();
+            int exitCode = process.waitFor();
             if (exitCode != 0) {
                 String signalDesc = SdccExecutor.describeSignalExit(exitCode);
                 if (signalDesc != null) {
@@ -186,12 +175,7 @@ public class GpUtilsExecutor {
                 }
             }
 
-            boolean finished = process.waitFor(PROCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            if (!finished) {
-                process.destroyForcibly();
-                return "Error: " + binaryName + " excedio el tiempo limite de " + PROCESS_TIMEOUT_SECONDS + "s y fue terminado.";
-            }
-            int exitCode = process.exitValue();
+            int exitCode = process.waitFor();
             Log.d(TAG, "Codigo de salida: " + exitCode);
 
             String result = output.toString().trim();

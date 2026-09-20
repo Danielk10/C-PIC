@@ -9,9 +9,9 @@ Fecha de lanzamiento: 20 de Septiembre de 2026
 • **Persistencia eficiente sin sobrecargar Binder**: Se implementó almacenamiento en caché temporal privado en disco (`terminal_cache.tmp`) durante cambios de configuración (rotación de pantalla y cambio de actividad).
 • **Limpieza estricta de sesión**: Al iniciar la app desde el lanzador (cold start), la terminal arranca completamente limpia con los mensajes iniciales. Al rotar, los logs se restauran en memoria y el archivo temporal se elimina inmediatamente del almacenamiento en un bloque `finally`.
 
-### 2. Detección y Blindaje contra Señales Nativas (SIGSEGV, SIGABRT, SIGKILL)
-• **Diagnóstico descriptivo en terminal**: Si un subproceso de compilador (`sdcc`, `gpasm`, `gplink`, `makebin`, etc.) es terminado por una señal del sistema, la terminal ahora traduce e informa con exactitud el origen del fallo (ej: `SIGSEGV (acceso a memoria no válido)`, `SIGABRT (proceso abortado)`, `SIGKILL (proceso terminado por el sistema)`).
-• **Protección contra procesos congelados (Watchdog Timeout)**: Todos los ejecutores nativos (`SdccExecutor` y `GpUtilsExecutor`) ahora imponen un timeout estricto de 120 segundos mediante `process.waitFor(120, TimeUnit.SECONDS)`. Si una tarea entra en bucle infinito, el subproceso es destruido forzosamente (`destroyForcibly()`) evitando que la aplicación se congele.
+### 2. Detección y Diagnóstico de Señales Nativas (SIGSEGV, SIGABRT, SIGKILL)
+• **Diagnóstico descriptivo en terminal**: Si un subproceso de compilador (`sdcc`, `gpasm`, `gplink`, `makebin`, etc.) es terminado por una señal del sistema operativo, la terminal traduce e informa con exactitud el origen del fallo (ej: `SIGSEGV (acceso a memoria no válido)`, `SIGABRT (proceso abortado)`, `SIGKILL (proceso terminado por el sistema)`), facilitando el diagnóstico inmediato de errores nativos en vez de mostrar códigos numéricos genéricos.
+• **Compilación libre sin límite de tiempo artificial**: Se garantiza la ejecución continua sin restricciones arbitrarias de tiempo (Opción A), permitiendo compilar proyectos extensos y ejecutar simulaciones completas de hardware (`s51` / `ucsim`) sin cortes prematuros.
 
 ---
 
