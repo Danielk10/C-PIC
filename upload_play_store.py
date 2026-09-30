@@ -48,6 +48,23 @@ def main():
         if en_notes:
             release_notes_list.append({'language': 'en-US', 'text': en_notes})
 
+        # If no release notes are provided, try to inherit them from the current active release on the same track
+        if not release_notes_list:
+            try:
+                print("No release notes provided. Fetching current release notes from Google Play track...")
+                current_track = service.edits().tracks().get(
+                    editId=edit_id,
+                    packageName=args.package_name,
+                    track=args.track
+                ).execute()
+                if 'releases' in current_track and current_track['releases']:
+                    latest_release = current_track['releases'][0]
+                    if 'releaseNotes' in latest_release:
+                        release_notes_list = latest_release['releaseNotes']
+                        print(f"Successfully inherited {len(release_notes_list)} release notes from the previous release.")
+            except Exception as get_err:
+                print(f"Could not inherit release notes: {get_err}")
+
         track_release = {
             'track': args.track,
             'releases': [{
