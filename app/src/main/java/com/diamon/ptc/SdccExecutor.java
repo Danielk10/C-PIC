@@ -437,6 +437,7 @@ public class SdccExecutor {
             // Enlaces específicos requeridos por la suite SDCC/GPUTILS
             String libcc1 = new File(nativeLibDir, "libcc1.so").getAbsolutePath();
             String libsdcpp = new File(nativeLibDir, "libsdcpp.so").getAbsolutePath();
+            String libsdld = new File(nativeLibDir, "libsdld.so").getAbsolutePath();
             String libgpasm = new File(nativeLibDir, "libgpasm.so").getAbsolutePath();
             String libgplink = new File(nativeLibDir, "libgplink.so").getAbsolutePath();
 
@@ -448,6 +449,14 @@ public class SdccExecutor {
             createSymlink(new File(binDir, "sdcc-cc1"), libcc1);
             createSymlink(new File(binDir, "sdcpp"), libsdcpp);
             createSymlink(new File(binDir, "sdcc-sdcpp"), libsdcpp);
+            createSymlink(new File(libexecBase, "sdld"), libsdld);
+            createSymlink(new File(libexec450, "sdld"), libsdld);
+            createSymlink(new File(libexecArch, "sdld"), libsdld);
+            createSymlink(new File(libexecGeneric, "sdld"), libsdld);
+            createSymlink(new File(binDir, "sdld"), libsdld);
+            createSymlink(new File(binDir, "sdcc-sdld"), libsdld);
+            createSymlink(new File(binDir, "sdld8051"), libsdld);
+            createSymlink(new File(binDir, "sdld-8051"), libsdld);
             createSymlink(new File(binDir, "gpasm"), libgpasm);
             createSymlink(new File(binDir, "gplink"), libgplink);
 
@@ -501,7 +510,9 @@ public class SdccExecutor {
     private void createSymlink(File symlink, String targetPath) {
         try {
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                if (symlink.exists() || Files.isSymbolicLink(symlink.toPath())) {
+                try {
+                    Files.deleteIfExists(symlink.toPath());
+                } catch (Exception ignored) {
                     symlink.delete();
                 }
             } else {
