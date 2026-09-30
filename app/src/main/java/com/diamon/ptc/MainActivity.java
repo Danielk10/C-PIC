@@ -171,15 +171,6 @@ public class MainActivity extends AppCompatActivity {
         enableImmersiveMode();
         setSupportActionBar(binding.toolbar);
 
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(binding.appBarLayout, (v, windowInsets) -> {
-            androidx.core.graphics.Insets insets = windowInsets.getInsets(
-                    androidx.core.view.WindowInsetsCompat.Type.statusBars() |
-                    androidx.core.view.WindowInsetsCompat.Type.displayCutout()
-            );
-            binding.appBarLayout.setPadding(0, insets.top, 0, 0);
-            return windowInsets;
-        });
-
         gpUtils = new GpUtilsExecutor(this);
         sdcc = new SdccExecutor(this);
 
@@ -439,6 +430,8 @@ public class MainActivity extends AppCompatActivity {
                 binding.textLineNumbers.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, binding.editAsm.getTextSize());
                 binding.textLineNumbers.setTypeface(binding.editAsm.getTypeface());
                 binding.textLineNumbers.setLineSpacing(binding.editAsm.getLineSpacingExtra(), binding.editAsm.getLineSpacingMultiplier());
+                lastLineCount = -1;
+                updateLineNumbers();
             });
         }
 
@@ -465,6 +458,7 @@ public class MainActivity extends AppCompatActivity {
                     .putBoolean(KEY_SELECTED_LANGUAGE, currentModeIsC)
                     .apply();
             renderCurrentModule();
+            loadDeviceList();
             log(getString(isCurrentCMode() ? R.string.log_mode_c_selected : R.string.log_mode_asm_selected));
         });
     }
@@ -897,13 +891,28 @@ public class MainActivity extends AppCompatActivity {
         binding.editAsm.setSelection(binding.editAsm.getText().length());
         applySyntaxHighlighting();
         updateLineNumbers();
+        binding.editAsm.post(this::updateLineNumbers);
     }
 
     private int lastLineCount = -1;
 
+    public static int countLines(CharSequence text) {
+        if (text == null || text.length() == 0) return 1;
+        int count = 1;
+        for (int i = 0; i < text.length(); i++) {
+            if (text.charAt(i) == '\n') {
+                count++;
+            }
+        }
+        return count;
+    }
+
     private void updateLineNumbers() {
         if (binding.editAsm == null || binding.textLineNumbers == null) return;
-        int lines = Math.max(1, binding.editAsm.getLineCount());
+        CharSequence text = binding.editAsm.getText();
+        int textLines = countLines(text);
+        int layoutLines = binding.editAsm.getLineCount();
+        int lines = Math.max(textLines, layoutLines);
         if (lines == lastLineCount) {
             return;
         }
@@ -1067,6 +1076,21 @@ public class MainActivity extends AppCompatActivity {
                     getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().putInt(KEY_SELECTED_SUB_ARCH, position).apply();
                     if (currentPort.hasDeviceSelector()) {
                         loadDeviceList();
+                    } else {
+                        ModuleState state = getCurrentState();
+                        if (state.activeFile != null && state.files.containsKey(state.activeFile)) {
+                            String currentContent = state.files.get(state.activeFile);
+                            if (isDefaultSampleCode(currentContent)) {
+                                String newCode = PortRegistry.getSampleCode(currentPort, currentSubArchIndex, null, isCurrentCMode());
+                                if (newCode != null && !newCode.isEmpty()) {
+                                    state.files.put(state.activeFile, newCode);
+                                    binding.editAsm.setText(newCode);
+                                    binding.editAsm.setSelection(binding.editAsm.getText().length());
+                                    applySyntaxHighlighting();
+                                    updateLineNumbers();
+                                }
+                            }
+                        }
                     }
                 }
                 @Override
@@ -1113,9 +1137,7 @@ public class MainActivity extends AppCompatActivity {
         if (state.activeFile != null && state.files.containsKey(state.activeFile)) {
             String currentContent = state.files.get(state.activeFile);
             if (isDefaultSampleCode(currentContent)) {
-                String newCode = (currentPort.hasAsmMode && !currentModeIsC && currentPort.defaultAsmCode != null)
-                        ? currentPort.defaultAsmCode
-                        : currentPort.defaultCCode;
+                String newCode = PortRegistry.getSampleCode(currentPort, currentSubArchIndex, null, isCurrentCMode());
                 if (newCode != null && !newCode.isEmpty()) {
                     state.files.put(state.activeFile, newCode);
                 }
@@ -1126,46 +1148,77 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private boolean isDefaultSampleCode(String content) {
-        if (content == null || content.trim().isEmpty()) return true;
-        if (content.equals(DEFAULT_C) || content.equals(DEFAULT_ASM)) return true;
-        for (PortConfig p : PortRegistry.getAllPorts()) {
-            if (content.equals(p.defaultCCode)) return true;
-            if (p.defaultAsmCode != null && content.equals(p.defaultAsmCode)) return true;
-        }
-        return false;
+        return PortRegistry.isDefaultSampleCode(content);
     }
 
     private void loadDeviceList() {
         if (currentPort == null || !currentPort.hasDeviceSelector()) return;
 
         executor.execute(() -> {
-            File headerDir = new File(getFilesDir(), "usr/share/" + currentPort.headerIncludeDir);
+            File headerDir;
+            String extension;
+            String prefix;
+            boolean upperCase;
+
+            if (currentPort.hasAsmMode) {
+                if (isCurrentCMode()) {
+                    String subDir = (currentSubArchIndex == 1) ? "pic16" : "pic14";
+                    headerDir = new File(getFilesDir(), "usr/share/sdcc/non-free/include/" + subDir);
+                    extension = ".h";
+                    prefix = "pic";
+                    upperCase = true;
+                } else {
+                    headerDir = new File(getFilesDir(), "usr/share/gputils/header");
+                    extension = ".inc";
+                    prefix = "p";
+                    upperCase = true;
+                }
+            } else {
+                headerDir = new File(getFilesDir(), "usr/share/" + currentPort.headerIncludeDir);
+                extension = currentPort.headerExtension;
+                prefix = currentPort.headerPrefix;
+                upperCase = currentPort.headerUpperCase;
+            }
+
             List<String> devices = new ArrayList<>();
             String[] files = headerDir.list();
             if (files != null) {
                 for (String file : files) {
-                    if (file.toLowerCase(Locale.US).endsWith(currentPort.headerExtension)) {
-                        String name = file.substring(0, file.length() - currentPort.headerExtension.length());
-                        if (currentPort.headerPrefix != null && !currentPort.headerPrefix.isEmpty()
-                                && name.toLowerCase(Locale.US).startsWith(currentPort.headerPrefix.toLowerCase(Locale.US))) {
-                            name = name.substring(currentPort.headerPrefix.length());
+                    if (file.toLowerCase(Locale.US).endsWith(extension.toLowerCase(Locale.US))) {
+                        String name = file.substring(0, file.length() - extension.length());
+                        if (prefix != null && !prefix.isEmpty()
+                                && name.toLowerCase(Locale.US).startsWith(prefix.toLowerCase(Locale.US))) {
+                            name = name.substring(prefix.length());
                         }
-                        if (currentPort.headerUpperCase) {
+                        if (upperCase) {
                             name = name.toUpperCase(Locale.US);
                         }
-                        if (!name.isEmpty()) {
-                            devices.add(name);
+                        if (name.equalsIgnoreCase("14regs") || name.equalsIgnoreCase("18fam") || name.isEmpty()) {
+                            continue;
                         }
+                        if (currentPort.hasAsmMode && !isCurrentCMode()) {
+                            if (currentSubArchIndex == 1) {
+                                if (!name.startsWith("18")) continue;
+                            } else {
+                                if (name.startsWith("18")) continue;
+                            }
+                        }
+                        devices.add(name);
                     }
                 }
             }
 
             Collections.sort(devices);
-            if (devices.isEmpty() && currentPort.defaultDevice != null) {
-                devices.add(currentPort.defaultDevice);
+            String effectiveDefaultDevice = currentPort.defaultDevice;
+            if (currentPort.hasAsmMode && currentSubArchIndex == 1) {
+                effectiveDefaultDevice = "18F4550";
+            }
+            if (devices.isEmpty() && effectiveDefaultDevice != null) {
+                devices.add(effectiveDefaultDevice);
             }
 
             List<String> finalDevices = devices;
+            String fallbackDevice = effectiveDefaultDevice;
             mainHandler.post(() -> {
                 ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, finalDevices);
                 adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -1173,12 +1226,20 @@ public class MainActivity extends AppCompatActivity {
 
                 String savedDevice = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getString(KEY_SELECTED_PIC, null);
                 int index = savedDevice == null ? -1 : finalDevices.indexOf(savedDevice);
-                if (index < 0 && currentPort.defaultDevice != null) {
-                    index = finalDevices.indexOf(currentPort.defaultDevice);
+                if (index < 0 && fallbackDevice != null) {
+                    index = finalDevices.indexOf(fallbackDevice);
                 }
                 if (index < 0 && !finalDevices.isEmpty()) index = 0;
                 if (index >= 0) {
                     binding.spinnerPic.setSelection(index);
+                    String selected = adapter.getItem(index);
+                    if (selected != null) {
+                        getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                                .edit()
+                                .putString(KEY_SELECTED_PIC, selected)
+                                .apply();
+                        updateSampleCodeForDevice(selected);
+                    }
                 }
 
                 binding.spinnerPic.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
@@ -1190,12 +1251,35 @@ public class MainActivity extends AppCompatActivity {
                                 .edit()
                                 .putString(KEY_SELECTED_PIC, selected)
                                 .apply();
+                        updateSampleCodeForDevice(selected);
                     }
                     @Override
                     public void onNothingSelected(android.widget.AdapterView<?> parent) {}
                 });
             });
         });
+    }
+
+    private void updateSampleCodeForDevice(String selectedDevice) {
+        if (currentPort == null || selectedDevice == null || selectedDevice.isEmpty()) {
+            return;
+        }
+        ModuleState state = getCurrentState();
+        if (state.activeFile == null || !state.files.containsKey(state.activeFile)) {
+            return;
+        }
+        String content = state.files.get(state.activeFile);
+        if (!isDefaultSampleCode(content)) {
+            return;
+        }
+        String newCode = PortRegistry.getSampleCode(currentPort, currentSubArchIndex, selectedDevice, isCurrentCMode());
+        if (newCode != null && !newCode.equals(content)) {
+            state.files.put(state.activeFile, newCode);
+            binding.editAsm.setText(newCode);
+            binding.editAsm.setSelection(binding.editAsm.getText().length());
+            applySyntaxHighlighting();
+            updateLineNumbers();
+        }
     }
 
     private void assembleCode() {
@@ -1390,6 +1474,14 @@ public class MainActivity extends AppCompatActivity {
                     arch = currentPort.resolveArch(currentSubArchIndex);
                 } else {
                     arch = "pic14";
+                }
+
+                if (currentPort != null && currentPort.hasAsmMode && selectedDevice != null && !selectedDevice.isEmpty()) {
+                    File devHeader = new File(getFilesDir(), "usr/share/sdcc/non-free/include/" + arch + "/pic" + selectedDevice.toLowerCase(Locale.US) + ".h");
+                    if (!devHeader.exists()) {
+                        log(getString(R.string.log_sdcc_device_not_supported, selectedDevice, arch));
+                        return;
+                    }
                 }
                 
                 String projectMain = projectName + ".c";
@@ -2543,7 +2635,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     static {
-        System.loadLibrary("ptc");
+        try {
+            System.loadLibrary("ptc");
+        } catch (UnsatisfiedLinkError ignored) {
+            // Ignored in local JVM unit testing environments
+        }
     }
 
     public native String stringFromJNI();

@@ -12,6 +12,7 @@
         android:id="@+id/app_bar_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:fitsSystemWindows="true"
         android:background="#1E1E1E">
 
         <com.google.android.material.appbar.MaterialToolbar

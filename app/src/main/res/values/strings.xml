@@ -178,5 +178,6 @@
     <string name="format_hex_file">Intel HEX File .hex</string>
     <string name="format_bin_file">Flat Binary File .bin</string>
     <string name="log_error_reading_file">[ERROR] Error reading %1$s: %2$s</string>
+    <string name="log_sdcc_device_not_supported">[ERROR] Microcontroller %1$s is not supported by SDCC in C mode (%2$s). SDCC only supports PIC14 and PIC16 (PIC18) devices.</string>
 </resources>
 

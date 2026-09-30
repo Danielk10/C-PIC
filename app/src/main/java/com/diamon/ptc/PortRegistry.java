@@ -3,6 +3,7 @@ package com.diamon.ptc;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Registro estático de todas las familias de puertos SDCC soportadas.
@@ -164,7 +165,8 @@ public final class PortRegistry {
                 .simulatorBinary("ucsim_rxk")
                 .defaultCCode(
                         "// Rabbit 2000 example\n" +
-                        "#include <stdint.h>\n\n" +
+                        "#include <stdint.h>\n" +
+                        "#include <rab/r2k.h>\n\n" +
                         "void main(void) {\n" +
                         "    while(1) {\n" +
                         "        // Your code here\n" +
@@ -300,11 +302,10 @@ public final class PortRegistry {
                         "__sfr __at (0x10) PA;\n" +
                         "__sfr __at (0x11) PAC;\n\n" +
                         "void delay(void) {\n" +
-                        "    uint8_t i;\n" +
-                        "    for(i = 0; i < 200; i++);\n" +
+                        "    for(volatile uint8_t i = 0; i < 200; i++);\n" +
                         "}\n\n" +
                         "void main(void) {\n" +
-                        "    PAC = 0xFF; // Puerto A como salida\n" +
+                        "    PAC = 0x0F; // Puerto A (PA0-PA3) como salida\n" +
                         "    while(1) {\n" +
                         "        PA ^= 0x01;\n" +
                         "        delay();\n" +
@@ -415,5 +416,262 @@ public final class PortRegistry {
             }
         }
         return 0;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Plantillas de código dinámicas para familias y chips soportados
+    // ═══════════════════════════════════════════════════════════════
+
+    public static final String PIC18_DEFAULT_C =
+            "#include <pic16/pic18f4550.h>\n\n" +
+            "// Ejemplo básico para PIC18F4550\n" +
+            "void main(void) {\n" +
+            "    TRISB = 0x00; // Puerto B como salida\n" +
+            "    while(1) {\n" +
+            "        PORTB = 0xFF;\n" +
+            "        for(unsigned int i=0; i<1000; i++); // Retardo\n" +
+            "        PORTB = 0x00;\n" +
+            "        for(unsigned int i=0; i<1000; i++);\n" +
+            "    }\n" +
+            "}\n";
+
+    public static final String PIC18_DEFAULT_ASM =
+            "; Código de prueba para PIC18F4550\n" +
+            "    PROCESSOR 18F4550\n" +
+            "    INCLUDE \"P18F4550.INC\"\n\n" +
+            "    ORG 0x00\n" +
+            "START:\n" +
+            "    CLRF TRISB\n" +
+            "LOOP:\n" +
+            "    MOVLW 0xFF\n" +
+            "    MOVWF PORTB\n" +
+            "    BRA LOOP\n" +
+            "    END\n";
+
+    public static final String PIC10_DEFAULT_ASM =
+            "; Código de prueba para PIC10F200\n" +
+            "    PROCESSOR 10F200\n" +
+            "    INCLUDE \"P10F200.INC\"\n\n" +
+            "    ORG 0x00\n" +
+            "START:\n" +
+            "    MOVLW 0x00\n" +
+            "    TRIS GPIO\n" +
+            "LOOP:\n" +
+            "    MOVLW 0xFF\n" +
+            "    MOVWF GPIO\n" +
+            "    GOTO LOOP\n" +
+            "    END\n";
+
+    public static final String PIC12_MID_DEFAULT_ASM =
+            "; Código de prueba para PIC12F675\n" +
+            "    PROCESSOR 12F675\n" +
+            "    INCLUDE \"P12F675.INC\"\n\n" +
+            "    ORG 0x00\n" +
+            "START:\n" +
+            "    BANKSEL TRISIO\n" +
+            "    CLRF TRISIO\n" +
+            "LOOP:\n" +
+            "    MOVLW 0xFF\n" +
+            "    MOVWF GPIO\n" +
+            "    GOTO LOOP\n" +
+            "    END\n";
+
+    public static final String PIC12_MID_DEFAULT_C =
+            "#include <pic14/pic12f675.h>\n\n" +
+            "// Ejemplo básico para PIC12F675\n" +
+            "void main(void) {\n" +
+            "    TRISIO = 0x00; // GPIO como salida\n" +
+            "    while(1) {\n" +
+            "        GPIO = 0xFF;\n" +
+            "        for(unsigned int i=0; i<1000; i++); // Retardo\n" +
+            "        GPIO = 0x00;\n" +
+            "        for(unsigned int i=0; i<1000; i++);\n" +
+            "    }\n" +
+            "}\n";
+
+    /** Detecta si un microcontrolador PIC pertenece a la familia baseline (núcleo de 12 bits) */
+    public static boolean isBaselinePic(String dev) {
+        if (dev == null) return false;
+        String d = dev.toUpperCase(Locale.US);
+        if (d.startsWith("10F2") || d.startsWith("10C2") || d.startsWith("10F20") || d.startsWith("10F22")) return true;
+        if (d.startsWith("12F5") || d.startsWith("12C5") || d.startsWith("12CE5")) return true;
+        if (d.startsWith("16F5") || d.startsWith("16C5") || d.startsWith("16CR5")) return true;
+        return false;
+    }
+
+    /** Detecta si un microcontrolador PIC12 pertenece a la familia mid-range (núcleo de 14 bits) */
+    public static boolean isMidrange12Pic(String dev) {
+        if (dev == null) return false;
+        String d = dev.toUpperCase(Locale.US);
+        return d.startsWith("12") && !isBaselinePic(d);
+    }
+
+    /** Detecta si un microcontrolador PIC pertenece a la arquitectura PIC18 (pic16 en SDCC) */
+    public static boolean isPic18(String dev, int subArchIndex) {
+        if (dev == null) return subArchIndex == 1;
+        String d = dev.toUpperCase(Locale.US);
+        return d.startsWith("18") || subArchIndex == 1;
+    }
+
+    /** Genera la plantilla de código C adecuada para un microcontrolador PIC específico */
+    public static String getPicSampleCodeC(String dev, int subArchIndex) {
+        String cleanDev = (dev != null && !dev.trim().isEmpty())
+                ? dev.trim().toUpperCase(Locale.US)
+                : (subArchIndex == 1 ? "18F4550" : "16F628A");
+        if (isPic18(cleanDev, subArchIndex)) {
+            return "#include <pic16/pic" + cleanDev.toLowerCase(Locale.US) + ".h>\n\n" +
+                   "// Ejemplo básico para PIC" + cleanDev + "\n" +
+                   "void main(void) {\n" +
+                   "    TRISB = 0x00; // Puerto B como salida\n" +
+                   "    while(1) {\n" +
+                   "        PORTB = 0xFF;\n" +
+                   "        for(unsigned int i=0; i<1000; i++); // Retardo\n" +
+                   "        PORTB = 0x00;\n" +
+                   "        for(unsigned int i=0; i<1000; i++);\n" +
+                   "    }\n" +
+                   "}\n";
+        } else if (isMidrange12Pic(cleanDev)) {
+            return "#include <pic14/pic" + cleanDev.toLowerCase(Locale.US) + ".h>\n\n" +
+                   "// Ejemplo básico para PIC" + cleanDev + "\n" +
+                   "void main(void) {\n" +
+                   "    TRISIO = 0x00; // GPIO como salida\n" +
+                   "    while(1) {\n" +
+                   "        GPIO = 0xFF;\n" +
+                   "        for(unsigned int i=0; i<1000; i++); // Retardo\n" +
+                   "        GPIO = 0x00;\n" +
+                   "        for(unsigned int i=0; i<1000; i++);\n" +
+                   "    }\n" +
+                   "}\n";
+        } else {
+            return "#include <pic14/pic" + cleanDev.toLowerCase(Locale.US) + ".h>\n\n" +
+                   "// Ejemplo básico para PIC" + cleanDev + "\n" +
+                   "void main(void) {\n" +
+                   "    TRISB = 0x00; // Puerto B como salida\n" +
+                   "    while(1) {\n" +
+                   "        PORTB = 0xFF;\n" +
+                   "        for(unsigned int i=0; i<1000; i++); // Retardo\n" +
+                   "        PORTB = 0x00;\n" +
+                   "        for(unsigned int i=0; i<1000; i++);\n" +
+                   "    }\n" +
+                   "}\n";
+        }
+    }
+
+    /** Genera la plantilla de código ASM adecuada para un microcontrolador PIC específico */
+    public static String getPicSampleCodeAsm(String dev, int subArchIndex) {
+        String cleanDev = (dev != null && !dev.trim().isEmpty())
+                ? dev.trim().toUpperCase(Locale.US)
+                : (subArchIndex == 1 ? "18F4550" : "16F628A");
+        if (isPic18(cleanDev, subArchIndex)) {
+            return "; Código de prueba para PIC" + cleanDev + "\n" +
+                   "    PROCESSOR " + cleanDev + "\n" +
+                   "    INCLUDE \"P" + cleanDev + ".INC\"\n\n" +
+                   "    ORG 0x00\n" +
+                   "START:\n" +
+                   "    CLRF TRISB\n" +
+                   "LOOP:\n" +
+                   "    MOVLW 0xFF\n" +
+                   "    MOVWF PORTB\n" +
+                   "    BRA LOOP\n" +
+                   "    END\n";
+        } else if (isBaselinePic(cleanDev)) {
+            return "; Código de prueba para PIC" + cleanDev + "\n" +
+                   "    PROCESSOR " + cleanDev + "\n" +
+                   "    INCLUDE \"P" + cleanDev + ".INC\"\n\n" +
+                   "    ORG 0x00\n" +
+                   "START:\n" +
+                   "    MOVLW 0x00\n" +
+                   "    TRIS GPIO\n" +
+                   "LOOP:\n" +
+                   "    MOVLW 0xFF\n" +
+                   "    MOVWF GPIO\n" +
+                   "    GOTO LOOP\n" +
+                   "    END\n";
+        } else if (isMidrange12Pic(cleanDev)) {
+            return "; Código de prueba para PIC" + cleanDev + "\n" +
+                   "    PROCESSOR " + cleanDev + "\n" +
+                   "    INCLUDE \"P" + cleanDev + ".INC\"\n\n" +
+                   "    ORG 0x00\n" +
+                   "START:\n" +
+                   "    BANKSEL TRISIO\n" +
+                   "    CLRF TRISIO\n" +
+                   "LOOP:\n" +
+                   "    MOVLW 0xFF\n" +
+                   "    MOVWF GPIO\n" +
+                   "    GOTO LOOP\n" +
+                   "    END\n";
+        } else {
+            return "; Código de prueba para PIC" + cleanDev + "\n" +
+                   "    PROCESSOR " + cleanDev + "\n" +
+                   "    INCLUDE \"P" + cleanDev + ".INC\"\n\n" +
+                   "    ORG 0x00\n" +
+                   "START:\n" +
+                   "    BANKSEL TRISB\n" +
+                   "    CLRF TRISB\n" +
+                   "LOOP:\n" +
+                   "    MOVLW 0xFF\n" +
+                   "    MOVWF PORTB\n" +
+                   "    GOTO LOOP\n" +
+                   "    END\n";
+        }
+    }
+
+    /** Resuelve el código de plantilla para un puerto, sub-arquitectura, dispositivo y modo C/ASM */
+    public static String getSampleCode(PortConfig port, int subArchIndex, String device, boolean isCMode) {
+        if (port == null) return "";
+        if (port.hasAsmMode) {
+            String dev = (device != null && !device.trim().isEmpty())
+                    ? device.trim().toUpperCase(Locale.US)
+                    : (subArchIndex == 1 ? "18F4550" : "16F628A");
+            return isCMode ? getPicSampleCodeC(dev, subArchIndex) : getPicSampleCodeAsm(dev, subArchIndex);
+        }
+        if (isCMode) {
+            if ("MCS-51 (8051)".equals(port.familyName) && device != null && !device.trim().isEmpty()) {
+                String dev = device.trim().toLowerCase(Locale.US);
+                return "#include <" + dev + ".h>\n\n" +
+                       "// Blink LED on P1.0 - " + device.toUpperCase(Locale.US) + "\n" +
+                       "void delay(unsigned int ms) {\n" +
+                       "    unsigned int i, j;\n" +
+                       "    for(i = 0; i < ms; i++)\n" +
+                       "        for(j = 0; j < 120; j++);\n" +
+                       "}\n\n" +
+                       "void main(void) {\n" +
+                       "    while(1) {\n" +
+                       "        P1 = 0xFF;\n" +
+                       "        delay(500);\n" +
+                       "        P1 = 0x00;\n" +
+                       "        delay(500);\n" +
+                       "    }\n" +
+                       "}\n";
+            }
+            return port.defaultCCode != null ? port.defaultCCode : "";
+        } else {
+            return port.defaultAsmCode != null ? port.defaultAsmCode : "";
+        }
+    }
+
+    /** Comprueba si el contenido coincide con una plantilla o código de ejemplo estándar */
+    public static boolean isDefaultSampleCode(String content) {
+        if (content == null || content.trim().isEmpty()) return true;
+        if (content.contains("// Ejemplo básico para PIC")
+                || content.contains("; Código de prueba para PIC")
+                || content.contains("// Blink LED on P1.0")
+                || content.contains("// Ejemplo básico para Dallas DS390")
+                || content.contains("// Z80 example")
+                || content.contains("// Rabbit 2000 example")
+                || content.contains("// Game Boy SM83 example")
+                || content.contains("// Ejemplo básico para Toshiba TLCS-90")
+                || content.contains("// Ejemplo básico para STM8")
+                || content.contains("// Ejemplo básico para HC08/S08")
+                || content.contains("// Ejemplo básico para Padauk")
+                || content.contains("// Ejemplo básico para MOS 6502")
+                || content.contains("// Ejemplo básico para Fairchild F8")) {
+            return true;
+        }
+        for (PortConfig p : getAllPorts()) {
+            if (content.equals(p.defaultCCode)) return true;
+            if (p.defaultAsmCode != null && content.equals(p.defaultAsmCode)) return true;
+        }
+        return false;
     }
 }
