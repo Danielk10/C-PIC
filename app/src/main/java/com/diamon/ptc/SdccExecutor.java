@@ -48,12 +48,9 @@ public class SdccExecutor {
         List<String> command = new ArrayList<>();
         command.add(binaryFile.getAbsolutePath());
 
-        // Internal include and lib paths for SDCC (hidden from user terminal prompt)
+        // Internal include paths for SDCC (hidden from user terminal prompt)
         command.add("-I" + new File(sdccShareDir, "include").getAbsolutePath());
         command.add("-I" + new File(sdccShareDir, "non-free/include").getAbsolutePath());
-        command.add("-L" + new File(sdccShareDir, "lib").getAbsolutePath());
-        command.add("-L" + new File(sdccShareDir, "lib/small").getAbsolutePath());
-        command.add("-L" + new File(sdccShareDir, "non-free/lib").getAbsolutePath());
 
         if (extraArgs != null) {
             command.addAll(extraArgs);
@@ -288,6 +285,8 @@ public class SdccExecutor {
 
     private void configureEnvironment(Map<String, String> env) {
         env.put("SDCC_HOME", new File(workDir, "usr").getAbsolutePath());
+        env.put("SDCC_LIB", new File(sdccShareDir, "lib").getAbsolutePath());
+        env.put("SDCC_INCLUDE", new File(sdccShareDir, "include").getAbsolutePath());
 
         File usrLibDir = new File(new File(workDir, "usr"), "lib");
         if (!usrLibDir.exists()) usrLibDir.mkdirs();
@@ -295,6 +294,7 @@ public class SdccExecutor {
 
         env.put("GPUTILS_HEADER_PATH", new File(gpUtilsShareDir, "header").getAbsolutePath());
         env.put("GPUTILS_LKR_PATH", new File(gpUtilsShareDir, "lkr").getAbsolutePath());
+        env.put("GPUTILS_LIB_PATH", new File(gpUtilsShareDir, "lib").getAbsolutePath());
 
         String path = env.get("PATH");
         String binPath = new File(workDir, "usr/bin").getAbsolutePath();
@@ -324,9 +324,6 @@ public class SdccExecutor {
 
         command.add("-I" + new File(sdccShareDir, "include").getAbsolutePath());
         command.add("-I" + new File(sdccShareDir, "non-free/include").getAbsolutePath());
-        command.add("-L" + new File(sdccShareDir, "lib").getAbsolutePath());
-        command.add("-L" + new File(sdccShareDir, "lib/small").getAbsolutePath());
-        command.add("-L" + new File(sdccShareDir, "non-free/lib").getAbsolutePath());
         for (String arg : args) {
             command.add(arg);
         }
@@ -338,19 +335,7 @@ public class SdccExecutor {
             pb.directory(workingDir);
             pb.redirectErrorStream(true);
 
-            Map<String, String> env = pb.environment();
-            env.put("SDCC_HOME", new File(workDir, "usr").getAbsolutePath());
-
-            File usrLibDir = new File(new File(workDir, "usr"), "lib");
-            if (!usrLibDir.exists()) usrLibDir.mkdirs();
-            env.put("LD_LIBRARY_PATH", usrLibDir.getAbsolutePath() + ":" + nativeLibDir.getAbsolutePath());
-
-            env.put("GPUTILS_HEADER_PATH", new File(gpUtilsShareDir, "header").getAbsolutePath());
-            env.put("GPUTILS_LKR_PATH", new File(gpUtilsShareDir, "lkr").getAbsolutePath());
-
-            String path = env.get("PATH");
-            String binPath = new File(workDir, "usr/bin").getAbsolutePath();
-            env.put("PATH", binPath + ":" + nativeLibDir.getAbsolutePath() + (path != null ? ":" + path : ""));
+            configureEnvironment(pb.environment());
 
             Process process = pb.start();
             StringBuilder output = new StringBuilder();
@@ -483,6 +468,14 @@ public class SdccExecutor {
             linkSharedLib(libDir, "libfl.so", "libfl.so");
             linkSharedLib(libDir, "libandroid-support.so", "libandroid-support.so");
             linkSharedLib(libDir, "libc++_shared.so", "libc++_shared.so");
+
+            // Enlaces directos en usr para compatibilidad de rutas ($SDCC_HOME/sdcc y $SDCC_HOME/gputils)
+            if (sdccShareDir.exists()) {
+                createSymlink(new File(usrDir, "sdcc"), sdccShareDir.getAbsolutePath());
+            }
+            if (gpUtilsShareDir.exists()) {
+                createSymlink(new File(usrDir, "gputils"), gpUtilsShareDir.getAbsolutePath());
+            }
         } catch (Exception e) {
             Log.e(TAG, "Error al configurar symlinks: " + e.getMessage());
         }

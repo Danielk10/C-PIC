@@ -105,8 +105,8 @@ public class LocalSdccMultiPortCompilationTest {
         int c2 = runProcess("sdcc", "-mmcs51", "-I" + testDir.getAbsolutePath(), "-c", "main.c");
         assertEquals("Compilación de main.c debe retornar 0", 0, c2);
 
-        // Enlazar objetos
-        int l1 = runProcess("sdcc", "-mmcs51", "--out-fmt-ihx", "-I" + testDir.getAbsolutePath(),
+        // Enlazar objetos con --iram-size 256 para resolver el símbolo l_IRAM
+        int l1 = runProcess("sdcc", "-mmcs51", "--out-fmt-ihx", "--iram-size", "256", "-I" + testDir.getAbsolutePath(),
                 "main.rel", "custom_math.rel", "-o", "output.hex");
         assertEquals("Enlace de objetos MCS-51 debe retornar 0", 0, l1);
 
@@ -210,6 +210,52 @@ public class LocalSdccMultiPortCompilationTest {
 
         String hexContent = FileManager.readFile(hexFile);
         assertFalse(hexContent.trim().isEmpty());
+    }
+
+    @Test
+    public void testPicLinkingWithSdccPic14Libraries() throws Exception {
+        if (!hasGputils) {
+            System.out.println("GPUTILS no disponible en el host; omitiendo test de enlace PIC.");
+            return;
+        }
+
+        File pic14Lib = new File("fake_root/data/data/com.diamon.ptc/files/usr/share/sdcc/lib/pic14");
+        File pic14NonFree = new File("fake_root/data/data/com.diamon.ptc/files/usr/share/sdcc/non-free/lib/pic14");
+        File lkrDir = new File("fake_root/data/data/com.diamon.ptc/files/usr/share/gputils/lkr");
+        File lkrFile = new File(lkrDir, "16f628a_g.lkr");
+
+        if (!pic14Lib.exists() || !pic14NonFree.exists() || !lkrFile.exists()) {
+            System.out.println("Archivos de fake_root no disponibles; omitiendo verificación de bibliotecas PIC.");
+            return;
+        }
+
+        writeCodeFile("test_pic.asm",
+                "    PROCESSOR 16F628A\n" +
+                "    INCLUDE \"P16F628A.INC\"\n" +
+                "    GLOBAL main\n" +
+                "    CODE\n" +
+                "main:\n" +
+                "    movlw 0xFF\n" +
+                "    return\n" +
+                "    END\n");
+
+        int asmCode = runProcess("gpasm", "-c", "-p", "16f628a", "-I", testDir.getAbsolutePath(), "test_pic.asm");
+        assertEquals("Ensamblado test_pic.asm debe retornar 0", 0, asmCode);
+
+        // Enlace usando solo las rutas de PIC (sin lib/small)
+        int linkCode = runProcess("gplink",
+                "-s", lkrFile.getAbsolutePath(),
+                "-I", pic14Lib.getAbsolutePath(),
+                "-I", pic14NonFree.getAbsolutePath(),
+                "-I", lkrDir.getAbsolutePath(),
+                "test_pic.o",
+                "libsdcc.lib",
+                "pic16f628a.lib",
+                "-o", "output_pic.hex");
+        assertEquals("Enlace gplink con librerías pic14 debe retornar 0", 0, linkCode);
+
+        File hexFile = new File(testDir, "output_pic.hex");
+        assertTrue("El archivo output_pic.hex debe existir", hexFile.exists());
     }
 
     @Test

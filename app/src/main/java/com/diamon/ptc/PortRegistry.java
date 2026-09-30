@@ -30,6 +30,7 @@ public final class PortRegistry {
                 .headerUpperCase(true)
                 .useNonFree(true)
                 .defaultDevice("16F628A")
+                .outputFormat("")
                 .simulatorBinary("ucsim_p1516")
                 .defaultCCode(
                         "#include <pic14/pic16f628a.h>\n\n" +
@@ -72,6 +73,7 @@ public final class PortRegistry {
                 .headerPrefix("")
                 .headerUpperCase(false)
                 .defaultDevice("8052")
+                .outputFormat("--out-fmt-ihx --iram-size 256")
                 .simulatorBinary("s51")
                 .defaultCCode(
                         "#include <8052.h>\n\n" +

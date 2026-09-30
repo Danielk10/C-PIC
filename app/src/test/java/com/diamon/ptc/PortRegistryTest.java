@@ -213,4 +213,18 @@ public class PortRegistryTest {
         PortConfig f8 = PortRegistry.getPort(PortRegistry.findIndexByFamily("F8 (Fairchild)"));
         assertEquals("ucsim_f8", f8.simulatorBinary);
     }
+
+    @Test
+    public void testOutputFormatsAndIramSize() {
+        PortConfig pic = PortRegistry.getPort(PortRegistry.findIndexByFamily("PIC (Microchip)"));
+        assertNotNull(pic);
+        assertTrue("PIC outputFormat debe estar vacío para que gplink genere .hex nativamente sin --out-fmt-ihx",
+                pic.outputFormat == null || pic.outputFormat.trim().isEmpty());
+
+        PortConfig mcs51 = PortRegistry.getPort(PortRegistry.findIndexByFamily("MCS-51 (8051)"));
+        assertNotNull(mcs51);
+        assertNotNull(mcs51.outputFormat);
+        assertTrue("MCS-51 debe incluir --out-fmt-ihx", mcs51.outputFormat.contains("--out-fmt-ihx"));
+        assertTrue("MCS-51 debe incluir --iram-size para resolver l_IRAM en el linker", mcs51.outputFormat.contains("--iram-size"));
+    }
 }

@@ -1554,11 +1554,19 @@ public class MainActivity extends AppCompatActivity {
                 if (currentPort != null && currentPort.useNonFree) {
                     linkArgs.add("--use-non-free");
                 }
-                if (currentPort != null && currentPort.outputFormat != null) {
+                boolean isPic = currentPort != null && currentPort.hasAsmMode;
+                if (!isPic && currentPort != null && currentPort.outputFormat != null) {
                     for (String opt : currentPort.outputFormat.trim().split("\\s+")) {
                         if (!opt.isEmpty()) {
                             linkArgs.add(opt);
                         }
+                    }
+                }
+                if ("mcs51".equalsIgnoreCase(arch)) {
+                    int iramSize = (selectedDevice != null && selectedDevice.toLowerCase(Locale.US).contains("8051")) ? 128 : 256;
+                    if (!linkArgs.contains("--iram-size")) {
+                        linkArgs.add("--iram-size");
+                        linkArgs.add(String.valueOf(iramSize));
                     }
                 }
                 linkArgs.addAll(objFiles);
