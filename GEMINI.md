@@ -80,5 +80,8 @@ El repositorio incluye el script automatizado [`upload_play_store.py`](upload_pl
 
 ## 6. Notas de Lanzamiento Bilingües Obligatorias
 
-Siempre que se preparen, redacten o presenten notas de lanzamiento (Release Notes para GitHub Releases o Google Play Store), **deben mostrarse y documentarse obligatoriamente en ambos idiomas: inglés y español**.
+Siempre que se preparen, redacten o presenten notas de lanzamiento (Release Notes para GitHub Releases o Google Play Store), **deben mostrarse y documentarse obligatoriamente en ambos idiomas: inglés y español**:
+
+- **GitHub Releases**: Las notas de versión para GitHub deben ser completas, exhaustivas y detalladas, cubriendo tanto mejoras técnicas de arquitectura, cambios de enlaces, solución de bugs, detalles de interfaz y cobertura de pruebas.
+- **Google Play Store**: Las notas de versión para Google Play Store son más concisas y orientadas al usuario final (adecuadas a los límites de longitud de la tienda). **Siempre se debe proporcionar al usuario la nota de versión de Google Play Store en inglés y en español** de manera explícita para que pueda revisarla y validarla antes de publicar en la tienda.
 
