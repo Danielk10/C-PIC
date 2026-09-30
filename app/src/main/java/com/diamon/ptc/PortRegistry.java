@@ -629,7 +629,7 @@ public final class PortRegistry {
         }
         if (isCMode) {
             if ("MCS-51 (8051)".equals(port.familyName) && device != null && !device.trim().isEmpty()) {
-                String dev = device.trim().toLowerCase(Locale.US);
+                String dev = getMcs51HeaderName(device);
                 return "#include <" + dev + ".h>\n\n" +
                        "// Blink LED on P1.0 - " + device.toUpperCase(Locale.US) + "\n" +
                        "void delay(unsigned int ms) {\n" +
@@ -650,6 +650,67 @@ public final class PortRegistry {
         } else {
             return port.defaultAsmCode != null ? port.defaultAsmCode : "";
         }
+    }
+
+    private static String getMcs51HeaderName(String device) {
+        if (device == null || device.trim().isEmpty()) {
+            return "8052";
+        }
+        String dev = device.trim();
+        String upper = dev.toUpperCase(Locale.US);
+        String lower = dev.toLowerCase(Locale.US);
+
+        // 1. C8051F / C8051T
+        if (upper.startsWith("C8051F")) {
+            return "C8051F" + upper.substring(6);
+        }
+        if (upper.startsWith("C8051T")) {
+            return "C8051T" + upper.substring(6);
+        }
+
+        // 2. EFM8BB1, XC866
+        if ("EFM8BB1".equals(upper)) {
+            return "EFM8BB1";
+        }
+        if ("XC866".equals(upper)) {
+            return "XC866";
+        }
+
+        // 3. ADuC84x
+        if (upper.startsWith("ADUC84")) {
+            return "ADuC84" + upper.substring(6);
+        }
+
+        // 4. AT89C513xA, at89S...
+        if ("AT89C513XA".equals(upper)) {
+            return "AT89C513xA";
+        }
+        if ("AT89S8252".equals(upper)) {
+            return "at89S8252";
+        }
+        if ("AT89SX051".equals(upper)) {
+            return "at89Sx051";
+        }
+
+        // 5. P89c51RD2, P89LPC...
+        if ("P89C51RD2".equals(upper)) {
+            return "P89c51RD2";
+        }
+        if (upper.startsWith("P89LPC")) {
+            if ("P89LPC901".equals(upper)) return "P89LPC901";
+            if ("P89LPC922".equals(upper)) return "P89LPC922";
+            if ("P89LPC925".equals(upper)) return "P89LPC925";
+            if ("P89LPC932".equals(upper)) return "P89LPC932";
+            return lower;
+        }
+
+        // 6. SST89x5xRDx
+        if ("SST89X5XRDX".equals(upper)) {
+            return "SST89x5xRDx";
+        }
+
+        // Default to lowercase
+        return lower;
     }
 
     /** Comprueba si el contenido coincide con una plantilla o código de ejemplo estándar */

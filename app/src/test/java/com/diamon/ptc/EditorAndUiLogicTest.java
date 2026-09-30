@@ -274,6 +274,22 @@ public class EditorAndUiLogicTest {
 
         String codeAt89 = PortRegistry.getSampleCode(mcs51, 0, "at89c51", true);
         assertTrue(codeAt89.contains("#include <at89c51.h>"));
+
+        // Verificar el comportamiento de sensibilidad a mayúsculas para mcs51
+        String codeC8051F020 = PortRegistry.getSampleCode(mcs51, 0, "c8051f020", true);
+        assertTrue(codeC8051F020.contains("#include <C8051F020.h>"));
+
+        String codeC8051F340 = PortRegistry.getSampleCode(mcs51, 0, "C8051F340", true);
+        assertTrue(codeC8051F340.contains("#include <C8051F340.h>"));
+
+        String codeAt89S8252 = PortRegistry.getSampleCode(mcs51, 0, "at89s8252", true);
+        assertTrue(codeAt89S8252.contains("#include <at89S8252.h>"));
+
+        String codeP89LPC932 = PortRegistry.getSampleCode(mcs51, 0, "p89lpc932", true);
+        assertTrue(codeP89LPC932.contains("#include <P89LPC932.h>"));
+
+        String codeEFM8BB1 = PortRegistry.getSampleCode(mcs51, 0, "efm8bb1", true);
+        assertTrue(codeEFM8BB1.contains("#include <EFM8BB1.h>"));
     }
 
     @Test
