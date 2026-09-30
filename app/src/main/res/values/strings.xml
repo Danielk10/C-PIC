@@ -35,6 +35,8 @@
 
     <!-- activity_main.xml - Logs & Terminal -->
     <string name="label_terminal">OUTPUT TERMINAL</string>
+    <string name="btn_minimize_terminal">Minimize</string>
+    <string name="btn_restore_minimize_terminal">Restore</string>
     <string name="btn_expand_terminal">Expand</string>
     <string name="btn_restore_terminal">Collapse</string>
     <string name="btn_clear">Clear</string>
@@ -149,14 +151,16 @@
 
     <!-- Optional Tools (packihx, makebin, ucSim) -->
     <string name="menu_optional_tools">Optional Tools</string>
-    <string name="dialog_optional_tools_title">Post-Processing &amp; Simulation Tools</string>
+    <string name="dialog_optional_tools_title">Post-Processing and Simulation Tools</string>
+    <string name="opt_automation_header">Automated Post-Processing</string>
+    <string name="opt_actions_desc">Execute utility tools directly on the latest generated output files.</string>
     <string name="opt_packihx_title">Normalize HEX with packihx</string>
     <string name="opt_packihx_desc">Packs and normalizes generated Intel HEX records for strict programmers.</string>
-    <string name="opt_makebin_title">Generate Flat Binary (.bin) with makebin</string>
-    <string name="opt_makebin_desc">Converts HEX output into a flat binary (.bin) image for EEPROM/ROM programmers.</string>
+    <string name="opt_makebin_title">Generate Flat Binary .bin with makebin</string>
+    <string name="opt_makebin_desc">Converts HEX output into a flat binary image for EEPROM and ROM programmers.</string>
     <string name="opt_auto_apply_title">Auto-apply after compilation</string>
     <string name="opt_auto_apply_desc">Automatically runs selected utilities after each successful build.</string>
-    <string name="opt_actions_header">Immediate Actions (On Demand)</string>
+    <string name="opt_actions_header">Immediate Actions On Demand</string>
     <string name="btn_run_packihx">Run packihx</string>
     <string name="btn_run_makebin">Run makebin</string>
     <string name="btn_run_simulator">Simulate with ucSim</string>
@@ -171,8 +175,8 @@
     <string name="log_simulator_failed">[ERROR] Could not execute simulator %s.</string>
     <string name="log_no_hex_for_tool">Error: Compile the project first to generate the .hex file.</string>
     <string name="dialog_select_viewer_format">Which file format do you want to inspect?</string>
-    <string name="format_hex_file">Intel HEX File (.hex)</string>
-    <string name="format_bin_file">Flat Binary File (.bin)</string>
+    <string name="format_hex_file">Intel HEX File .hex</string>
+    <string name="format_bin_file">Flat Binary File .bin</string>
     <string name="log_error_reading_file">[ERROR] Error reading %1$s: %2$s</string>
 </resources>
 

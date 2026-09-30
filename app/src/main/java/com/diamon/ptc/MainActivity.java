@@ -171,6 +171,15 @@ public class MainActivity extends AppCompatActivity {
         enableImmersiveMode();
         setSupportActionBar(binding.toolbar);
 
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(binding.appBarLayout, (v, windowInsets) -> {
+            androidx.core.graphics.Insets insets = windowInsets.getInsets(
+                    androidx.core.view.WindowInsetsCompat.Type.statusBars() |
+                    androidx.core.view.WindowInsetsCompat.Type.displayCutout()
+            );
+            binding.appBarLayout.setPadding(0, insets.top, 0, 0);
+            return windowInsets;
+        });
+
         gpUtils = new GpUtilsExecutor(this);
         sdcc = new SdccExecutor(this);
 
@@ -395,10 +404,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private boolean isTerminalExpanded = false;
+    private boolean isTerminalMinimized = false;
 
     private void setupListeners() {
         if (binding.btnClearLogs != null) {
             binding.btnClearLogs.setOnClickListener(v -> clearTerminal());
+        }
+        if (binding.btnMinimizeTerminal != null) {
+            binding.btnMinimizeTerminal.setOnClickListener(v -> toggleTerminalMinimize());
         }
         if (binding.btnToggleTerminalSize != null) {
             binding.btnToggleTerminalSize.setOnClickListener(v -> toggleTerminalSize());
@@ -420,6 +433,14 @@ public class MainActivity extends AppCompatActivity {
                 syncProjectNameAndRenameTab(inputName);
             }
         });
+
+        if (binding.textLineNumbers != null && binding.editAsm != null) {
+            binding.textLineNumbers.post(() -> {
+                binding.textLineNumbers.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, binding.editAsm.getTextSize());
+                binding.textLineNumbers.setTypeface(binding.editAsm.getTypeface());
+                binding.textLineNumbers.setLineSpacing(binding.editAsm.getLineSpacingExtra(), binding.editAsm.getLineSpacingMultiplier());
+            });
+        }
 
         binding.editAsm.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
@@ -869,6 +890,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void loadActiveFileInEditor() {
+        lastLineCount = -1;
         ModuleState state = getCurrentState();
         String content = state.files.getOrDefault(state.activeFile, "");
         binding.editAsm.setText(content);
@@ -877,9 +899,17 @@ public class MainActivity extends AppCompatActivity {
         updateLineNumbers();
     }
 
+    private int lastLineCount = -1;
+
     private void updateLineNumbers() {
+        if (binding.editAsm == null || binding.textLineNumbers == null) return;
         int lines = Math.max(1, binding.editAsm.getLineCount());
-        StringBuilder sb = new StringBuilder();
+        if (lines == lastLineCount) {
+            return;
+        }
+        lastLineCount = lines;
+
+        StringBuilder sb = new StringBuilder(lines * 4);
         for (int i = 1; i <= lines; i++) {
             sb.append(i);
             if (i < lines) {
@@ -1169,6 +1199,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void assembleCode() {
+        if (isTerminalMinimized) {
+            toggleTerminalMinimize();
+        }
         saveActiveEditorContent();
         ModuleState state = getCurrentState();
 
@@ -1430,15 +1463,35 @@ public class MainActivity extends AppCompatActivity {
                     linkArgs.add("--use-non-free");
                 }
                 if (currentPort != null && currentPort.outputFormat != null) {
-                    linkArgs.add(currentPort.outputFormat);
+                    for (String opt : currentPort.outputFormat.trim().split("\\s+")) {
+                        if (!opt.isEmpty()) {
+                            linkArgs.add(opt);
+                        }
+                    }
                 }
                 linkArgs.addAll(objFiles);
                 linkArgs.add("-o");
                 linkArgs.add(outputBaseName + ".hex");
 
+                // Add architecture-specific library paths for SDCC linker
+                File sdccLibDir = new File(getFilesDir(), "usr/share/sdcc/lib");
+                File sdccNonFreeLibDir = new File(getFilesDir(), "usr/share/sdcc/non-free/lib");
                 List<String> extraLinkArgs = new ArrayList<>(Arrays.asList(
                         "-I" + projectDir.getAbsolutePath()
                 ));
+                // Add arch-specific lib paths (e.g., lib/small for mcs51, lib/z80, etc.)
+                File archLib = "mcs51".equalsIgnoreCase(arch)
+                        ? new File(sdccLibDir, "small")
+                        : new File(sdccLibDir, arch);
+                if (archLib.exists()) {
+                    extraLinkArgs.add("-L" + archLib.getAbsolutePath());
+                }
+                File archNonFreeLib = "mcs51".equalsIgnoreCase(arch)
+                        ? new File(sdccNonFreeLibDir, "small")
+                        : new File(sdccNonFreeLibDir, arch);
+                if (archNonFreeLib.exists()) {
+                    extraLinkArgs.add("-L" + archNonFreeLib.getAbsolutePath());
+                }
 
                 log("$ sdcc " + String.join(" ", linkArgs));
                 int result = sdcc.executeSdccStreaming(projectDir, linkArgs, extraLinkArgs, this::logRaw);
@@ -2410,6 +2463,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void toggleTerminalSize() {
+        if (isTerminalMinimized) {
+            toggleTerminalMinimize();
+        }
         isTerminalExpanded = !isTerminalExpanded;
         if (isTerminalExpanded) {
             binding.cardEditor.setVisibility(View.GONE);
@@ -2419,6 +2475,9 @@ public class MainActivity extends AppCompatActivity {
             if (binding.btnToggleTerminalSize != null) {
                 binding.btnToggleTerminalSize.setText(R.string.btn_restore_terminal);
             }
+            if (binding.btnMinimizeTerminal != null) {
+                binding.btnMinimizeTerminal.setVisibility(View.GONE);
+            }
         } else {
             binding.cardEditor.setVisibility(View.VISIBLE);
             if (binding.cardPicSelector != null) {
@@ -2427,7 +2486,56 @@ public class MainActivity extends AppCompatActivity {
             if (binding.btnToggleTerminalSize != null) {
                 binding.btnToggleTerminalSize.setText(R.string.btn_expand_terminal);
             }
+            if (binding.btnMinimizeTerminal != null) {
+                binding.btnMinimizeTerminal.setVisibility(View.VISIBLE);
+            }
         }
+    }
+
+    public void toggleTerminalMinimize() {
+        if (isTerminalExpanded) {
+            isTerminalExpanded = false;
+            binding.cardEditor.setVisibility(View.VISIBLE);
+            if (binding.cardPicSelector != null) {
+                binding.cardPicSelector.setVisibility(View.VISIBLE);
+            }
+            if (binding.btnToggleTerminalSize != null) {
+                binding.btnToggleTerminalSize.setText(R.string.btn_expand_terminal);
+            }
+            if (binding.btnMinimizeTerminal != null) {
+                binding.btnMinimizeTerminal.setVisibility(View.VISIBLE);
+            }
+        }
+
+        isTerminalMinimized = !isTerminalMinimized;
+        androidx.constraintlayout.widget.ConstraintLayout.LayoutParams lpLogs =
+                (androidx.constraintlayout.widget.ConstraintLayout.LayoutParams) binding.cardLogs.getLayoutParams();
+        androidx.constraintlayout.widget.ConstraintLayout.LayoutParams lpEditor =
+                (androidx.constraintlayout.widget.ConstraintLayout.LayoutParams) binding.cardEditor.getLayoutParams();
+
+        if (isTerminalMinimized) {
+            binding.scrollLogs.setVisibility(View.GONE);
+            if (binding.btnClearLogs != null) binding.btnClearLogs.setVisibility(View.GONE);
+            if (binding.btnToggleTerminalSize != null) binding.btnToggleTerminalSize.setVisibility(View.GONE);
+            if (binding.btnMinimizeTerminal != null) {
+                binding.btnMinimizeTerminal.setText(R.string.btn_restore_minimize_terminal);
+            }
+            lpLogs.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+            lpLogs.verticalWeight = 0f;
+            lpEditor.verticalWeight = 1.0f;
+        } else {
+            binding.scrollLogs.setVisibility(View.VISIBLE);
+            if (binding.btnClearLogs != null) binding.btnClearLogs.setVisibility(View.VISIBLE);
+            if (binding.btnToggleTerminalSize != null) binding.btnToggleTerminalSize.setVisibility(View.VISIBLE);
+            if (binding.btnMinimizeTerminal != null) {
+                binding.btnMinimizeTerminal.setText(R.string.btn_minimize_terminal);
+            }
+            lpLogs.height = 0;
+            lpLogs.verticalWeight = 1.2f;
+            lpEditor.verticalWeight = 2.3f;
+        }
+        binding.cardLogs.setLayoutParams(lpLogs);
+        binding.cardEditor.setLayoutParams(lpEditor);
     }
 
     private void updateLogs(String text) {

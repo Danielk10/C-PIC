@@ -100,14 +100,16 @@ public final class PortRegistry {
                         new String[]{"ds390", "ds400"},
                         new String[]{"DS390 (80C390)", "DS400"}
                 )
+                .outputFormat("--out-fmt-ihx -lliblong -llibsdcc -llibint -llibfloat")
                 .headerIncludeDir("sdcc/include/ds390")
                 .headerExtension(".h")
                 .defaultDevice(null)
                 .simulatorBinary("s51")
                 .defaultCCode(
-                        "#include <stdint.h>\n\n" +
+                        "#include <stdint.h>\n" +
+                        "#include <ds80c390.h>\n\n" +
                         "// Ejemplo básico para Dallas DS390/DS400\n" +
-                        "__sfr __at (0x80) P0;\n\n" +
+                        "void putchar(char c) { (void)c; }\n\n" +
                         "void delay(uint16_t ms) {\n" +
                         "    uint16_t i, j;\n" +
                         "    for(i = 0; i < ms; i++)\n" +
@@ -115,7 +117,7 @@ public final class PortRegistry {
                         "}\n\n" +
                         "void main(void) {\n" +
                         "    while(1) {\n" +
-                        "        P0 ^= 0x01;\n" +
+                        "        P4 ^= 0x01;\n" +
                         "        delay(500);\n" +
                         "    }\n" +
                         "}\n"
@@ -299,7 +301,7 @@ public final class PortRegistry {
                         "__sfr __at (0x11) PAC;\n\n" +
                         "void delay(void) {\n" +
                         "    uint8_t i;\n" +
-                        "    for(i = 0; i < 255; i++);\n" +
+                        "    for(i = 0; i < 200; i++);\n" +
                         "}\n\n" +
                         "void main(void) {\n" +
                         "    PAC = 0xFF; // Puerto A como salida\n" +

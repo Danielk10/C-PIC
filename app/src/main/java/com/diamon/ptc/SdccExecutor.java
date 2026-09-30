@@ -52,6 +52,7 @@ public class SdccExecutor {
         command.add("-I" + new File(sdccShareDir, "include").getAbsolutePath());
         command.add("-I" + new File(sdccShareDir, "non-free/include").getAbsolutePath());
         command.add("-L" + new File(sdccShareDir, "lib").getAbsolutePath());
+        command.add("-L" + new File(sdccShareDir, "lib/small").getAbsolutePath());
         command.add("-L" + new File(sdccShareDir, "non-free/lib").getAbsolutePath());
 
         if (extraArgs != null) {
@@ -324,6 +325,7 @@ public class SdccExecutor {
         command.add("-I" + new File(sdccShareDir, "include").getAbsolutePath());
         command.add("-I" + new File(sdccShareDir, "non-free/include").getAbsolutePath());
         command.add("-L" + new File(sdccShareDir, "lib").getAbsolutePath());
+        command.add("-L" + new File(sdccShareDir, "lib/small").getAbsolutePath());
         command.add("-L" + new File(sdccShareDir, "non-free/lib").getAbsolutePath());
         for (String arg : args) {
             command.add(arg);

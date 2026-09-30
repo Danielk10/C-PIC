@@ -14,10 +14,6 @@
         android:title="@string/menu_optional_tools"
         app:showAsAction="never" />
     <item
-        android:id="@+id/action_about"
-        android:title="@string/menu_about"
-        app:showAsAction="never" />
-    <item
         android:id="@+id/action_change_export_folder"
         android:title="@string/menu_change_export_folder"
         app:showAsAction="never" />
@@ -28,5 +24,9 @@
     <item
         android:id="@+id/action_policy"
         android:title="@string/menu_privacy_policy"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_about"
+        android:title="@string/menu_about"
         app:showAsAction="never" />
 </menu>

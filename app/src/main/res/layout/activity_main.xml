@@ -4,10 +4,12 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
     android:background="#121212"
     tools:context=".MainActivity">
 
     <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/app_bar_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="#1E1E1E">
@@ -320,36 +322,51 @@
                         <TextView
                             android:id="@+id/text_line_numbers"
                             android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:background="#151515"
+                            android:layout_height="match_parent"
+                            android:background="#161B22"
                             android:fontFamily="monospace"
                             android:gravity="top|end"
-                            android:paddingStart="4dp"
-                            android:paddingEnd="4dp"
-                            android:paddingTop="4dp"
-                            android:paddingBottom="4dp"
-                            android:text="1"
-                            android:textColor="#8FA0AE"
-                            android:textSize="11sp" />
-
-                        <EditText
-                            android:id="@+id/edit_asm"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:background="@null"
-                            android:fontFamily="monospace"
-                            android:gravity="top"
-                            android:hint="@string/hint_editor_asm"
-                            android:inputType="textMultiLine|textNoSuggestions|textVisiblePassword"
-                            android:minHeight="120dp"
+                            android:minWidth="34dp"
                             android:paddingStart="6dp"
                             android:paddingEnd="6dp"
                             android:paddingTop="4dp"
                             android:paddingBottom="4dp"
-                            android:textColor="#B2FF59"
-                            android:textColorHint="#546E7A"
+                            android:text="1"
+                            android:textColor="#6E7681"
                             android:textSize="13sp" />
+
+                        <View
+                            android:layout_width="1dp"
+                            android:layout_height="match_parent"
+                            android:background="#30363D" />
+
+                        <HorizontalScrollView
+                            android:id="@+id/horizontal_scroll_editor"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:fillViewport="true"
+                            android:scrollbars="horizontal">
+
+                            <EditText
+                                android:id="@+id/edit_asm"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:minWidth="400dp"
+                                android:background="@null"
+                                android:fontFamily="monospace"
+                                android:gravity="top"
+                                android:hint="@string/hint_editor_asm"
+                                android:inputType="textMultiLine|textNoSuggestions|textVisiblePassword"
+                                android:minHeight="120dp"
+                                android:paddingStart="8dp"
+                                android:paddingEnd="16dp"
+                                android:paddingTop="4dp"
+                                android:paddingBottom="4dp"
+                                android:textColor="#B2FF59"
+                                android:textColorHint="#546E7A"
+                                android:textSize="13sp" />
+                        </HorizontalScrollView>
                     </LinearLayout>
                 </ScrollView>
             </LinearLayout>
@@ -400,6 +417,21 @@
                         android:textColor="#8B949E"
                         android:textStyle="bold"
                         android:textSize="10sp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_minimize_terminal"
+                        style="@style/Widget.MaterialComponents.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/btn_minimize_terminal"
+                        android:textColor="#F78C6C"
+                        android:textSize="10sp"
+                        android:minHeight="0dp"
+                        android:minWidth="0dp"
+                        android:paddingStart="4dp"
+                        android:paddingEnd="4dp"
+                        android:paddingTop="1dp"
+                        android:paddingBottom="1dp" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_toggle_terminal_size"
