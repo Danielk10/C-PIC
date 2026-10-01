@@ -89,7 +89,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String DEFAULT_ASM = "; Código de prueba para PIC16F628A\n" +
             "    PROCESSOR 16F628A\n" +
-            "    INCLUDE \"P16F628A.INC\"\n\n" +
+            "    INCLUDE \"p16f628a.inc\"\n\n" +
             "    ORG 0x00\n" +
             "START:\n" +
             "    BANKSEL TRISB\n" +
@@ -1193,7 +1193,7 @@ public class MainActivity extends AppCompatActivity {
                         if (upperCase) {
                             name = name.toUpperCase(Locale.US);
                         }
-                        if (name.equalsIgnoreCase("14regs") || name.equalsIgnoreCase("18fam") || name.isEmpty()) {
+                        if (name.isEmpty() || PortRegistry.isNonDeviceHeader(currentPort, name)) {
                             continue;
                         }
                         if (currentPort.hasAsmMode && !isCurrentCMode()) {
@@ -1225,9 +1225,22 @@ public class MainActivity extends AppCompatActivity {
                 binding.spinnerPic.setAdapter(adapter);
 
                 String savedDevice = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getString(KEY_SELECTED_PIC, null);
-                int index = savedDevice == null ? -1 : finalDevices.indexOf(savedDevice);
+                int index = -1;
+                if (savedDevice != null) {
+                    for (int i = 0; i < finalDevices.size(); i++) {
+                        if (finalDevices.get(i).equalsIgnoreCase(savedDevice)) {
+                            index = i;
+                            break;
+                        }
+                    }
+                }
                 if (index < 0 && fallbackDevice != null) {
-                    index = finalDevices.indexOf(fallbackDevice);
+                    for (int i = 0; i < finalDevices.size(); i++) {
+                        if (finalDevices.get(i).equalsIgnoreCase(fallbackDevice)) {
+                            index = i;
+                            break;
+                        }
+                    }
                 }
                 if (index < 0 && !finalDevices.isEmpty()) index = 0;
                 if (index >= 0) {

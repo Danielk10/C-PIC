@@ -2,8 +2,10 @@ package com.diamon.ptc;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Registro estático de todas las familias de puertos SDCC soportadas.
@@ -48,7 +50,7 @@ public final class PortRegistry {
                 .defaultAsmCode(
                         "; Código de prueba para PIC16F628A\n" +
                         "    PROCESSOR 16F628A\n" +
-                        "    INCLUDE \"P16F628A.INC\"\n\n" +
+                        "    INCLUDE \"p16f628a.inc\"\n\n" +
                         "    ORG 0x00\n" +
                         "START:\n" +
                         "    BANKSEL TRISB\n" +
@@ -425,6 +427,7 @@ public final class PortRegistry {
     // ═══════════════════════════════════════════════════════════════
 
     public static final String PIC18_DEFAULT_C =
+            "#pragma config XINST = OFF\n\n" +
             "#include <pic16/pic18f4550.h>\n\n" +
             "// Ejemplo básico para PIC18F4550\n" +
             "void main(void) {\n" +
@@ -440,7 +443,7 @@ public final class PortRegistry {
     public static final String PIC18_DEFAULT_ASM =
             "; Código de prueba para PIC18F4550\n" +
             "    PROCESSOR 18F4550\n" +
-            "    INCLUDE \"P18F4550.INC\"\n\n" +
+            "    INCLUDE \"p18f4550.inc\"\n\n" +
             "    ORG 0x00\n" +
             "START:\n" +
             "    CLRF TRISB\n" +
@@ -453,7 +456,7 @@ public final class PortRegistry {
     public static final String PIC10_DEFAULT_ASM =
             "; Código de prueba para PIC10F200\n" +
             "    PROCESSOR 10F200\n" +
-            "    INCLUDE \"P10F200.INC\"\n\n" +
+            "    INCLUDE \"p10f200.inc\"\n\n" +
             "    ORG 0x00\n" +
             "START:\n" +
             "    MOVLW 0x00\n" +
@@ -467,7 +470,7 @@ public final class PortRegistry {
     public static final String PIC12_MID_DEFAULT_ASM =
             "; Código de prueba para PIC12F675\n" +
             "    PROCESSOR 12F675\n" +
-            "    INCLUDE \"P12F675.INC\"\n\n" +
+            "    INCLUDE \"p12f675.inc\"\n\n" +
             "    ORG 0x00\n" +
             "START:\n" +
             "    BANKSEL TRISIO\n" +
@@ -501,11 +504,20 @@ public final class PortRegistry {
         return false;
     }
 
-    /** Detecta si un microcontrolador PIC12 pertenece a la familia mid-range (núcleo de 14 bits) */
+    /** Detecta si un microcontrolador PIC es de 8 pines con puerto A (PIC10F3xx o PIC12F1xxx) */
+    public static boolean isPic10OrEnhancedPic12(String dev) {
+        if (dev == null) return false;
+        String d = dev.toUpperCase(Locale.US);
+        if (d.startsWith("10F3") || d.startsWith("10LF3")) return true;
+        if (d.startsWith("12F1") || d.startsWith("12LF1") || d.startsWith("12LF15") || d.startsWith("12F15") || d.startsWith("12F16")) return true;
+        return false;
+    }
+
+    /** Detecta si un microcontrolador PIC12 pertenece a la familia mid-range clásica (GPIO / TRISIO) */
     public static boolean isMidrange12Pic(String dev) {
         if (dev == null) return false;
         String d = dev.toUpperCase(Locale.US);
-        return d.startsWith("12") && !isBaselinePic(d);
+        return d.startsWith("12") && !isBaselinePic(d) && !isPic10OrEnhancedPic12(d);
     }
 
     /** Detecta si un microcontrolador PIC pertenece a la arquitectura PIC18 (pic16 en SDCC) */
@@ -521,7 +533,8 @@ public final class PortRegistry {
                 ? dev.trim().toUpperCase(Locale.US)
                 : (subArchIndex == 1 ? "18F4550" : "16F628A");
         if (isPic18(cleanDev, subArchIndex)) {
-            return "#include <pic16/pic" + cleanDev.toLowerCase(Locale.US) + ".h>\n\n" +
+            return "#pragma config XINST = OFF\n\n" +
+                   "#include <pic16/pic" + cleanDev.toLowerCase(Locale.US) + ".h>\n\n" +
                    "// Ejemplo básico para PIC" + cleanDev + "\n" +
                    "void main(void) {\n" +
                    "    TRISB = 0x00; // Puerto B como salida\n" +
@@ -529,6 +542,18 @@ public final class PortRegistry {
                    "        PORTB = 0xFF;\n" +
                    "        for(unsigned int i=0; i<1000; i++); // Retardo\n" +
                    "        PORTB = 0x00;\n" +
+                   "        for(unsigned int i=0; i<1000; i++);\n" +
+                   "    }\n" +
+                   "}\n";
+        } else if (isPic10OrEnhancedPic12(cleanDev)) {
+            return "#include <pic14/pic" + cleanDev.toLowerCase(Locale.US) + ".h>\n\n" +
+                   "// Ejemplo básico para PIC" + cleanDev + "\n" +
+                   "void main(void) {\n" +
+                   "    TRISA = 0x00; // Puerto A como salida\n" +
+                   "    while(1) {\n" +
+                   "        PORTA = 0xFF;\n" +
+                   "        for(unsigned int i=0; i<1000; i++); // Retardo\n" +
+                   "        PORTA = 0x00;\n" +
                    "        for(unsigned int i=0; i<1000; i++);\n" +
                    "    }\n" +
                    "}\n";
@@ -564,10 +589,11 @@ public final class PortRegistry {
         String cleanDev = (dev != null && !dev.trim().isEmpty())
                 ? dev.trim().toUpperCase(Locale.US)
                 : (subArchIndex == 1 ? "18F4550" : "16F628A");
+        String incFile = "p" + cleanDev.toLowerCase(Locale.US) + ".inc";
         if (isPic18(cleanDev, subArchIndex)) {
             return "; Código de prueba para PIC" + cleanDev + "\n" +
                    "    PROCESSOR " + cleanDev + "\n" +
-                   "    INCLUDE \"P" + cleanDev + ".INC\"\n\n" +
+                   "    INCLUDE \"" + incFile + "\"\n\n" +
                    "    ORG 0x00\n" +
                    "START:\n" +
                    "    CLRF TRISB\n" +
@@ -577,22 +603,36 @@ public final class PortRegistry {
                    "    BRA LOOP\n" +
                    "    END\n";
         } else if (isBaselinePic(cleanDev)) {
+            String port = cleanDev.startsWith("16") ? "PORTB" : "GPIO";
             return "; Código de prueba para PIC" + cleanDev + "\n" +
                    "    PROCESSOR " + cleanDev + "\n" +
-                   "    INCLUDE \"P" + cleanDev + ".INC\"\n\n" +
+                   "    INCLUDE \"" + incFile + "\"\n\n" +
                    "    ORG 0x00\n" +
                    "START:\n" +
                    "    MOVLW 0x00\n" +
-                   "    TRIS GPIO\n" +
+                   "    TRIS " + port + "\n" +
                    "LOOP:\n" +
                    "    MOVLW 0xFF\n" +
-                   "    MOVWF GPIO\n" +
+                   "    MOVWF " + port + "\n" +
+                   "    GOTO LOOP\n" +
+                   "    END\n";
+        } else if (isPic10OrEnhancedPic12(cleanDev)) {
+            return "; Código de prueba para PIC" + cleanDev + "\n" +
+                   "    PROCESSOR " + cleanDev + "\n" +
+                   "    INCLUDE \"" + incFile + "\"\n\n" +
+                   "    ORG 0x00\n" +
+                   "START:\n" +
+                   "    BANKSEL TRISA\n" +
+                   "    CLRF TRISA\n" +
+                   "LOOP:\n" +
+                   "    MOVLW 0xFF\n" +
+                   "    MOVWF PORTA\n" +
                    "    GOTO LOOP\n" +
                    "    END\n";
         } else if (isMidrange12Pic(cleanDev)) {
             return "; Código de prueba para PIC" + cleanDev + "\n" +
                    "    PROCESSOR " + cleanDev + "\n" +
-                   "    INCLUDE \"P" + cleanDev + ".INC\"\n\n" +
+                   "    INCLUDE \"" + incFile + "\"\n\n" +
                    "    ORG 0x00\n" +
                    "START:\n" +
                    "    BANKSEL TRISIO\n" +
@@ -605,7 +645,7 @@ public final class PortRegistry {
         } else {
             return "; Código de prueba para PIC" + cleanDev + "\n" +
                    "    PROCESSOR " + cleanDev + "\n" +
-                   "    INCLUDE \"P" + cleanDev + ".INC\"\n\n" +
+                   "    INCLUDE \"" + incFile + "\"\n\n" +
                    "    ORG 0x00\n" +
                    "START:\n" +
                    "    BANKSEL TRISB\n" +
@@ -616,6 +656,80 @@ public final class PortRegistry {
                    "    GOTO LOOP\n" +
                    "    END\n";
         }
+    }
+
+    // Mapa canónico que preserva exactamente las mayúsculas/minúsculas de las cabeceras MCS-51 en disco
+    private static final Map<String, String> MCS51_CANONICAL_HEADERS = new HashMap<>();
+    static {
+        String[] headers = {
+            "8051", "8052", "ADuC84x", "AT89C513xA", "at89c51ed2", "at89c51id2", "at89c51snd1c",
+            "at89c55", "at89s53", "at89S8252", "at89s8253", "at89Sx051", "at89x051", "at89x51",
+            "at89x52", "ax8052", "ax8052f131", "ax8052f142", "ax8052f143", "ax8052f151",
+            "C8051F000", "C8051F018", "C8051F020", "C8051F040", "C8051F060", "C8051F120",
+            "C8051F200", "C8051F300", "C8051F310", "C8051F320", "C8051F326", "C8051F330",
+            "C8051F336", "C8051F340", "C8051F350", "C8051F360", "C8051F410", "C8051F520",
+            "C8051F920", "C8051T600", "C8051T610", "C8051T630", "cc1110", "cc2430",
+            "cc2510fx", "cc2530", "compiler", "EFM8BB1", "lint", "mcs51reg", "msc1210",
+            "msm8xc154s", "P89c51RD2", "p89c66x", "P89LPC901", "P89LPC922", "P89LPC925",
+            "p89lpc9321", "P89LPC932", "p89lpc9331", "p89lpc933_4", "p89lpc9351",
+            "p89lpc935_6", "p89lpc938", "p89v51rd2", "p89v66x", "reg51", "reg764",
+            "regc515c", "sab80515", "ser", "serial", "serial_IO", "ser_ir", "SST89x5xRDx",
+            "stc12", "stc89", "uPSD32xx", "uPSD33xx", "w7100", "XC866"
+        };
+        for (String h : headers) {
+            MCS51_CANONICAL_HEADERS.put(h.toLowerCase(Locale.US), h);
+        }
+    }
+
+    /**
+     * Determina si una cabecera o dispositivo es un archivo de utilidad del SDK (no un microcontrolador real)
+     * para excluirlo del selector de dispositivos en la UI.
+     */
+    public static boolean isNonDeviceHeader(PortConfig port, String headerOrDeviceName) {
+        if (headerOrDeviceName == null || headerOrDeviceName.trim().isEmpty()) {
+            return true;
+        }
+        String clean = headerOrDeviceName.trim().toLowerCase(Locale.US);
+        if (clean.endsWith(".h")) {
+            clean = clean.substring(0, clean.length() - 2);
+        } else if (clean.endsWith(".inc")) {
+            clean = clean.substring(0, clean.length() - 4);
+        }
+        if (port != null && "MCS-51 (8051)".equals(port.familyName)) {
+            return clean.equals("compiler")
+                    || clean.equals("lint")
+                    || clean.equals("mcs51reg")
+                    || clean.equals("ser")
+                    || clean.equals("ser_ir")
+                    || clean.equals("serial")
+                    || clean.equals("serial_io")
+                    || clean.equals("reg51");
+        }
+        if (port != null && port.hasAsmMode) {
+            return clean.equals("14regs")
+                    || clean.equals("18fam")
+                    || clean.equals("coff")
+                    || clean.equals("memory")
+                    || clean.equals("migrate")
+                    || clean.equals("mcp250xx");
+        }
+        return false;
+    }
+
+    /** Resuelve el nombre canónico y exacto de archivo para una cabecera MCS-51 */
+    public static String getMcs51HeaderName(String device) {
+        if (device == null || device.trim().isEmpty()) {
+            return "8052";
+        }
+        String key = device.trim().toLowerCase(Locale.US);
+        if (key.endsWith(".h")) {
+            key = key.substring(0, key.length() - 2);
+        }
+        String canonical = MCS51_CANONICAL_HEADERS.get(key);
+        if (canonical != null) {
+            return canonical;
+        }
+        return device.trim();
     }
 
     /** Resuelve el código de plantilla para un puerto, sub-arquitectura, dispositivo y modo C/ASM */
@@ -629,22 +743,63 @@ public final class PortRegistry {
         }
         if (isCMode) {
             if ("MCS-51 (8051)".equals(port.familyName) && device != null && !device.trim().isEmpty()) {
-                String dev = getMcs51HeaderName(device);
-                return "#include <" + dev + ".h>\n\n" +
-                       "// Blink LED on P1.0 - " + device.toUpperCase(Locale.US) + "\n" +
-                       "void delay(unsigned int ms) {\n" +
-                       "    unsigned int i, j;\n" +
-                       "    for(i = 0; i < ms; i++)\n" +
-                       "        for(j = 0; j < 120; j++);\n" +
-                       "}\n\n" +
-                       "void main(void) {\n" +
-                       "    while(1) {\n" +
-                       "        P1 = 0xFF;\n" +
-                       "        delay(500);\n" +
-                       "        P1 = 0x00;\n" +
-                       "        delay(500);\n" +
-                       "    }\n" +
-                       "}\n";
+                String headerName = getMcs51HeaderName(device);
+                String upper = headerName.toUpperCase(Locale.US);
+
+                StringBuilder sb = new StringBuilder();
+                if ("AT89X51".equals(upper)) {
+                    // at89x51.h en SDCC upstream define TR1 con E en vez de 6;
+                    // definiendo E como 6 aseguramos compilación 100% limpia sin modificar assets.
+                    sb.append("#ifndef E\n#define E 6\n#endif\n");
+                } else if ("UPSD33XX".equals(upper)) {
+                    // uPSD33xx requiere definir PSD_CSIOP
+                    sb.append("#define PSD_CSIOP 0x0000\n");
+                }
+
+                if ("EFM8BB1".equals(upper)) {
+                    sb.append("#include <stdint.h>\n");
+                } else if (isNonDeviceHeader(port, headerName)) {
+                    sb.append("#include <8051.h>\n");
+                }
+
+                sb.append("#include <").append(headerName).append(".h>\n\n");
+
+                if ("SER_IR".equals(upper)) {
+                    sb.append("void ser_handler(void) __interrupt(4) {}\n\n");
+                }
+
+                String portName = "P1";
+                String pinName = "P1.0";
+                if ("C8051F300".equals(upper) || "C8051T600".equals(upper)) {
+                    portName = "P0";
+                    pinName = "P0.0";
+                } else if ("C8051F326".equals(upper)) {
+                    portName = "P2";
+                    pinName = "P2.0";
+                } else if (upper.startsWith("AX8052")) {
+                    portName = "PORTA";
+                    pinName = "PORTA.0";
+                } else if ("XC866".equals(upper)) {
+                    portName = "P1_DATA";
+                    pinName = "P1_DATA";
+                }
+
+                sb.append("// Blink LED on ").append(pinName).append(" - ").append(upper).append("\n");
+                sb.append("void delay(unsigned int ms) {\n");
+                sb.append("    unsigned int i, j;\n");
+                sb.append("    for(i = 0; i < ms; i++)\n");
+                sb.append("        for(j = 0; j < 120; j++);\n");
+                sb.append("}\n\n");
+                sb.append("void main(void) {\n");
+                sb.append("    while(1) {\n");
+                sb.append("        ").append(portName).append(" = 0xFF;\n");
+                sb.append("        delay(500);\n");
+                sb.append("        ").append(portName).append(" = 0x00;\n");
+                sb.append("        delay(500);\n");
+                sb.append("    }\n");
+                sb.append("}\n");
+
+                return sb.toString();
             }
             return port.defaultCCode != null ? port.defaultCCode : "";
         } else {
@@ -652,73 +807,13 @@ public final class PortRegistry {
         }
     }
 
-    private static String getMcs51HeaderName(String device) {
-        if (device == null || device.trim().isEmpty()) {
-            return "8052";
-        }
-        String dev = device.trim();
-        String upper = dev.toUpperCase(Locale.US);
-        String lower = dev.toLowerCase(Locale.US);
-
-        // 1. C8051F / C8051T
-        if (upper.startsWith("C8051F")) {
-            return "C8051F" + upper.substring(6);
-        }
-        if (upper.startsWith("C8051T")) {
-            return "C8051T" + upper.substring(6);
-        }
-
-        // 2. EFM8BB1, XC866
-        if ("EFM8BB1".equals(upper)) {
-            return "EFM8BB1";
-        }
-        if ("XC866".equals(upper)) {
-            return "XC866";
-        }
-
-        // 3. ADuC84x
-        if (upper.startsWith("ADUC84")) {
-            return "ADuC84" + upper.substring(6);
-        }
-
-        // 4. AT89C513xA, at89S...
-        if ("AT89C513XA".equals(upper)) {
-            return "AT89C513xA";
-        }
-        if ("AT89S8252".equals(upper)) {
-            return "at89S8252";
-        }
-        if ("AT89SX051".equals(upper)) {
-            return "at89Sx051";
-        }
-
-        // 5. P89c51RD2, P89LPC...
-        if ("P89C51RD2".equals(upper)) {
-            return "P89c51RD2";
-        }
-        if (upper.startsWith("P89LPC")) {
-            if ("P89LPC901".equals(upper)) return "P89LPC901";
-            if ("P89LPC922".equals(upper)) return "P89LPC922";
-            if ("P89LPC925".equals(upper)) return "P89LPC925";
-            if ("P89LPC932".equals(upper)) return "P89LPC932";
-            return lower;
-        }
-
-        // 6. SST89x5xRDx
-        if ("SST89X5XRDX".equals(upper)) {
-            return "SST89x5xRDx";
-        }
-
-        // Default to lowercase
-        return lower;
-    }
-
     /** Comprueba si el contenido coincide con una plantilla o código de ejemplo estándar */
     public static boolean isDefaultSampleCode(String content) {
         if (content == null || content.trim().isEmpty()) return true;
         if (content.contains("// Ejemplo básico para PIC")
                 || content.contains("; Código de prueba para PIC")
-                || content.contains("// Blink LED on P1.0")
+                || content.contains("// Blink LED on")
+                || content.contains("#pragma config XINST = OFF")
                 || content.contains("// Ejemplo básico para Dallas DS390")
                 || content.contains("// Z80 example")
                 || content.contains("// Rabbit 2000 example")

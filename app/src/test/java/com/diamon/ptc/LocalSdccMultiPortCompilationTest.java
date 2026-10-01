@@ -183,7 +183,7 @@ public class LocalSdccMultiPortCompilationTest {
         // 2. Archivo ASM principal que incluye la cabecera personalizada
         writeCodeFile("main.asm",
                 "    PROCESSOR 16F628A\n" +
-                "    INCLUDE \"P16F628A.INC\"\n" +
+                "    INCLUDE \"p16f628a.inc\"\n" +
                 "    INCLUDE \"custom_macros.inc\"\n" +
                 "    ORG 0x00\n" +
                 "START:\n" +
@@ -219,9 +219,9 @@ public class LocalSdccMultiPortCompilationTest {
             return;
         }
 
-        File pic14Lib = new File("fake_root/data/data/com.diamon.ptc/files/usr/share/sdcc/lib/pic14");
-        File pic14NonFree = new File("fake_root/data/data/com.diamon.ptc/files/usr/share/sdcc/non-free/lib/pic14");
-        File lkrDir = new File("fake_root/data/data/com.diamon.ptc/files/usr/share/gputils/lkr");
+        File pic14Lib = resolveProjectFile("fake_root/data/data/com.diamon.ptc/files/usr/share/sdcc/lib/pic14");
+        File pic14NonFree = resolveProjectFile("fake_root/data/data/com.diamon.ptc/files/usr/share/sdcc/non-free/lib/pic14");
+        File lkrDir = resolveProjectFile("fake_root/data/data/com.diamon.ptc/files/usr/share/gputils/lkr");
         File lkrFile = new File(lkrDir, "16f628a_g.lkr");
 
         if (!pic14Lib.exists() || !pic14NonFree.exists() || !lkrFile.exists()) {
@@ -231,7 +231,7 @@ public class LocalSdccMultiPortCompilationTest {
 
         writeCodeFile("test_pic.asm",
                 "    PROCESSOR 16F628A\n" +
-                "    INCLUDE \"P16F628A.INC\"\n" +
+                "    INCLUDE \"p16f628a.inc\"\n" +
                 "    GLOBAL main\n" +
                 "    CODE\n" +
                 "main:\n" +
@@ -319,6 +319,163 @@ public class LocalSdccMultiPortCompilationTest {
             assertEquals("El mapa de memoria de parseBinary debe tener el mismo tamaño que los bytes",
                     binBytes.length, binMem.size());
         }
+    }
+
+    @Test
+    public void testPortRegistryCanonicalHeaderResolution() {
+        assertEquals("ADuC84x", PortRegistry.getMcs51HeaderName("ADuC84X"));
+        assertEquals("ADuC84x", PortRegistry.getMcs51HeaderName("aduc84x"));
+        assertEquals("uPSD32xx", PortRegistry.getMcs51HeaderName("upsd32xx"));
+        assertEquals("uPSD33xx", PortRegistry.getMcs51HeaderName("upsd33xx"));
+        assertEquals("AT89C513xA", PortRegistry.getMcs51HeaderName("at89c513xa"));
+        assertEquals("EFM8BB1", PortRegistry.getMcs51HeaderName("efm8bb1"));
+        assertEquals("P89c51RD2", PortRegistry.getMcs51HeaderName("p89c51rd2"));
+        assertEquals("P89LPC901", PortRegistry.getMcs51HeaderName("p89lpc901"));
+        assertEquals("SST89x5xRDx", PortRegistry.getMcs51HeaderName("sst89x5xrdx"));
+        assertEquals("XC866", PortRegistry.getMcs51HeaderName("xc866"));
+    }
+
+    @Test
+    public void testNonDeviceHeaderFilter() {
+        PortConfig mcs51Port = PortRegistry.getPort(1);
+        assertTrue(PortRegistry.isNonDeviceHeader(mcs51Port, "serial"));
+        assertTrue(PortRegistry.isNonDeviceHeader(mcs51Port, "serial.h"));
+        assertTrue(PortRegistry.isNonDeviceHeader(mcs51Port, "compiler"));
+        assertTrue(PortRegistry.isNonDeviceHeader(mcs51Port, "lint"));
+        assertTrue(PortRegistry.isNonDeviceHeader(mcs51Port, "ser"));
+        assertTrue(PortRegistry.isNonDeviceHeader(mcs51Port, "ser_ir"));
+        assertTrue(PortRegistry.isNonDeviceHeader(mcs51Port, "serial_io"));
+        assertTrue(PortRegistry.isNonDeviceHeader(mcs51Port, "mcs51reg"));
+
+        assertFalse(PortRegistry.isNonDeviceHeader(mcs51Port, "8051"));
+        assertFalse(PortRegistry.isNonDeviceHeader(mcs51Port, "8052"));
+        assertFalse(PortRegistry.isNonDeviceHeader(mcs51Port, "ADuC84x"));
+        assertFalse(PortRegistry.isNonDeviceHeader(mcs51Port, "C8051F340"));
+        assertFalse(PortRegistry.isNonDeviceHeader(mcs51Port, "EFM8BB1"));
+
+        PortConfig picPort = PortRegistry.getPort(0);
+        assertTrue(PortRegistry.isNonDeviceHeader(picPort, "14regs"));
+        assertTrue(PortRegistry.isNonDeviceHeader(picPort, "18fam"));
+        assertTrue(PortRegistry.isNonDeviceHeader(picPort, "coff"));
+        assertTrue(PortRegistry.isNonDeviceHeader(picPort, "memory"));
+        assertTrue(PortRegistry.isNonDeviceHeader(picPort, "migrate"));
+    }
+
+    @Test
+    public void testPic18CodeTemplateContainsXinstDisable() {
+        String pic18Code = PortRegistry.getPicSampleCodeC("18F4550", 1);
+        assertTrue("Plantilla PIC18 debe contener #pragma config XINST = OFF para SDCC",
+                pic18Code.contains("#pragma config XINST = OFF"));
+        assertTrue(pic18Code.contains("<pic16/pic18f4550.h>"));
+
+        String defaultC = PortRegistry.PIC18_DEFAULT_C;
+        assertTrue(defaultC.contains("#pragma config XINST = OFF"));
+
+        String defaultAsm = PortRegistry.getPicSampleCodeAsm("18F4550", 1);
+        assertTrue("Plantilla PIC18 ASM debe incluir archivo en minúsculas",
+                defaultAsm.contains("p18f4550.inc"));
+    }
+
+    @Test
+    public void testPicSubfamilyTemplates() {
+        // PIC18
+        String c18 = PortRegistry.getPicSampleCodeC("18F4550", 1);
+        assertTrue(c18.contains("#pragma config XINST = OFF"));
+        assertTrue(c18.contains("pic16/pic18f4550.h"));
+        assertTrue(c18.contains("TRISB"));
+        String asm18 = PortRegistry.getPicSampleCodeAsm("18F4550", 1);
+        assertTrue(asm18.contains("CLRF TRISB"));
+        assertTrue(asm18.contains("BRA LOOP"));
+
+        // PIC14 standard (16F628A)
+        String c16 = PortRegistry.getPicSampleCodeC("16F628A", 0);
+        assertTrue(c16.contains("pic14/pic16f628a.h"));
+        assertTrue(c16.contains("TRISB"));
+        String asm16 = PortRegistry.getPicSampleCodeAsm("16F628A", 0);
+        assertTrue(asm16.contains("BANKSEL TRISB"));
+        assertTrue(asm16.contains("PORTB"));
+
+        // PIC14 enhanced 8-pin (10F320, 12F1840)
+        String c10 = PortRegistry.getPicSampleCodeC("10F320", 0);
+        assertTrue(c10.contains("pic14/pic10f320.h"));
+        assertTrue(c10.contains("TRISA"));
+        String asm10 = PortRegistry.getPicSampleCodeAsm("10F320", 0);
+        assertTrue(asm10.contains("BANKSEL TRISA"));
+        assertTrue(asm10.contains("PORTA"));
+
+        // PIC12 classic midrange (12F675)
+        String c12 = PortRegistry.getPicSampleCodeC("12F675", 0);
+        assertTrue(c12.contains("pic14/pic12f675.h"));
+        assertTrue(c12.contains("TRISIO"));
+        String asm12 = PortRegistry.getPicSampleCodeAsm("12F675", 0);
+        assertTrue(asm12.contains("BANKSEL TRISIO"));
+        assertTrue(asm12.contains("GPIO"));
+
+        // Baseline PIC 8-pin (10F200)
+        String asmBase10 = PortRegistry.getPicSampleCodeAsm("10F200", 0);
+        assertTrue(asmBase10.contains("TRIS GPIO"));
+        assertTrue(asmBase10.contains("GPIO"));
+
+        // Baseline PIC 18-pin (16F54)
+        String asmBase16 = PortRegistry.getPicSampleCodeAsm("16F54", 0);
+        assertTrue(asmBase16.contains("TRIS PORTB"));
+        assertTrue(asmBase16.contains("PORTB"));
+    }
+
+    @Test
+    public void testAllMcs51DeviceTemplatesCompileAndLinkWithRealSdcc() throws Exception {
+        if (!hasSdcc) {
+            System.out.println("SDCC no disponible en el host; omitiendo test exhaustivo MCS-51.");
+            return;
+        }
+
+        File mcs51HeaderDir = resolveProjectFile("app/src/main/assets/data/data/com.diamon.ptc/files/usr/share/sdcc/include/mcs51");
+        File[] headerFiles = mcs51HeaderDir.listFiles((dir, name) -> name.endsWith(".h"));
+        assertNotNull(headerFiles);
+
+        PortConfig mcs51Port = PortRegistry.getPort(1);
+
+        for (File hFile : headerFiles) {
+            String rawName = hFile.getName().substring(0, hFile.getName().length() - 2);
+            if (PortRegistry.isNonDeviceHeader(mcs51Port, rawName)) {
+                continue; // No es un microcontrolador para el spinner
+            }
+
+            String sampleCode = PortRegistry.getSampleCode(mcs51Port, 0, rawName, true);
+            assertNotNull("Código para " + rawName + " no debe ser nulo", sampleCode);
+            assertFalse(sampleCode.trim().isEmpty());
+
+            File srcFile = new File(testDir, "test_" + rawName + ".c");
+            try (FileOutputStream fos = new FileOutputStream(srcFile)) {
+                fos.write(sampleCode.getBytes(StandardCharsets.UTF_8));
+            }
+
+            File relFile = new File(testDir, "test_" + rawName + ".rel");
+            File hexFile = new File(testDir, "test_" + rawName + ".hex");
+
+            int compileCode = runProcess("sdcc", "-mmcs51", "-I" + mcs51HeaderDir.getAbsolutePath(),
+                    "-c", srcFile.getName(), "-o", relFile.getName());
+            assertEquals("Compilación de plantilla para " + rawName + " debe ser 0", 0, compileCode);
+            assertTrue("Objeto .rel debe existir para " + rawName, relFile.exists());
+
+            int linkCode = runProcess("sdcc", "-mmcs51", "--out-fmt-ihx", "--iram-size", "256",
+                    relFile.getName(), "-o", hexFile.getName());
+            assertEquals("Enlace de plantilla para " + rawName + " debe ser 0", 0, linkCode);
+            File ihx = new File(testDir, "test_" + rawName + ".ihx");
+            assertTrue("Archivo .hex o .ihx debe existir para " + rawName, hexFile.exists() || ihx.exists());
+        }
+    }
+
+    private static File resolveProjectFile(String relativePath) {
+        File f1 = new File(relativePath);
+        if (f1.exists()) return f1;
+        File f2 = new File("../" + relativePath);
+        if (f2.exists()) return f2;
+        if (relativePath.startsWith("app/")) {
+            File f3 = new File(relativePath.substring(4));
+            if (f3.exists()) return f3;
+        }
+        return f1;
     }
 
     private int runProcess(String... args) throws Exception {
