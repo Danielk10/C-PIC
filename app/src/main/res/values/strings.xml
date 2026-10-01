@@ -179,5 +179,12 @@
     <string name="format_bin_file">Flat Binary File .bin</string>
     <string name="log_error_reading_file">[ERROR] Error reading %1$s: %2$s</string>
     <string name="log_sdcc_device_not_supported">[ERROR] Microcontroller %1$s is not supported by SDCC in C mode (%2$s). SDCC only supports PIC14 and PIC16 (PIC18) devices.</string>
+
+    <!-- Load Sample Code -->
+    <string name="menu_load_sample_code">Load Example Code</string>
+    <string name="dialog_load_sample_code_title">Load Example Code</string>
+    <string name="dialog_load_sample_code_message">Do you want to replace the current editor content with the sample code for %s?</string>
+    <string name="log_sample_code_loaded">Sample code loaded for %s.</string>
+    <string name="btn_load">Load</string>
 </resources>
 

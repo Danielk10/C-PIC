@@ -47,6 +47,7 @@ import androidx.documentfile.provider.DocumentFile;
 
 import com.diamon.ptc.databinding.ActivityMainBinding;
 import com.diamon.ptc.policy.PolicyActivity;
+import com.diamon.utilidades.GestorPantalla;
 import com.google.android.material.button.MaterialButton;
 
 import java.io.BufferedReader;
@@ -162,13 +163,18 @@ public class MainActivity extends AppCompatActivity {
     private final Handler logHandler = new Handler(Looper.getMainLooper());
     private boolean isLogUpdatePending = false;
     private volatile boolean isCompiling = false;
+    private GestorPantalla gestorPantalla;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        gestorPantalla = new GestorPantalla(this);
+        gestorPantalla.habilitarEdgeToEdge();
+
         super.onCreate(savedInstanceState);
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-        enableImmersiveMode();
+        gestorPantalla.aplicarWindowInsetsInferior(binding.getRoot());
+        gestorPantalla.ocultarBotonesVirtuales();
         setSupportActionBar(binding.toolbar);
 
         gpUtils = new GpUtilsExecutor(this);
@@ -251,17 +257,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        if (hasFocus) {
-            enableImmersiveMode();
+        if (hasFocus && gestorPantalla != null) {
+            gestorPantalla.ocultarBotonesVirtuales();
         }
-    }
-
-    /** Activa modo inmersivo: oculta barra de navegación, mantiene barra de estado visible. */
-    private void enableImmersiveMode() {
-        androidx.core.view.WindowInsetsControllerCompat controller = 
-            new androidx.core.view.WindowInsetsControllerCompat(getWindow(), getWindow().getDecorView());
-        controller.hide(androidx.core.view.WindowInsetsCompat.Type.navigationBars());
-        controller.setSystemBarsBehavior(androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
     }
 
     private void initInitialGenericNames() {
@@ -369,7 +367,10 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(android.view.MenuItem item) {
         int id = item.getItemId();
-        if (id == R.id.action_clear_editor) {
+        if (id == R.id.action_load_sample_code) {
+            confirmLoadSampleCode();
+            return true;
+        } else if (id == R.id.action_clear_editor) {
             confirmClearEditor();
             return true;
         } else if (id == R.id.action_about) {
@@ -845,6 +846,48 @@ public class MainActivity extends AppCompatActivity {
         return base + "_" + i + ext;
     }
 
+    private String getSelectedDevice() {
+        if (currentPort != null && currentPort.hasDeviceSelector() && binding.spinnerPic.getSelectedItem() != null) {
+            return binding.spinnerPic.getSelectedItem().toString();
+        } else if (currentPort != null && currentPort.defaultDevice != null) {
+            return currentPort.defaultDevice;
+        }
+        return null;
+    }
+
+    private void confirmLoadSampleCode() {
+        String selectedDevice = getSelectedDevice();
+        String deviceName = (selectedDevice != null && !selectedDevice.isEmpty())
+                ? selectedDevice
+                : (currentPort != null ? currentPort.familyName : "");
+        String message = getString(R.string.dialog_load_sample_code_message, deviceName);
+        new AlertDialog.Builder(this)
+                .setTitle(getString(R.string.dialog_load_sample_code_title))
+                .setMessage(message)
+                .setPositiveButton(getString(R.string.btn_load), (d, w) -> loadSampleCodeDirectly(selectedDevice))
+                .setNegativeButton(getString(R.string.btn_cancel), null)
+                .show();
+    }
+
+    private void loadSampleCodeDirectly(String selectedDevice) {
+        if (currentPort == null) return;
+        ModuleState state = getCurrentState();
+        if (state.activeFile == null || !state.files.containsKey(state.activeFile)) return;
+
+        String newCode = PortRegistry.getSampleCode(currentPort, currentSubArchIndex, selectedDevice, isCurrentCMode());
+        if (newCode != null && !newCode.isEmpty()) {
+            state.files.put(state.activeFile, newCode);
+            binding.editAsm.setText(newCode);
+            binding.editAsm.setSelection(binding.editAsm.getText().length());
+            applySyntaxHighlighting();
+            updateLineNumbers();
+            String deviceName = (selectedDevice != null && !selectedDevice.isEmpty())
+                    ? selectedDevice
+                    : currentPort.familyName;
+            log(getString(R.string.log_sample_code_loaded, deviceName));
+        }
+    }
+
     private void confirmClearEditor() {
         new AlertDialog.Builder(this)
                 .setTitle(getString(R.string.dialog_clear_editor_title))
@@ -1317,12 +1360,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        String selectedDevice = null;
-        if (currentPort != null && currentPort.hasDeviceSelector() && binding.spinnerPic.getSelectedItem() != null) {
-            selectedDevice = binding.spinnerPic.getSelectedItem().toString();
-        } else if (currentPort != null && currentPort.defaultDevice != null) {
-            selectedDevice = currentPort.defaultDevice;
-        }
+        String selectedDevice = getSelectedDevice();
 
         String projectName = resolveProjectName();
 

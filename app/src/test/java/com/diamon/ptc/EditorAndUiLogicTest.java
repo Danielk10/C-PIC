@@ -448,6 +448,52 @@ public class EditorAndUiLogicTest {
         }
     }
 
+    @Test
+    public void testGestorPantallaClassExists() {
+        assertNotNull("GestorPantalla class must be loadable", com.diamon.utilidades.GestorPantalla.class);
+    }
+
+    @Test
+    public void testMainMenuContainsLoadSampleCodeAction() throws Exception {
+        File menuFile = new File("src/main/res/menu/main_menu.xml");
+        if (!menuFile.exists()) {
+            menuFile = new File("app/src/main/res/menu/main_menu.xml");
+        }
+        assertTrue("main_menu.xml debe existir", menuFile.exists());
+        String content = new String(Files.readAllBytes(menuFile.toPath()));
+        assertTrue("main_menu.xml debe contener action_load_sample_code",
+                content.contains("android:id=\"@+id/action_load_sample_code\"") &&
+                content.contains("@string/menu_load_sample_code"));
+    }
+
+    @Test
+    public void testLoadSampleCodeStringsParity() throws Exception {
+        File enStrings = new File("app/src/main/res/values-en/strings.xml");
+        if (!enStrings.exists()) enStrings = new File("src/main/res/values-en/strings.xml");
+        File esStrings = new File("app/src/main/res/values-es/strings.xml");
+        if (!esStrings.exists()) esStrings = new File("src/main/res/values-es/strings.xml");
+        File baseStrings = new File("app/src/main/res/values/strings.xml");
+        if (!baseStrings.exists()) baseStrings = new File("src/main/res/values/strings.xml");
+
+        String en = new String(Files.readAllBytes(enStrings.toPath()));
+        String es = new String(Files.readAllBytes(esStrings.toPath()));
+        String base = new String(Files.readAllBytes(baseStrings.toPath()));
+
+        String[] requiredKeys = {
+                "name=\"menu_load_sample_code\"",
+                "name=\"dialog_load_sample_code_title\"",
+                "name=\"dialog_load_sample_code_message\"",
+                "name=\"log_sample_code_loaded\"",
+                "name=\"btn_load\""
+        };
+
+        for (String key : requiredKeys) {
+            assertTrue("Base strings debe contener " + key, base.contains(key));
+            assertTrue("EN strings debe contener " + key, en.contains(key));
+            assertTrue("ES strings debe contener " + key, es.contains(key));
+        }
+    }
+
     private String generateLineNumbers(int lineCount) {
         int lines = Math.max(1, lineCount);
         StringBuilder sb = new StringBuilder(lines * 4);

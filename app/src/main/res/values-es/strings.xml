@@ -179,4 +179,11 @@
     <string name="format_bin_file">Archivo Binario Plano .bin</string>
     <string name="log_error_reading_file">[ERROR] Error al leer %1$s: %2$s</string>
     <string name="log_sdcc_device_not_supported">[ERROR] El microcontrolador %1$s no está soportado por SDCC en modo C (%2$s). SDCC solo soporta dispositivos PIC14 y PIC16 (PIC18).</string>
+
+    <!-- Cargar código de ejemplo -->
+    <string name="menu_load_sample_code">Cargar código de ejemplo</string>
+    <string name="dialog_load_sample_code_title">Cargar código de ejemplo</string>
+    <string name="dialog_load_sample_code_message">¿Deseas reemplazar el contenido actual del editor con el código de ejemplo para %s?</string>
+    <string name="log_sample_code_loaded">Código de ejemplo cargado para %s.</string>
+    <string name="btn_load">Cargar</string>
 </resources>
