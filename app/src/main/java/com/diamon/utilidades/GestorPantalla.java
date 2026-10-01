@@ -4,6 +4,7 @@ import android.os.Build;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowInsetsController;
+import android.view.WindowManager;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -40,6 +41,7 @@ public class GestorPantalla {
      * 
      * Debe llamarse ANTES de setContentView().
      */
+    @SuppressWarnings("deprecation")
     public void habilitarEdgeToEdge() {
         try {
             // API oficial recomendada por AndroidX Activity 1.9+ para Android 15+
@@ -49,6 +51,17 @@ public class GestorPantalla {
             Window window = actividad.getWindow();
             WindowCompat.setDecorFitsSystemWindows(window, false);
         }
+
+        Window window = actividad.getWindow();
+        // Permitir que el contenido se extienda bajo el recorte de pantalla (notch/cutout)
+        // evitando el margen negro que genera el sistema en modo inmersivo
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            WindowManager.LayoutParams lp = window.getAttributes();
+            lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            window.setAttributes(lp);
+        }
+        window.setStatusBarColor(android.graphics.Color.TRANSPARENT);
+        window.setNavigationBarColor(android.graphics.Color.TRANSPARENT);
     }
 
     /**
@@ -78,10 +91,11 @@ public class GestorPantalla {
         ViewCompat.setOnApplyWindowInsetsListener(view, (v, windowInsets) -> {
             Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
 
-            // Solo aplicar padding inferior
+            // Solo aplicar padding inferior para la barra de navegación,
+            // manteniendo el padding superior en 0 para que la barra de título cubra toda el área de estado.
             v.setPadding(
                     v.getPaddingLeft(),
-                    v.getPaddingTop(),
+                    0,
                     v.getPaddingRight(),
                     insets.bottom);
 

@@ -162,15 +162,17 @@ public class EditorAndUiLogicTest {
     }
 
     @Test
-    public void testAppBarLayoutFitsSystemWindows() throws Exception {
+    public void testAppBarLayoutSeamlessStatusBarMatchesPicK150() throws Exception {
         File layoutFile = new File("src/main/res/layout/activity_main.xml");
         if (!layoutFile.exists()) {
             layoutFile = new File("app/src/main/res/layout/activity_main.xml");
         }
         assertTrue("activity_main.xml debe existir", layoutFile.exists());
         String content = new String(Files.readAllBytes(layoutFile.toPath()));
-        assertTrue("AppBarLayout debe tener android:fitsSystemWindows=\"true\"",
+        assertTrue("AppBarLayout debe tener fondo #1E1E1E",
                 content.contains("<com.google.android.material.appbar.AppBarLayout") &&
+                content.contains("android:background=\"#1E1E1E\""));
+        assertFalse("AppBarLayout no debe tener fitsSystemWindows para que cubra la barra de notificaciones sin margen negro igual a PIC K150",
                 content.contains("android:fitsSystemWindows=\"true\""));
     }
 

@@ -8,9 +8,23 @@
         <item name="colorOnSecondary">@color/on_secondary</item>
         
         <item name="android:windowBackground">@color/background</item>
-        <item name="android:statusBarColor">@color/background</item>
-        <item name="android:navigationBarColor">@color/background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">false</item>
         
         <item name="android:textColorPrimary">@color/on_surface</item>
+
+        <!-- Menu and Popup visibility fixes -->
+        <item name="actionMenuTextColor">#FFFFFF</item>
+        <item name="android:actionMenuTextColor">#FFFFFF</item>
+        
+        <!-- Force dark background and white text for popups -->
+        <item name="actionBarPopupTheme">@style/CustomPopupTheme</item>
+        <item name="popupTheme">@style/CustomPopupTheme</item>
+
+        <!-- Dialog theme matching dark UI -->
+        <item name="alertDialogTheme">@style/CustomAlertDialogTheme</item>
+        <item name="materialAlertDialogTheme">@style/CustomAlertDialogTheme</item>
     </style>
 </resources>
