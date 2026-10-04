@@ -40,7 +40,7 @@ keyPassword=********
 
 ## 3. Compilación
 
-Para compilar el proyecto manteniendo el espacio de trabajo limpio, los artefactos de compilación se generan en el directorio temporal `/tmp/calculo`.
+Para compilar el proyecto manteniendo el espacio de trabajo limpio, los artefactos de compilación se generan en el directorio temporal `/tmp/c-pic-compiler`.
 
 ### Comandos de Compilación:
 
@@ -48,19 +48,19 @@ Para compilar el proyecto manteniendo el espacio de trabajo limpio, los artefact
   ```bash
   ./gradlew assembleDebug
   ```
-  Salida: `/tmp/calculo/outputs/apk/debug/app-debug.apk`
+  Salida: `/tmp/c-pic-compiler/outputs/apk/debug/app-debug.apk`
 
 - **Compilar APK firmado en modo Release:**
   ```bash
   ./gradlew assembleRelease
   ```
-  Salida: `/tmp/calculo/outputs/apk/release/app-release.apk`
+  Salida: `/tmp/c-pic-compiler/outputs/apk/release/app-release.apk`
 
 - **Compilar Android App Bundle (.aab) firmado para Google Play:**
   ```bash
   ./gradlew bundleRelease
   ```
-  Salida: `/tmp/calculo/outputs/bundle/release/app-release.aab`
+  Salida: `/tmp/c-pic-compiler/outputs/bundle/release/app-release.aab`
 
 ---
 

@@ -14,7 +14,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     // Redirigir la carpeta build a /tmp
-    project.layout.buildDirectory.set(file("/tmp/calculo"))
+    project.layout.buildDirectory.set(file("/tmp/c-pic-compiler"))
 
     namespace = 'com.diamon.ptc'
     compileSdk {

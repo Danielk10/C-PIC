@@ -110,7 +110,7 @@ bash setup-sdk.sh
 
 ### 3. Comandos de Compilación
 
-Los artefactos se generan en el directorio temporal `/tmp/calculo`:
+Los artefactos se generan en el directorio temporal `/tmp/c-pic-compiler`:
 
 ```bash
 # Compilar APK de depuración (Debug)
@@ -124,9 +124,9 @@ Los artefactos se generan en el directorio temporal `/tmp/calculo`:
 ```
 
 **Rutas de salida:**
-- **APK Debug:** `/tmp/calculo/outputs/apk/debug/app-debug.apk`
-- **APK Release:** `/tmp/calculo/outputs/apk/release/app-release.apk`
-- **AAB Release:** `/tmp/calculo/outputs/bundle/release/app-release.aab`
+- **APK Debug:** `/tmp/c-pic-compiler/outputs/apk/debug/app-debug.apk`
+- **APK Release:** `/tmp/c-pic-compiler/outputs/apk/release/app-release.apk`
+- **AAB Release:** `/tmp/c-pic-compiler/outputs/bundle/release/app-release.aab`
 
 ---
 
