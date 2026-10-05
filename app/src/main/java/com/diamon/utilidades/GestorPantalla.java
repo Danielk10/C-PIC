@@ -65,6 +65,33 @@ public class GestorPantalla {
     }
 
     /**
+     * Obtiene los insets de las barras del sistema de forma segura con protección retrocompatible.
+     * En algunos dispositivos con Android 14+, llamar directamente a
+     * WindowInsetsCompat.Type.systemBars() puede lanzar NoSuchMethodError (systemOverlays).
+     *
+     * @param windowInsets Los insets de ventana
+     * @return Los insets calculados o Insets.NONE si ocurre un error
+     */
+    private Insets obtenerInsetsSeguros(WindowInsetsCompat windowInsets) {
+        if (windowInsets == null) {
+            return Insets.NONE;
+        }
+        try {
+            return windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+        } catch (Throwable t) {
+            try {
+                return Insets.of(
+                        windowInsets.getSystemWindowInsetLeft(),
+                        windowInsets.getSystemWindowInsetTop(),
+                        windowInsets.getSystemWindowInsetRight(),
+                        windowInsets.getSystemWindowInsetBottom());
+            } catch (Throwable ignored) {
+                return Insets.NONE;
+            }
+        }
+    }
+
+    /**
      * Aplica window insets a una vista específica.
      * Esto asegura que el contenido no quede oculto por las barras del sistema.
      * 
@@ -72,7 +99,7 @@ public class GestorPantalla {
      */
     public void aplicarWindowInsets(View view) {
         ViewCompat.setOnApplyWindowInsetsListener(view, (v, windowInsets) -> {
-            Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+            Insets insets = obtenerInsetsSeguros(windowInsets);
 
             // Aplicar padding para que el contenido no quede debajo de las barras del sistema
             v.setPadding(insets.left, insets.top, insets.right, insets.bottom);
@@ -89,7 +116,7 @@ public class GestorPantalla {
      */
     public void aplicarWindowInsetsInferior(View view) {
         ViewCompat.setOnApplyWindowInsetsListener(view, (v, windowInsets) -> {
-            Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+            Insets insets = obtenerInsetsSeguros(windowInsets);
 
             // Solo aplicar padding inferior para la barra de navegación,
             // manteniendo el padding superior en 0 para que la barra de título cubra toda el área de estado.
