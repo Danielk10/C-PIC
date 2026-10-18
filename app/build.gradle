@@ -23,10 +23,10 @@ android {
 
     defaultConfig {
         applicationId "com.diamon.ptc"
-        minSdk 23
+        minSdk 24
         targetSdk 37
-        versionCode 31
-        versionName "1.4.11"
+        versionCode 32
+        versionName "1.4.12"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         ndk {

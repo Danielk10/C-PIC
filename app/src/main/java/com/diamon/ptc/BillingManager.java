@@ -1,8 +1,10 @@
 package com.diamon.ptc;
 
 import android.app.Activity;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.provider.Settings;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -24,7 +26,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Gestiona la compra in-app "Quitar Anuncios" usando Google Play Billing Library 8.x.
+ * Gestiona la compra in-app "Quitar Anuncios" usando Google Play Billing Library 9.x.
  *
  * <p>Encapsula la conexión con BillingClient, la consulta de productos,
  * el flujo de compra, el reconocimiento (acknowledge) y la restauración
@@ -41,6 +43,9 @@ public class BillingManager implements PurchasesUpdatedListener {
     private static final String PREFS_NAME = "billing_prefs";
     private static final String KEY_ADS_REMOVED = "ads_removed";
 
+    /** Ventana anti-doble-toque para evitar lanzar dos ProxyBillingActivity seguidas. */
+    private static final long LAUNCH_DEBOUNCE_MS = 2000L;
+
     /** Callback que notifica cambios de estado y precio. */
     public interface BillingListener {
         void onAdsRemovedChanged(boolean adsRemoved);
@@ -55,12 +60,13 @@ public class BillingManager implements PurchasesUpdatedListener {
     @Nullable
     private ProductDetails removeAdsDetails;
     private boolean isServiceConnected = false;
+    private long lastLaunchTimestamp = 0L;
 
     public BillingManager(@NonNull Context context, @Nullable BillingListener listener) {
         this.context = context.getApplicationContext();
         this.listener = listener;
 
-        // Billing 8.x requiere PendingPurchasesParams explícito con enableOneTimeProducts()
+        // Billing 8.x/9.x requiere PendingPurchasesParams explícito con enableOneTimeProducts()
         billingClient = BillingClient.newBuilder(this.context)
                 .setListener(this)
                 .enablePendingPurchases(
@@ -78,6 +84,7 @@ public class BillingManager implements PurchasesUpdatedListener {
     /** Inicia la conexión con Google Play Billing. */
     public void startConnection() {
         if (billingClient.isReady()) {
+            isServiceConnected = true;
             queryActivePurchases();
             queryProducts();
             return;
@@ -147,13 +154,43 @@ public class BillingManager implements PurchasesUpdatedListener {
     /**
      * Lanza el flujo de compra de Google Play para el producto "Quitar Anuncios".
      *
+     * <p>Incluye salvaguardas contra el crash interno de Google Play Billing
+     * {@code ProxyBillingActivity.onCreate -> PendingIntent.getIntentSender() on null},
+     * que ocurre cuando Google Play Services no entrega un PendingIntent válido en
+     * dispositivos de prueba automatizada (Firebase Test Lab / Pre-Launch Report),
+     * cuando el cliente no está listo o ante toques duplicados.</p>
+     *
      * @param activity Activity desde donde se lanza (necesaria para la UI de Play).
      * @return {@code true} si el flujo se lanzó correctamente,
      *         {@code false} si el producto no está disponible o el servicio no está listo.
      */
     public boolean launchPurchaseFlow(@NonNull Activity activity) {
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
+            Log.w(TAG, "Activity not valid. Cannot launch purchase flow.");
+            return false;
+        }
+
+        if (isRunningInTestLab(activity)) {
+            Log.w(TAG, "Purchase flow disabled on automated test devices.");
+            return false;
+        }
+
         if (removeAdsDetails == null) {
             Log.w(TAG, "Product details not available. Cannot launch purchase flow.");
+            queryProducts();
+            return false;
+        }
+
+        if (!billingClient.isReady()) {
+            Log.w(TAG, "Billing client not ready. Reconnecting...");
+            isServiceConnected = false;
+            startConnection();
+            return false;
+        }
+
+        long now = System.currentTimeMillis();
+        if (now - lastLaunchTimestamp < LAUNCH_DEBOUNCE_MS) {
+            Log.w(TAG, "Purchase flow already launched recently. Ignoring duplicate request.");
             return false;
         }
 
@@ -166,8 +203,36 @@ public class BillingManager implements PurchasesUpdatedListener {
                 .setProductDetailsParamsList(Collections.singletonList(productDetailsParams))
                 .build();
 
-        BillingResult result = billingClient.launchBillingFlow(activity, billingFlowParams);
-        return result.getResponseCode() == BillingClient.BillingResponseCode.OK;
+        BillingResult result;
+        try {
+            result = billingClient.launchBillingFlow(activity, billingFlowParams);
+        } catch (RuntimeException e) {
+            Log.e(TAG, "launchBillingFlow threw an exception", e);
+            return false;
+        }
+
+        boolean success = result != null
+                && result.getResponseCode() == BillingClient.BillingResponseCode.OK;
+        if (success) {
+            lastLaunchTimestamp = now;
+        }
+        return success;
+    }
+
+    /**
+     * Detecta si la app se ejecuta en Firebase Test Lab (usado también por el
+     * informe previo al lanzamiento de Google Play Console).
+     */
+    static boolean isRunningInTestLab(@NonNull Context context) {
+        try {
+            ContentResolver resolver = context.getContentResolver();
+            if (resolver == null) {
+                return false;
+            }
+            return "true".equals(Settings.System.getString(resolver, "firebase.test.lab"));
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -178,6 +243,7 @@ public class BillingManager implements PurchasesUpdatedListener {
     public void onPurchasesUpdated(@NonNull BillingResult billingResult,
                                    @Nullable List<Purchase> purchases) {
         int responseCode = billingResult.getResponseCode();
+        lastLaunchTimestamp = 0L;
 
         if (responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
             handlePurchases(purchases);

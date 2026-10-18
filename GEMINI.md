@@ -19,7 +19,7 @@ bash setup-sdk.sh
 - **CMake:** `4.1.2`
 - **NDK:** `30.0.14904198` (`rc1`)
 - **Gradle:** `9.6.0` (Gradle Wrapper configurado con `GRADLE_USER_HOME=/tmp/.gradle`)
-- **Android Gradle Plugin (AGP):** `9.2.1`
+- **Android Gradle Plugin (AGP):** `9.4.1`
 
 ---
 
