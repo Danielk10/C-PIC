@@ -10,6 +10,7 @@
 ![NDK](https://img.shields.io/badge/NDK-30.0.14904198-informational.svg)
 ![SDCC](https://img.shields.io/badge/SDCC-4.5.0-red.svg)
 ![GPUTILS](https://img.shields.io/badge/GPUTILS-1.5.2-purple.svg)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=flat-square&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/danielpdiai)
 
 ## Captura de Pantalla
 
@@ -206,3 +207,11 @@ Este proyecto está distribuido bajo la **Licencia Pública General de GNU v3.0 
 - **Desarrollador**: Daniel Diamon ([@Danielk10](https://github.com/Danielk10))
 - **Repositorio Oficial**: [https://github.com/Danielk10/C-PIC](https://github.com/Danielk10/C-PIC)
 - **Lanzamientos Oficiales**: [GitHub Releases](https://github.com/Danielk10/C-PIC/releases)
+
+---
+
+## ☕ Apoyo y Donaciones
+
+Si este proyecto te ha sido de utilidad y deseas apoyar el desarrollo continuo:
+
+[![Buy Me A Coffee](https://img.buymeacoffee.com/button-api/?text=Cómprame%20un%20café&emoji=☕&slug=danielpdiai&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff)](https://buymeacoffee.com/danielpdiai)
