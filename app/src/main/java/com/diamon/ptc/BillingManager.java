@@ -175,6 +175,11 @@ public class BillingManager implements PurchasesUpdatedListener {
             return false;
         }
 
+        if (!isActivityOptionsSupported()) {
+            Log.w(TAG, "Device framework lacks required ActivityOptions background mode method. Skipping purchase flow.");
+            return false;
+        }
+
         if (removeAdsDetails == null) {
             Log.w(TAG, "Product details not available. Cannot launch purchase flow.");
             queryProducts();
@@ -206,7 +211,7 @@ public class BillingManager implements PurchasesUpdatedListener {
         BillingResult result;
         try {
             result = billingClient.launchBillingFlow(activity, billingFlowParams);
-        } catch (RuntimeException e) {
+        } catch (Throwable e) {
             Log.e(TAG, "launchBillingFlow threw an exception", e);
             return false;
         }
@@ -233,6 +238,25 @@ public class BillingManager implements PurchasesUpdatedListener {
         } catch (RuntimeException e) {
             return false;
         }
+    }
+
+    /**
+     * Verifica si el framework del dispositivo soporta el método de inicio en segundo plano
+     * requerido por ProxyBillingActivity de Google Play Billing en Android 14+ (API 34+).
+     */
+    static boolean isActivityOptionsSupported() {
+        if (android.os.Build.VERSION.SDK_INT >= 34) {
+            try {
+                android.app.ActivityOptions.class.getMethod(
+                        "setPendingIntentBackgroundActivityStartMode", int.class);
+                return true;
+            } catch (NoSuchMethodException | LinkageError e) {
+                return false;
+            } catch (Throwable t) {
+                return false;
+            }
+        }
+        return true;
     }
 
     // ──────────────────────────────────────────────────────────────

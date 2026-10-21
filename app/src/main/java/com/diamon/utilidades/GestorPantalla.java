@@ -65,84 +65,132 @@ public class GestorPantalla {
     }
 
     /**
-     * Obtiene los insets de las barras del sistema de forma segura con protección retrocompatible.
-     * En algunos dispositivos con Android 14+, llamar directamente a
-     * WindowInsetsCompat.Type.systemBars() puede lanzar NoSuchMethodError (systemOverlays).
-     *
-     * @param windowInsets Los insets de ventana
-     * @return Los insets calculados o Insets.NONE si ocurre un error
-     */
-    private Insets obtenerInsetsSeguros(WindowInsetsCompat windowInsets) {
-        if (windowInsets == null) {
-            return Insets.NONE;
-        }
-        try {
-            return windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
-        } catch (Throwable t) {
-            try {
-                return Insets.of(
-                        windowInsets.getSystemWindowInsetLeft(),
-                        windowInsets.getSystemWindowInsetTop(),
-                        windowInsets.getSystemWindowInsetRight(),
-                        windowInsets.getSystemWindowInsetBottom());
-            } catch (Throwable ignored) {
-                return Insets.NONE;
-            }
-        }
-    }
-
-    /**
      * Aplica window insets a una vista específica.
-     * Esto asegura que el contenido no quede oculto por las barras del sistema.
+     * Utiliza directamente la API nativa de Android con salvaguarda total de excepciones
+     * para evitar invocar WindowInsetsCompat / TypeImpl34.systemOverlays(), lo que elimina
+     * el NoSuchMethodError en compilaciones de Android 14+ y garantiza compatibilidad
+     * retroactiva desde API 24 (minSdk) hasta API 37+ (Android 17).
      * 
      * @param view La vista raíz a la que aplicar los insets
      */
+    @SuppressWarnings("deprecation")
     public void aplicarWindowInsets(View view) {
-        ViewCompat.setOnApplyWindowInsetsListener(view, (v, windowInsets) -> {
-            Insets insets = obtenerInsetsSeguros(windowInsets);
+        if (view == null) {
+            return;
+        }
+        view.setOnApplyWindowInsetsListener((v, insets) -> {
+            int left = 0, top = 0, right = 0, bottom = 0;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                try {
+                    android.graphics.Insets bars = insets.getInsets(android.view.WindowInsets.Type.systemBars());
+                    left = bars.left;
+                    top = bars.top;
+                    right = bars.right;
+                    bottom = bars.bottom;
+                } catch (Throwable t) {
+                    try {
+                        left = insets.getSystemWindowInsetLeft();
+                        top = insets.getSystemWindowInsetTop();
+                        right = insets.getSystemWindowInsetRight();
+                        bottom = insets.getSystemWindowInsetBottom();
+                    } catch (Throwable ignored) {
+                    }
+                }
+            } else {
+                try {
+                    left = insets.getSystemWindowInsetLeft();
+                    top = insets.getSystemWindowInsetTop();
+                    right = insets.getSystemWindowInsetRight();
+                    bottom = insets.getSystemWindowInsetBottom();
+                } catch (Throwable ignored) {
+                }
+            }
 
-            // Aplicar padding para que el contenido no quede debajo de las barras del sistema
-            v.setPadding(insets.left, insets.top, insets.right, insets.bottom);
-
-            return windowInsets;
+            v.setPadding(left, top, right, bottom);
+            return insets;
         });
     }
 
     /**
      * Aplica insets solo a la parte inferior de una vista.
-     * Útil cuando el toolbar ya maneja el inset superior.
+     * Utiliza la API nativa sin depender de ViewCompat para máxima estabilidad entre API 24 y 37.
      * 
      * @param view La vista a la que aplicar los insets inferiores
      */
+    @SuppressWarnings("deprecation")
     public void aplicarWindowInsetsInferior(View view) {
-        ViewCompat.setOnApplyWindowInsetsListener(view, (v, windowInsets) -> {
-            Insets insets = obtenerInsetsSeguros(windowInsets);
+        if (view == null) {
+            return;
+        }
+        view.setOnApplyWindowInsetsListener((v, insets) -> {
+            int bottom = 0;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                try {
+                    android.graphics.Insets bars = insets.getInsets(android.view.WindowInsets.Type.systemBars());
+                    bottom = bars.bottom;
+                } catch (Throwable t) {
+                    try {
+                        bottom = insets.getSystemWindowInsetBottom();
+                    } catch (Throwable ignored) {
+                    }
+                }
+            } else {
+                try {
+                    bottom = insets.getSystemWindowInsetBottom();
+                } catch (Throwable ignored) {
+                }
+            }
 
-            // Solo aplicar padding inferior para la barra de navegación,
-            // manteniendo el padding superior en 0 para que la barra de título cubra toda el área de estado.
             v.setPadding(
                     v.getPaddingLeft(),
                     0,
                     v.getPaddingRight(),
-                    insets.bottom);
+                    bottom);
 
-            return windowInsets;
+            return insets;
         });
     }
 
+    @SuppressWarnings("deprecation")
     public void ocultarBotonesVirtuales() {
         Window window = actividad.getWindow();
+        if (window == null) {
+            return;
+        }
 
-        // Usar WindowInsetsControllerCompat (estándar de AndroidX)
-        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, window.getDecorView());
+        // En Android 11+ (API 30+), usar directamente el WindowInsetsController del sistema
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                WindowInsetsController controller = window.getInsetsController();
+                if (controller != null) {
+                    controller.hide(android.view.WindowInsets.Type.systemBars());
+                    controller.setSystemBarsBehavior(
+                            WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                    return;
+                }
+            } catch (Throwable ignored) {
+            }
+        }
 
-        if (controller != null) {
-            // Ocultar barras del sistema (navegación y estado)
-            controller.hide(WindowInsetsCompat.Type.systemBars());
+        // Fallback AndroidX WindowCompat
+        try {
+            WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, window.getDecorView());
+            if (controller != null) {
+                controller.hide(WindowInsetsCompat.Type.systemBars());
+                controller.setSystemBarsBehavior(
+                        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                return;
+            }
+        } catch (Throwable ignored) {
+        }
 
-            // Configurar comportamiento inmersivo
-            controller.setSystemBarsBehavior(
-                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+        // Fallback clásico
+        try {
+            window.getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+        } catch (Throwable ignored) {
         }
     }
 
