@@ -14,8 +14,12 @@ bash setup-sdk.sh
 
 ### Componentes y Rutas:
 - **Directorio del SDK:** `/tmp/android-sdk`
+- **Versión de la App:** `1.4.13` (versionCode `33`)
+- **Min SDK:** `24` (Android 7.0 Nougat)
+- **Target SDK:** `37` (Android 17)
+- **Compile SDK:** `37`
 - **Build Tools:** `37.0.0`
-- **Platforms:** `android-23`, `android-37.0`
+- **Platforms:** `android-24`, `android-37.0`
 - **CMake:** `4.1.2`
 - **NDK:** `30.0.14904198` (`rc1`)
 - **Gradle:** `9.6.0` (Gradle Wrapper configurado con `GRADLE_USER_HOME=/tmp/.gradle`)

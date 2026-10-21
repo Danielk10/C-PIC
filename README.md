@@ -2,11 +2,12 @@
 
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Android-green.svg)
-![API Level](https://img.shields.io/badge/API-23%20to%2037-brightgreen.svg)
+![Version](https://img.shields.io/badge/version-1.4.13-blue.svg)
+![API Level](https://img.shields.io/badge/API-24%20to%2037-brightgreen.svg)
 ![Android](https://img.shields.io/badge/Android-17%20(API%2037)-blue.svg)
 ![Architecture](https://img.shields.io/badge/arch-ARM64-orange.svg)
 ![Gradle](https://img.shields.io/badge/Gradle-9.6.0-02303A.svg)
-![AGP](https://img.shields.io/badge/AGP-9.2.1-34A853.svg)
+![AGP](https://img.shields.io/badge/AGP-9.4.1-34A853.svg)
 ![NDK](https://img.shields.io/badge/NDK-30.0.14904198-informational.svg)
 ![SDCC](https://img.shields.io/badge/SDCC-4.5.0-red.svg)
 ![GPUTILS](https://img.shields.io/badge/GPUTILS-1.5.2-purple.svg)
@@ -80,12 +81,13 @@ Impulsada por **SDCC 4.5.0** (Small Device C Compiler), **GPUTILS 1.5.2** (GNU P
 
 | Componente | Versión / Valor |
 |---|---|
+| **Versión Actual** | `1.4.13` (Código de versión `33`) |
 | **Android Compile SDK** | `android-37` (Android 17) |
 | **Android Target SDK** | `37` (Android 17) |
-| **Android Min SDK** | `23` (Android 6.0 Marshmallow) |
+| **Android Min SDK** | `24` (Android 7.0 Nougat) |
 | **Android Build Tools** | `37.0.0` |
 | **Gradle** | `9.6.0` |
-| **Android Gradle Plugin (AGP)** | `9.2.1` |
+| **Android Gradle Plugin (AGP)** | `9.4.1` |
 | **Android NDK** | `30.0.14904198` (`rc1`) |
 | **CMake** | `4.1.2` |
 | **SDCC (Small Device C Compiler)** | `4.5.0` (24 puertos activos) |
@@ -172,9 +174,13 @@ C-PIC/
 ├── libs/                                          # Librerías dinámicas compartidas de soporte
 ├── setup-sdk.sh                                   # Script instalador del SDK 37 y NDK 30
 ├── upload_play_store.py                           # Script de subida automática a Google Play
+├── RELEASE_NOTES_v1.4.13.md                       # Notas del lanzamiento v1.4.13 (Actual)
+├── RELEASE_NOTES_v1.4.12.md                       # Notas del lanzamiento v1.4.12
+├── RELEASE_NOTES_v1.4.11.md                       # Notas del lanzamiento v1.4.11
 ├── RELEASE_NOTES_v1.4.1.md                        # Notas del lanzamiento v1.4.1
 ├── RELEASE_NOTES_v1.4.0.md                        # Notas del lanzamiento v1.4.0
 ├── RELEASE_NOTES_v1.3.0.md                        # Notas del lanzamiento v1.3.0
+├── RELEASE_NOTES_v1.2.5.md                        # Notas del lanzamiento v1.2.5
 ├── NOMBRES_BINARIOS_VS_ANTIGUOS.md                # Correspondencia de binarios lib*.so vs originales
 ├── REPORTE_LIMPIEZA_ASSETS.md                     # Auditoría de limpieza y ahorro en assets
 ├── REPORTE_ANALISIS_DEPENDENCIAS.md               # Análisis de dependencias DT_NEEDED y 16KB
@@ -186,14 +192,17 @@ C-PIC/
 
 ## 📚 Documentación Técnica Adicional
 
-1. **[RELEASE_NOTES_v1.4.1.md](RELEASE_NOTES_v1.4.1.md)**: Notas completas del lanzamiento actual v1.4.1.
-2. **[RELEASE_NOTES_v1.4.0.md](RELEASE_NOTES_v1.4.0.md)**: Notas del lanzamiento previo v1.4.0.
-3. **[RELEASE_NOTES_v1.3.0.md](RELEASE_NOTES_v1.3.0.md)**: Notas del lanzamiento v1.3.0.
-3. **[GEMINI.md](GEMINI.md)**: Arquitectura del proyecto, variables de entorno y firma.
-4. **[GUIA_PUBLICACION_PLAY_STORE.md](GUIA_PUBLICACION_PLAY_STORE.md)**: Procedimiento para el despliegue a Google Play Console.
-5. **[NOMBRES_BINARIOS_VS_ANTIGUOS.md](NOMBRES_BINARIOS_VS_ANTIGUOS.md)**: Mapeo de los 60 ejecutables y 12 librerías nativas adaptadas a Google Play.
-6. **[REPORTE_LIMPIEZA_ASSETS.md](REPORTE_LIMPIEZA_ASSETS.md)**: Detalle del ahorro de espacio de más de 150 MB al depurar fuentes y binarios redundantes.
-7. **[REPORTE_ANALISIS_DEPENDENCIAS.md](REPORTE_ANALISIS_DEPENDENCIAS.md)**: Análisis de dependencias `DT_NEEDED` y alineación estricta de páginas a 16 KB.
+1. **[RELEASE_NOTES_v1.4.13.md](RELEASE_NOTES_v1.4.13.md)**: Notas completas del lanzamiento actual v1.4.13 (Build 33).
+2. **[RELEASE_NOTES_v1.4.12.md](RELEASE_NOTES_v1.4.12.md)**: Notas del lanzamiento v1.4.12.
+3. **[RELEASE_NOTES_v1.4.11.md](RELEASE_NOTES_v1.4.11.md)**: Notas del lanzamiento v1.4.11.
+4. **[RELEASE_NOTES_v1.4.1.md](RELEASE_NOTES_v1.4.1.md)**: Notas del lanzamiento v1.4.1.
+5. **[RELEASE_NOTES_v1.4.0.md](RELEASE_NOTES_v1.4.0.md)**: Notas del lanzamiento v1.4.0.
+6. **[RELEASE_NOTES_v1.3.0.md](RELEASE_NOTES_v1.3.0.md)**: Notas del lanzamiento v1.3.0.
+7. **[GEMINI.md](GEMINI.md)**: Arquitectura del proyecto, variables de entorno y firma.
+8. **[GUIA_PUBLICACION_PLAY_STORE.md](GUIA_PUBLICACION_PLAY_STORE.md)**: Procedimiento para el despliegue a Google Play Console.
+9. **[NOMBRES_BINARIOS_VS_ANTIGUOS.md](NOMBRES_BINARIOS_VS_ANTIGUOS.md)**: Mapeo de los 60 ejecutables y 12 librerías nativas adaptadas a Google Play.
+10. **[REPORTE_LIMPIEZA_ASSETS.md](REPORTE_LIMPIEZA_ASSETS.md)**: Detalle del ahorro de espacio de más de 150 MB al depurar fuentes y binarios redundantes.
+11. **[REPORTE_ANALISIS_DEPENDENCIAS.md](REPORTE_ANALISIS_DEPENDENCIAS.md)**: Análisis de dependencias `DT_NEEDED` y alineación estricta de páginas a 16 KB.
 
 ---
 

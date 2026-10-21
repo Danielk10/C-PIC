@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Asegurar que Gradle y temporales usen /tmp
+export GRADLE_USER_HOME="/tmp/.gradle"
+
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SDK_ROOT="${ANDROID_SDK_ROOT:-/tmp/android-sdk}"
 CMDLINE_TOOLS_VERSION="13114758"
@@ -28,7 +31,7 @@ set -o pipefail
 
 sdkmanager --sdk_root="${ANDROID_SDK_ROOT}" \
   "platform-tools" \
-  "platforms;android-23" \
+  "platforms;android-24" \
   "platforms;android-37.0" \
   "build-tools;37.0.0" \
   "cmake;4.1.2" \
