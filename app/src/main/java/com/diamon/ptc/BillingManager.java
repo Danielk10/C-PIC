@@ -26,7 +26,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Gestiona la compra in-app "Quitar Anuncios" usando Google Play Billing Library 9.x.
+ * Gestiona la compra in-app "Quitar Anuncios" usando Google Play Billing Library 8.3.0.
  *
  * <p>Encapsula la conexión con BillingClient, la consulta de productos,
  * el flujo de compra, el reconocimiento (acknowledge) y la restauración
@@ -175,11 +175,6 @@ public class BillingManager implements PurchasesUpdatedListener {
             return false;
         }
 
-        if (!isActivityOptionsSupported()) {
-            Log.w(TAG, "Device framework lacks required ActivityOptions background mode method. Skipping purchase flow.");
-            return false;
-        }
-
         if (removeAdsDetails == null) {
             Log.w(TAG, "Product details not available. Cannot launch purchase flow.");
             queryProducts();
@@ -238,25 +233,6 @@ public class BillingManager implements PurchasesUpdatedListener {
         } catch (RuntimeException e) {
             return false;
         }
-    }
-
-    /**
-     * Verifica si el framework del dispositivo soporta el método de inicio en segundo plano
-     * requerido por ProxyBillingActivity de Google Play Billing en Android 14+ (API 34+).
-     */
-    static boolean isActivityOptionsSupported() {
-        if (android.os.Build.VERSION.SDK_INT >= 34) {
-            try {
-                android.app.ActivityOptions.class.getMethod(
-                        "setPendingIntentBackgroundActivityStartMode", int.class);
-                return true;
-            } catch (NoSuchMethodException | LinkageError e) {
-                return false;
-            } catch (Throwable t) {
-                return false;
-            }
-        }
-        return true;
     }
 
     // ──────────────────────────────────────────────────────────────

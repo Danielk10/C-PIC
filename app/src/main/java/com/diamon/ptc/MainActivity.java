@@ -71,6 +71,8 @@ import java.util.Locale;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -135,7 +137,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private ActivityMainBinding binding;
-    private final ExecutorService executor = Executors.newFixedThreadPool(4);
+    private final AtomicInteger workerCounter = new AtomicInteger(1);
+    // Hilos daemon: si el proceso termina, ART no espera a tareas de compilación
+    // colgadas antes de destruir la VM (ANR ad004d1e...).
+    private final ExecutorService executor = Executors.newFixedThreadPool(4, runnable -> {
+        Thread thread = new Thread(runnable, "c-pic-worker-" + workerCounter.getAndIncrement());
+        thread.setDaemon(true);
+        return thread;
+    });
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private GpUtilsExecutor gpUtils;
     private SdccExecutor sdcc;
@@ -211,6 +220,9 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onAdsRemovedChanged(boolean adsRemoved) {
                 runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
                     if (adsRemoved) {
                         // Ocultar banner y detener intersticiales
                         binding.adViewBanner.setVisibility(View.GONE);
@@ -225,6 +237,9 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onPriceLoaded(String formattedPrice) {
                 runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
                     adsPrice = formattedPrice;
                     invalidateOptionsMenu();
                 });
@@ -233,6 +248,9 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onPurchasesRestored() {
                 runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
                     binding.adViewBanner.setVisibility(View.GONE);
                     mInterstitialAd = null;
                     Toast.makeText(MainActivity.this, getString(R.string.iap_purchase_restored), Toast.LENGTH_SHORT).show();
@@ -244,10 +262,10 @@ public class MainActivity extends AppCompatActivity {
 
         // Initialize AdMob only if ads should be shown
         if (BillingManager.shouldShowAds(this)) {
-            MobileAds.initialize(this, initializationStatus -> {
+            MobileAds.initialize(this, initializationStatus -> postToUi(() -> {
                 AdRequest adRequest = new AdRequest.Builder().build();
                 binding.adViewBanner.loadAd(adRequest);
-            });
+            }));
             loadInterstitialAd();
         } else {
             binding.adViewBanner.setVisibility(View.GONE);
@@ -259,6 +277,77 @@ public class MainActivity extends AppCompatActivity {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus && gestorPantalla != null) {
             gestorPantalla.ocultarBotonesVirtuales();
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        // Al pasar a segundo plano no debe quedar una vista enfocada que pueda
+        // quedar desacoplada antes del siguiente focus gain (NPE de ViewRootImpl).
+        if (binding != null) {
+            clearFocusAndAccessibility(binding.getRoot());
+        }
+        super.onStop();
+    }
+
+    /**
+     * Envía trabajo al pool sin propagar {@link RejectedExecutionException} si la
+     * actividad ya se está cerrando. Crashlytics 704211d8...: initResources()
+     * seguía en un hilo del pool y llamaba a loadDeviceList() después de
+     * onDestroy(), cuando el executor ya estaba en shutdown.
+     */
+    private void executeAsync(@NonNull Runnable task) {
+        if (isFinishing() || isDestroyed()) {
+            return;
+        }
+        try {
+            executor.execute(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                task.run();
+            });
+        } catch (RejectedExecutionException e) {
+            Log.w(TAG, "Tarea descartada: el executor ya está cerrado", e);
+        }
+    }
+
+    /** Publica en el hilo principal solo si la actividad sigue viva. */
+    private void postToUi(@NonNull Runnable action) {
+        if (isFinishing() || isDestroyed()) {
+            return;
+        }
+        mainHandler.post(() -> {
+            if (!isFinishing() && !isDestroyed()) {
+                action.run();
+            }
+        });
+    }
+
+    /**
+     * Quita el foco de entrada y de accesibilidad antes de desacoplar una vista.
+     * Evita el NPE de ViewRootImpl.fireAccessibilityFocusEventIfHasFocusedNode
+     * (Crashlytics 3514c195...) cuando se reconstruyen las pestañas.
+     */
+    private void clearFocusAndAccessibility(@NonNull View view) {
+        View focused = view.findFocus();
+        if (focused != null) {
+            focused.clearFocus();
+        }
+        clearAccessibilityFocusRecursive(view);
+    }
+
+    private void clearAccessibilityFocusRecursive(@NonNull View view) {
+        if (view.isAttachedToWindow() && view.isAccessibilityFocused()) {
+            view.performAccessibilityAction(
+                    android.view.accessibility.AccessibilityNodeInfo.ACTION_CLEAR_ACCESSIBILITY_FOCUS,
+                    null);
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                clearAccessibilityFocusRecursive(group.getChildAt(i));
+            }
         }
     }
 
@@ -542,6 +631,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void refreshTabs() {
         ModuleState state = getCurrentState();
+        clearFocusAndAccessibility(binding.layoutTabs);
         binding.layoutTabs.removeAllViews();
         for (String fileName : state.files.keySet()) {
             android.widget.LinearLayout tabContainer = new android.widget.LinearLayout(this);
@@ -1055,13 +1145,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initResources() {
-        executor.execute(() -> {
+        executeAsync(() -> {
             boolean extracted = AssetExtractor.areAssetsExtracted(this);
             if (!extracted) {
-                mainHandler.post(() -> binding.loadingOverlay.setVisibility(View.VISIBLE));
+                postToUi(() -> binding.loadingOverlay.setVisibility(View.VISIBLE));
                 log(getString(R.string.log_preparing_resources));
                 boolean success = AssetExtractor.extractAssets(this, "data/data/com.diamon.ptc/files/usr", new File(getFilesDir(), "usr"));
-                mainHandler.post(() -> binding.loadingOverlay.setVisibility(View.GONE));
+                postToUi(() -> binding.loadingOverlay.setVisibility(View.GONE));
                 log(getString(success ? R.string.log_resources_extracted : R.string.log_resources_extract_error));
             }
             if (sdcc != null) {
@@ -1197,7 +1287,7 @@ public class MainActivity extends AppCompatActivity {
     private void loadDeviceList() {
         if (currentPort == null || !currentPort.hasDeviceSelector()) return;
 
-        executor.execute(() -> {
+        executeAsync(() -> {
             File headerDir;
             String extension;
             String prefix;
@@ -1262,7 +1352,7 @@ public class MainActivity extends AppCompatActivity {
 
             List<String> finalDevices = devices;
             String fallbackDevice = effectiveDefaultDevice;
-            mainHandler.post(() -> {
+            postToUi(() -> {
                 ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, finalDevices);
                 adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
                 binding.spinnerPic.setAdapter(adapter);
@@ -1422,7 +1512,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void assembleAsmProject(File projectDir, String selectedPic, LinkedHashMap<String, String> snapshotFiles,
                                     String activeFileName, String projectName) {
-        executor.execute(() -> {
+        executeAsync(() -> {
             isCompiling = true;
             try {
                 List<String> asmFiles = collectSourceFiles(snapshotFiles, ".asm");
@@ -1501,7 +1591,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void compileCProject(File projectDir, String selectedDevice, LinkedHashMap<String, String> snapshotFiles,
                                  String activeFileName, String projectName) {
-        executor.execute(() -> {
+        executeAsync(() -> {
             isCompiling = true;
             try {
                 List<String> cFiles = collectSourceFiles(snapshotFiles, ".c");
@@ -1928,7 +2018,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         File finalHex = hexFile;
-        executor.execute(() -> {
+        executeAsync(() -> {
             log(getString(R.string.log_packihx_started, finalHex.getName()));
             int result = sdcc.executePackihx(projectDir, finalHex, finalHex, this::logRaw);
             if (result == 0) {
@@ -1956,7 +2046,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         File finalHex = hexFile;
-        executor.execute(() -> {
+        executeAsync(() -> {
             log(getString(R.string.log_makebin_started, finalHex.getName()));
             boolean isGameBoy = currentPort != null && "sm83".equalsIgnoreCase(currentPort.sdccArch);
             File binTarget = new File(projectDir, projectName + ".bin");
@@ -1991,7 +2081,7 @@ public class MainActivity extends AppCompatActivity {
         String familyName = (currentPort != null) ? currentPort.familyName : "MCS-51";
 
         File finalHex = hexFile;
-        executor.execute(() -> {
+        executeAsync(() -> {
             log(getString(R.string.log_simulator_started, simName, familyName));
             int result = sdcc.executeSimulator(projectDir, simName, finalHex, "step 20; state; quit", this::logRaw);
             if (result == 0) {
@@ -2246,7 +2336,7 @@ public class MainActivity extends AppCompatActivity {
         File projectDir = getProjectDir(projectName);
         persistCurrentModuleSources(projectDir);
 
-        executor.execute(() -> {
+        executeAsync(() -> {
             List<File> filesToExport = collectProjectFilesForExport(projectDir, projectName);
             if (filesToExport.isEmpty()) {
                 log(getString(R.string.log_no_files_to_export));
@@ -2344,7 +2434,7 @@ public class MainActivity extends AppCompatActivity {
             Log.e(TAG, "Permiso SAF perdido", sec);
             clearSavedExportUri();
             log(getString(R.string.log_saf_permission_lost));
-            mainHandler.post(() -> launchFolderPicker(false));
+            postToUi(() -> launchFolderPicker(false));
             return false;
         } catch (Exception e) {
             Log.e(TAG, "Error guardando archivo", e);
@@ -2490,6 +2580,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void appendRawLogOnUi(String text) {
+        if (isFinishing() || isDestroyed()) {
+            return;
+        }
         synchronized (consoleLines) {
             if (consoleLines.isEmpty()) {
                 consoleLines.add(new StringBuilder());
@@ -2535,6 +2628,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void clearTerminal() {
+        if (isFinishing() || isDestroyed()) {
+            return;
+        }
         deleteTerminalCache();
         synchronized (consoleLines) {
             consoleLines.clear();
@@ -2731,16 +2827,31 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
-        super.onDestroy();
-        if (isFinishing()) {
-            deleteTerminalCache();
+        // No dejar una vista enfocada al desacoplar la jerarquía: ViewRootImpl
+        // puede lanzar NPE en fireAccessibilityFocusEventIfHasFocusedNode.
+        if (binding != null) {
+            clearFocusAndAccessibility(binding.getRoot());
         }
-        executor.shutdown();
+
+        mainHandler.removeCallbacksAndMessages(null);
+        logHandler.removeCallbacksAndMessages(null);
+
+        if (isFinishing()) {
+            executor.shutdownNow();
+            deleteTerminalCache();
+        } else {
+            // Rotación/recreación: dejar terminar el trabajo en curso. Los hilos
+            // son daemon y ya no publican en la actividad destruida.
+            executor.shutdown();
+        }
+
         if (billingManager != null) {
             billingManager.destroy();
         }
         if (binding != null) {
             binding.adViewBanner.destroy();
         }
+
+        super.onDestroy();
     }
 }

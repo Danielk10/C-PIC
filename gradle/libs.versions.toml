@@ -12,7 +12,11 @@ playServicesAds = "25.5.0"
 firebaseCrashlytics = "21.0.0"
 googleServices = "4.5.0"
 crashlyticsPlugin = "3.0.8"
-billing = "9.1.0"
+# Billing 9.1.0 llama a ActivityOptions.setPendingIntentBackgroundActivityStartMode
+# desde ProxyBillingActivity en builds de Android 14 que no exponen el método
+# (NoSuchMethodError). 8.3.0 es la última 8.x soportada por Play hasta 2027.
+billing = "8.3.0"
+hsdp = "2.2.0"
 firebaseBom = "35.0.2"
 
 [libraries]
@@ -26,6 +30,7 @@ activity = { group = "androidx.activity", name = "activity", version.ref = "acti
 constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
 documentfile = { group = "androidx.documentfile", name = "documentfile", version.ref = "documentfile" }
 play-services-ads = { module = "com.google.android.gms:play-services-ads", version.ref = "playServicesAds" }
+hsdp = { module = "com.google.android.play:hsdp", version.ref = "hsdp" }
 firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-crashlytics-ndk = { module = "com.google.firebase:firebase-crashlytics-ndk" }
