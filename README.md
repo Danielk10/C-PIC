@@ -64,6 +64,7 @@ Impulsada por **SDCC 4.5.0** (Small Device C Compiler), **GPUTILS 1.5.2** (GNU P
 
 - Usará los **recursos existentes de la app**: editor, proyectos, plantillas, `PortRegistry`, `PortConfig`, headers SDCC/GPUTILS, `SdccExecutor`/`GpUtilsExecutor`, exportación SAF, tema e idiomas.
 - Podrá **leer, editar con diff, compilar y verificar** el proyecto del usuario; no recompila C-PIC ni el APK.
+- El usuario podrá elegir la **dificultad**: **Rápido, Equilibrado, Avanzado o Máximo**, usando modelo + `thinking` + `reasoning_effort` de DeepSeek; el consumo se descuenta de la cuota.
 - Tendrá **tres planes** (Básico, Medio y Full) mediante **Google Play Billing**, con cuota de tokens.
 - La clave de DeepSeek **no estará en la app**: vivirá en Secret Manager y se usará mediante un proxy server-side (Cloud Functions/Cloud Run).
 - **Requerirá consentimiento explícito y revocable** antes de enviar mensajes o archivos a la API de IA. Sin consentimiento, el editor y el compilador seguirán funcionando offline.
