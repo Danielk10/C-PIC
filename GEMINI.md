@@ -14,7 +14,7 @@ bash setup-sdk.sh
 
 ### Componentes y Rutas:
 - **Directorio del SDK:** `/tmp/android-sdk`
-- **Versión de la App:** `1.4.13` (versionCode `33`)
+- **Versión de la App:** `1.4.14` (versionCode `34`)
 - **Min SDK:** `24` (Android 7.0 Nougat)
 - **Target SDK:** `37` (Android 17)
 - **Compile SDK:** `37`

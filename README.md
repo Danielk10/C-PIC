@@ -2,7 +2,7 @@
 
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Android-green.svg)
-![Version](https://img.shields.io/badge/version-1.4.13-blue.svg)
+![Version](https://img.shields.io/badge/version-1.4.14-blue.svg)
 ![API Level](https://img.shields.io/badge/API-24%20to%2037-brightgreen.svg)
 ![Android](https://img.shields.io/badge/Android-17%20(API%2037)-blue.svg)
 ![Architecture](https://img.shields.io/badge/arch-ARM64-orange.svg)
@@ -81,7 +81,7 @@ Impulsada por **SDCC 4.5.0** (Small Device C Compiler), **GPUTILS 1.5.2** (GNU P
 
 | Componente | Versión / Valor |
 |---|---|
-| **Versión Actual** | `1.4.13` (Código de versión `33`) |
+| **Versión Actual** | `1.4.14` (Código de versión `34`) |
 | **Android Compile SDK** | `android-37` (Android 17) |
 | **Android Target SDK** | `37` (Android 17) |
 | **Android Min SDK** | `24` (Android 7.0 Nougat) |
@@ -174,7 +174,7 @@ C-PIC/
 ├── libs/                                          # Librerías dinámicas compartidas de soporte
 ├── setup-sdk.sh                                   # Script instalador del SDK 37 y NDK 30
 ├── upload_play_store.py                           # Script de subida automática a Google Play
-├── RELEASE_NOTES_v1.4.13.md                       # Notas del lanzamiento v1.4.13 (Vigente)
+├── RELEASE_NOTES_v1.4.14.md                       # Notas del lanzamiento v1.4.14 (Vigente)
 ├── NOMBRES_BINARIOS_VS_ANTIGUOS.md                # Correspondencia de binarios lib*.so vs originales
 ├── REPORTE_LIMPIEZA_ASSETS.md                     # Auditoría de limpieza y ahorro en assets
 ├── REPORTE_ANALISIS_DEPENDENCIAS.md               # Análisis de dependencias DT_NEEDED y 16KB
@@ -186,7 +186,7 @@ C-PIC/
 
 ## 📚 Documentación Técnica Adicional
 
-1. **[RELEASE_NOTES_v1.4.13.md](RELEASE_NOTES_v1.4.13.md)**: Notas completas del lanzamiento actual v1.4.13 (Build 33).
+1. **[RELEASE_NOTES_v1.4.14.md](RELEASE_NOTES_v1.4.14.md)**: Notas completas del lanzamiento actual v1.4.14 (Build 34).
 2. **[GEMINI.md](GEMINI.md)**: Arquitectura del proyecto, variables de entorno y firma.
 3. **[GUIA_PUBLICACION_PLAY_STORE.md](GUIA_PUBLICACION_PLAY_STORE.md)**: Procedimiento para el despliegue a Google Play Console.
 4. **[NOMBRES_BINARIOS_VS_ANTIGUOS.md](NOMBRES_BINARIOS_VS_ANTIGUOS.md)**: Mapeo de los 60 ejecutables y 12 librerías nativas adaptadas a Google Play.
