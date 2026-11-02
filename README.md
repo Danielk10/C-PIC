@@ -174,6 +174,7 @@ C-PIC/
 ├── libs/                                          # Librerías dinámicas compartidas de soporte
 ├── setup-sdk.sh                                   # Script instalador del SDK 37 y NDK 30
 ├── upload_play_store.py                           # Script de subida automática a Google Play
+├── GUIA_AGENTE_IA_DEEPSEEK.md                     # Guía de implementación futura del agente IA
 ├── RELEASE_NOTES_v1.4.14.md                       # Notas del lanzamiento v1.4.14 (Vigente)
 ├── NOMBRES_BINARIOS_VS_ANTIGUOS.md                # Correspondencia de binarios lib*.so vs originales
 ├── REPORTE_LIMPIEZA_ASSETS.md                     # Auditoría de limpieza y ahorro en assets
@@ -192,6 +193,7 @@ C-PIC/
 4. **[NOMBRES_BINARIOS_VS_ANTIGUOS.md](NOMBRES_BINARIOS_VS_ANTIGUOS.md)**: Mapeo de los 60 ejecutables y 12 librerías nativas adaptadas a Google Play.
 5. **[REPORTE_LIMPIEZA_ASSETS.md](REPORTE_LIMPIEZA_ASSETS.md)**: Detalle del ahorro de espacio de más de 150 MB al depurar fuentes y binarios redundantes.
 6. **[REPORTE_ANALISIS_DEPENDENCIAS.md](REPORTE_ANALISIS_DEPENDENCIAS.md)**: Análisis de dependencias `DT_NEEDED` y alineación estricta de páginas a 16 KB.
+7. **[GUIA_AGENTE_IA_DEEPSEEK.md](GUIA_AGENTE_IA_DEEPSEEK.md)**: Guía de implementación futura del agente de consola con IA, planes, cuotas, Firebase y DeepSeek.
 
 ---
 
