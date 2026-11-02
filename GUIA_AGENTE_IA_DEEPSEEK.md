@@ -1,11 +1,16 @@
-# Guía de implementación futura — Agente de consola con IA para C-PIC
+# Guía de implementación futura — C-PIC IA
 
-**Proyecto:** C-PIC Compiler (`com.diamon.ptc`)  
+**Producto:** **C-PIC IA**, la función de inteligencia artificial integrada en C-PIC Compiler (`com.diamon.ptc`)  
 **Repositorio:** `Danielk10/C-PIC`  
-**Documento:** análisis técnico, arquitectura, seguridad, monetización y hoja de ruta  
+**Documento:** análisis técnico, arquitectura, seguridad, consentimiento, monetización y hoja de ruta  
 **Fecha de análisis:** 2026-11-02  
-**Estado:** guía de implementación futura; **no hay código de agente implementado todavía**  
+**Estado:** guía de implementación futura; **no hay código de C-PIC IA implementado todavía**  
 **Referencia de consola nativa:** `Danielk10/Calculo_Estructural` (terminal con sandbox y ejecución de binarios)
+
+> **C-PIC IA no es una app aparte.** Es una función dentro de C-PIC: mismo APK, mismo
+> `applicationId`, mismo proyecto del usuario, mismo editor, mismo compilador SDCC/GPUTILS,
+> mismos recursos de la app y la misma facturación de Google Play. Se entra desde el menú
+> de C-PIC, no desde un icono nuevo en el lanzador.
 
 ---
 
@@ -16,13 +21,15 @@ La idea es **técnicamente viable y económicamente rentable a pequeña escala**
 Resumen de conclusiones:
 
 1. **La clave de DeepSeek nunca debe viajar al cliente.** Firebase no tiene un “almacén de secretos” legible por la app. La forma correcta es **Secret Manager + Cloud Functions/Cloud Run**: la app llama a tu backend, y el backend llama a DeepSeek. Remote Config, Firestore o `SharedPreferences` no sirven para secretos.
-2. **El agente debe modificar el proyecto del usuario (C/ASM para PIC), no el código fuente de C-PIC.** Compilar la propia app Android en el teléfono requeriría SDK, `aapt2`, firma y un modelo de distribución distinto; además choca con las políticas de Google Play. Lo viable y útil es un agente que edita, compila y verifica firmware PIC con los binarios que ya tienes.
+2. **C-PIC IA debe modificar el proyecto del usuario (C/ASM para microcontroladores con SDCC), no el código fuente de C-PIC.** Compilar la propia app Android en el teléfono requeriría SDK, `aapt2`, firma y un modelo de distribución distinto; además choca con las políticas de Google Play. Lo viable y útil es una función de IA que edita, compila y verifica firmware C/ASM con los binarios que ya tienes.
 3. **La consola actual de C-PIC es un visor de logs, no una terminal interactiva.** `MainActivity` pinta `textLogs` y ejecuta herramientas con `SdccExecutor`/`GpUtilsExecutor`. `Calculo_Estructural` ya tiene el patrón que falta: `TerminalCommandExecutor` (sandbox, `ls`, `cd`, `cat`, `rm`, `echo >`), `TerminalFragment` (entrada, historial, abortar) y `CalculixExecutor` (`ProcessBuilder`, streaming, `destroyForcibly`). Se debe portar ese patrón, no reinventarlo.
 4. **Los planes Básico/Medio/Full con cuota de tokens son viables.** DeepSeek Flash cuesta aproximadamente **$0.15–$0.30 por millón de tokens de entrada** y **$0.60–$1.20 por millón de salida** (según hora valle/pico, noviembre 2026). Con una cuota ponderada y un margen del 40–60 %, los precios de $3.99 / $8.99 / $19.99 funcionan. El costo real no es la API: es **desarrollo, soporte, refusals de Play, abuso y mantenimiento**.
 5. **Google Play Billing es obligatorio** para vender la suscripción digital dentro de la app. No se puede usar Stripe ni un enlace externo para la compra dentro de la app (salvo programas regulatorios específicos). El plan de “compras internas de Google” es el correcto.
 6. **El esfuerzo realista para un MVP pulido es 8–12 semanas a tiempo completo** (o 4–6 meses a medio tiempo). Un “Claude Code” genérico no es realista; un **copiloto de firmware PIC con herramientas, diffs, compilación y auto-corrección** sí lo es.
 7. **C++ no es necesario para el 90 % del agente.** La app ya es Java + binarios nativos. Lo recomendable es Java/Kotlin para red, UI, billing, Firebase y orquestación; C++ solo para piezas concretas (diff/patch rápido, parser, supervisor de procesos) si hacen falta. Meter HTTP/TLS/JSON/Firebase en C++ solo aumenta el riesgo y el tiempo.
 8. **El mayor riesgo no es técnico, es de confianza y política:** enviar código del usuario a DeepSeek, generar código defectuoso para hardware real, abuso de la API, y que Play rechace la app por contenido generado por IA o por la suscripción. Hay que diseñar privacidad, moderación y límites desde el día uno.
+9. **C-PIC IA es una función de la app, no un producto separado.** Debe usar los recursos existentes de C-PIC: `PortRegistry`/`PortConfig` (familias y dispositivos), plantillas `DEFAULT_C`/`DEFAULT_ASM`, headers de `usr/share/sdcc` y `usr/share/gputils`, `SdccExecutor`/`GpUtilsExecutor`, `FileManager`/SAF, tema, strings en inglés/español, Firebase y Play Billing. El compilador offline sigue funcionando aunque el usuario no acepte la IA.
+10. **El consentimiento es obligatorio y revocable.** Antes de la primera llamada, C-PIC IA debe explicar qué datos salen (mensaje, archivos seleccionados, errores de compilación, dispositivo/arquitectura), a quién van (DeepSeek y Google Cloud/Firebase), para qué, cuánto se retienen y cómo se borran. Sin consentimiento, el backend debe rechazar la petición; el usuario puede revocarlo y seguir usando el compilador.
 
 **Recomendación:** construir primero un **MVP cerrado** con 3 planes, proxy server-side, cuota ponderada, herramientas allowlisted, compilación SDCC/GPUTILS, diff con aprobación y beta cerrada. No abrir “modo autónomo total” hasta tener datos de uso, costos y incidentes.
 
@@ -126,6 +133,43 @@ Para el agente faltan:
 | Seguridad de clave | No aplica | Proxy server-side, Secret Manager, App Check |
 | Privacidad IA | No existe | Consentimiento, política, Data Safety, retención |
 
+### 1.8 C-PIC IA: definición exacta del producto
+
+**Nombre:** **C-PIC IA** (siempre con el guion de C-PIC y “IA” en mayúsculas). No usar nombres separados como “PIC Assistant”, “SDCC Copilot” o “C-PIC Agent” en la interfaz; el producto es C-PIC IA.
+
+**Qué es:**
+
+- Una **función de IA dentro de C-PIC**, accesible desde el menú/toolbar y desde el editor.
+- Un asistente especializado en **C y ASM para microcontroladores** compilados con **SDCC 4.5.0** y **GPUTILS 1.5.2**.
+- Un agente que **lee, edita, compila y verifica** el proyecto del usuario con las herramientas de la app.
+- Un consumidor de los **recursos existentes** de C-PIC: familias (`PortRegistry`), configuración de puerto (`PortConfig`), lista de dispositivos, plantillas (`DEFAULT_C`, `DEFAULT_ASM`), headers `.h`/`.inc`, ejemplos, tema, strings, `FileManager`, SAF y `SdccExecutor`/`GpUtilsExecutor`.
+- Una función **opcional y online**: si el usuario no acepta el consentimiento o no hay red, el editor y el compilador siguen funcionando offline.
+
+**Qué no es:**
+
+- Una app aparte, un servicio web, un APK separado ni un icono nuevo en el lanzador.
+- Un agente genérico para cualquier lenguaje o cualquier repo.
+- Un reemplazo del compilador: la verdad final es SDCC/GPUTILS, no el modelo.
+- Un shell libre: no ejecuta `bash`, `sh -c`, pipes ni comandos arbitrarios.
+- Un editor del código fuente de C-PIC ni un compilador de APK.
+
+**Puntos de entrada previstos:**
+
+| Punto de entrada | Acción |
+|---|---|
+| Menú/toolbar de `MainActivity` | Abrir “C-PIC IA” |
+| Botón flotante o tarjeta en el editor | “Preguntar a C-PIC IA sobre este archivo” |
+| Selección de texto | “Explicar”, “Corregir”, “Convertir a ASM” (según el modo) |
+| Consola de compilación | “C-PIC IA: explicar este error y proponer corrección” |
+| Ajustes | Plan, cuota, modelo, consentimiento, borrar historial |
+
+**Separación de responsabilidades:**
+
+- `remove_ads` sigue siendo una compra INAPP independiente.
+- Los planes de C-PIC IA son suscripciones (`SUBS`) independientes.
+- El compilador, el editor y la exportación **no** dependen de la suscripción de IA.
+- La IA no debe bloquear el arranque de la app ni la compilación offline.
+
 ---
 
 ## 2. Qué es realista y qué no
@@ -151,7 +195,7 @@ Para el agente faltan:
 | Historial y sync multi-dispositivo | **Sí, con cuenta** | Firestore + Auth; anónimo no sincroniza. |
 | Facturación con Play y cuota por plan | **Sí** | Play Billing + backend; es la parte más “legal” del proyecto. |
 
-### 2.2 La decisión clave: ¿qué modifica el agente?
+### 2.2 La decisión clave: ¿qué modifica C-PIC IA?
 
 Hay tres interpretaciones de “que el agente pueda modificar código y compilar”:
 
@@ -388,14 +432,120 @@ El código y los comentarios del usuario son **datos no confiables**. Un archivo
 - Botón **“Reportar respuesta”** en la UI; registrar ID de mensaje, motivo y texto mínimo; cola de revisión. La política de contenido generado por IA de Play lo exige para contenido ofensivo.
 - Términos de uso: el usuario es responsable de revisar y probar el firmware; no usar en sistemas de seguridad crítica sin validación.
 
-### 4.6 Privacidad y datos
+### 4.6 Consentimiento informado, privacidad y datos
 
-El agente envía código, mensajes y errores a DeepSeek. Eso es una **transferencia a un tercero** y debe declararse.
+C-PIC IA **no se activa sola**. Antes de la primera llamada a DeepSeek debe existir un consentimiento **específico, informado, previo y revocable**. Un check enterrado en la política de privacidad no es suficiente; debe ser una pantalla propia de C-PIC IA.
 
-Mínimo legal/operativo:
+#### 4.6.1 Qué debe decir la pantalla de consentimiento
+
+La pantalla debe explicar, en lenguaje claro y en el idioma del usuario:
+
+1. **Qué datos salen:** el mensaje que escribe el usuario, los archivos o fragmentos que selecciona, los errores de compilación, el dispositivo/arquitectura y el idioma.
+2. **A quién van:** DeepSeek (proveedor de IA) y Google Cloud/Firebase (autenticación, cuota y facturación). DeepSeek es un proveedor externo; su procesamiento puede ocurrir fuera del país del usuario; se debe enlazar su política.
+3. **Para qué:** generar respuestas, explicar código, proponer cambios, compilar y verificar; medir cuota y prevenir abuso.
+4. **Qué NO se envía:** el proyecto completo por defecto, keystores, `google-services.json`, tokens, contraseñas ni archivos que el usuario no seleccione.
+5. **Cuánto se retiene:** historial local hasta que el usuario lo borre; historial server-side 30 días por defecto; logs sin contenido; registros de compra por obligación legal.
+6. **Cómo se borra:** borrar historial en Ajustes; revocar consentimiento; eliminar cuenta/datos; contacto de privacidad.
+7. **Que es opcional:** “Puedes usar el editor y el compilador sin activar C-PIC IA”.
+8. **Que se puede revocar:** “Puedes desactivar C-PIC IA en cualquier momento; el compilador seguirá funcionando”.
+
+Texto base en español (borrador para revisión legal):
+
+```text
+C-PIC IA usa inteligencia artificial de DeepSeek para ayudarte con código C/ASM
+para microcontroladores.
+
+Para responderte, C-PIC IA enviará a DeepSeek:
+• el mensaje que escribas;
+• los archivos o fragmentos que elijas del proyecto;
+• los errores de compilación y el dispositivo/arquitectura.
+
+DeepSeek es un proveedor externo y puede procesar esos datos fuera de tu país.
+Google Cloud/Firebase se usa para autenticación, cuota y facturación. No guardamos
+el contenido de tus mensajes en los logs de la app.
+
+No se envía tu proyecto completo por defecto, ni keystores, ni tokens, ni archivos
+que no selecciones.
+
+Puedes usar el editor y el compilador sin aceptar. Si aceptas, puedes revocar el
+consentimiento en Ajustes > C-PIC IA > Revocar consentimiento. Al revocarlo, la IA
+se desactiva y se borra tu historial; el compilador sigue funcionando.
+
+[ ] He leído y acepto el Aviso de IA y la Política de Privacidad.
+[Ahora no]   [Acepto y activo C-PIC IA]
+```
+
+Texto base en inglés (para `values/strings.xml`):
+
+```text
+C-PIC IA uses DeepSeek AI to help you with C/ASM code for microcontrollers.
+
+To answer, C-PIC IA will send DeepSeek:
+• your message;
+• the files or snippets you select from the project;
+• compiler errors and device/architecture.
+
+DeepSeek is a third-party provider and may process this data outside your country.
+Google Cloud/Firebase is used for authentication, quota and billing. We do not log
+the content of your messages.
+
+Your full project is not sent by default, nor keystores, tokens or files you do
+not select.
+
+You can use the editor and compiler without accepting. You can withdraw consent in
+Settings > C-PIC IA > Withdraw consent. Withdrawing disables AI and deletes your
+history; the compiler keeps working.
+
+[ ] I have read and accept the AI Notice and Privacy Policy.
+[Not now]   [Accept and enable C-PIC IA]
+```
+
+Reglas de UI:
+
+- El checkbox **no** debe venir premarcado.
+- “Ahora no” debe ser igual de visible que “Acepto”; no usar patrones oscuros.
+- No bloquear el editor ni el compilador si el usuario rechaza.
+- Mostrar un indicador persistente cuando la IA esté activa: “C-PIC IA activa · tus mensajes se envían a DeepSeek”, con enlace al aviso.
+- Si el usuario adjunta un archivo grande o fuera del proyecto activo, pedir confirmación adicional.
+- Si se detectan posibles secretos (API keys, contraseñas, tokens), advertir y ofrecer excluirlos/redactarlos antes de enviar.
+- No mezclar el consentimiento de IA con el de Analytics/Ads; son finalidades distintas.
+
+#### 4.6.2 Registro del consentimiento
+
+Guardar localmente para la UI y en el servidor para hacer cumplir la regla:
+
+```text
+users/{uid}/consent/ai
+  version: "2026-11-01"       // versión del aviso
+  accepted: true
+  acceptedAt: timestamp
+  withdrawnAt: timestamp | null
+  policyHash: string          // hash del texto aceptado
+  locale: "es" | "en"
+  appVersion: "1.4.14"
+  source: "first_run" | "settings"
+```
+
+- El servidor es la fuente de verdad: `chat` rechaza con `403 consent_required` si no hay consentimiento vigente.
+- Si cambia el aviso o la política, subir `version` y volver a pedir consentimiento.
+- No guardar el texto completo del aviso en el cliente como prueba; guardar versión + hash + timestamp.
+- El consentimiento no se puede “heredar” de una versión anterior sin revisión.
+
+#### 4.6.3 Revocación y borrado
+
+- Ajustes > C-PIC IA > **Revocar consentimiento**.
+- Al revocar:
+  - se desactiva la IA en el dispositivo;
+  - se borra el historial local;
+  - se marca `withdrawnAt` en el servidor;
+  - se borra el historial server-side (o se programa TTL máximo 30 días);
+  - se conservan únicamente registros de compra/transacción necesarios por ley.
+- La revocación no cancela la suscripción; el usuario debe cancelarla en Google Play. La app debe explicarlo y enlazar a la gestión de suscripciones.
+- Si el usuario vuelve a activar C-PIC IA, se le vuelve a pedir consentimiento.
+
+#### 4.6.4 Privacidad y retención
 
 - Política de privacidad actualizada: qué se envía, a quién, para qué, cuánto se retiene, dónde, cómo se borra, base legal, contacto.
-- Consentimiento explícito la primera vez (“tus mensajes y archivos seleccionados se enviarán a DeepSeek para generar respuestas”).
 - Data Safety en Play Console: “User content” (código/mensajes), “App activity”, compartido con terceros, cifrado en tránsito, eliminación disponible.
 - Retención: por defecto, no guardar prompts/respuestas en Firestore más de 30 días; permitir borrar historial; TTL.
 - No registrar prompts en Cloud Logging; solo métricas (tokens, latencia, modelo, UID hasheado).
@@ -403,6 +553,24 @@ Mínimo legal/operativo:
 - DeepSeek: revisar sus términos vigentes, retención y uso de datos; documentar la decisión. Si el usuario no acepta, ofrecer modo sin IA (compilador offline).
 - GDPR/LGPD/CCPA según mercados; para LATAM, al menos transparencia y borrado. Consultar abogado antes de escalar.
 - Borrado de cuenta: si hay Google Sign-In, borrar Auth + Firestore + historial; conservar solo registros de transacción mínimos por obligación fiscal, con retención declarada.
+- Menores: la app no está dirigida a niños; si se distribuye en la categoría Familias, revisar la política de Play para menores y no enviar datos de menores sin consentimiento parental. Si hay duda, exigir confirmación de edad y bloquear IA para la categoría infantil.
+- Derechos: acceso, rectificación, borrado, portabilidad y oposición; canal de contacto visible en la app y en la política.
+
+#### 4.6.5 Qué datos concretos puede enviar C-PIC IA
+
+| Dato | ¿Se envía? | Control |
+|---|---|---|
+| Mensaje del usuario | Sí | Siempre, tras consentimiento |
+| Archivo activo o fragmento seleccionado | Sí | Solo lo seleccionado; confirmación si es grande |
+| Árbol de archivos | Solo nombres/rutas, no contenido | Minimizar; excluir `.git`, builds |
+| Errores de compilación | Sí | Truncar; no incluir rutas absolutas del dispositivo |
+| Dispositivo/arquitectura | Sí | `PortRegistry`, `PortConfig` |
+| Historial de chat | Sí, resumido | El usuario puede borrar |
+| Keystores, `google-services.json`, tokens | **No** | Filtro de secretos; nunca incluir |
+| Proyecto completo | **No por defecto** | Solo archivos relevantes |
+| Datos de pago | **No** | Play Billing los maneja; el backend solo guarda IDs/estado |
+
+> **Importante:** el consentimiento debe cubrir la transferencia a DeepSeek, no solo el uso dentro de la app. Si el usuario no acepta, C-PIC IA no debe hacer ninguna llamada, ni siquiera “de prueba”. El compilador y el editor siguen disponibles sin restricciones.
 
 ### 4.7 Reglas de Firestore (ejemplo base)
 
@@ -632,7 +800,7 @@ Punto de equilibrio:
 
 ---
 
-## 6. Diseño del agente y de la consola
+## 6. Diseño de C-PIC IA y su consola
 
 ### 6.1 Paquetes propuestos
 
@@ -662,7 +830,7 @@ Todas las herramientas reciben rutas relativas al workspace. El servidor no las 
 | `apply_patch` | `path`, `search`, `replace` | diff + checksum | 256 KB; match único |
 | `write_file` | `path`, `content` | diff + checksum | 256 KB; backup |
 | `delete_file` | `path` | confirmación | requiere aprobación |
-| `compile_project` | `projectId`, `device`, `arch`, `mode` | exit code, log, artefactos, diagnósticos | 120 s |
+| `compile_project` | `projectId`, `device`, `arch`, `mode` (`c`/`asm`), `files` | exit code, log, artefactos, diagnósticos | 120 s |
 | `run_tool` | `tool`, `args` | stdout/stderr/exit | allowlist, 120 s |
 | `simulate` | `hexPath`, `commands` | salida del simulador | 30 s |
 | `get_build_log` | `lines` | últimas N líneas | 200 KB |
@@ -697,7 +865,7 @@ Reglas de validación:
 - `compile_project` recibe `device`/`arch` validados contra `PortRegistry`; no acepta flags arbitrarios.
 - `run_tool` solo acepta nombres de la allowlist; args máximos 64; longitud máxima 4K; rechaza metacaracteres de shell.
 
-### 6.3 Bucle del agente (pseudocódigo)
+### 6.3 Bucle de C-PIC IA (pseudocódigo)
 
 ```java
 AgentResult run(AgentRequest req) {
@@ -991,6 +1159,15 @@ users/{uid}
   lastSeenAt: timestamp
   deletionRequestedAt: timestamp | null
 
+users/{uid}/consent/ai
+  version: string
+  accepted: boolean
+  acceptedAt: timestamp
+  withdrawnAt: timestamp | null
+  policyHash: string
+  locale: string
+  appVersion: string
+
 usage/{uid}/periods/{YYYY-MM}
   inputCacheHit: number
   inputCacheMiss: number
@@ -1060,6 +1237,11 @@ export const chat = onCall(
   async (req) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Login requerido");
+
+    const consent = await db.doc(`users/${uid}/consent/ai`).get();
+    if (!consent.exists || consent.get("accepted") !== true) {
+      throw new HttpsError("permission-denied", "consent_required");
+    }
 
     const body = validateChatRequest(req.data); // mensajes, modelo, maxTokens
     const user = await db.doc(`users/${uid}`).get();
@@ -1391,7 +1573,53 @@ Archivo activo: {file}
 Último build: {diagnostics}
 ```
 
-### 9.7 RAG y conocimiento PIC
+### 9.7 C/ASM: conocimiento y validación
+
+C-PIC IA debe saber **en qué modo está trabajando** y no mezclar recetas de C con recetas de ASM.
+
+#### Modo C (SDCC)
+
+- Arquitecturas relevantes: `pic14` (PIC10/12/16) y `pic16` (PIC18); el resto de familias SDCC también existe, pero el foco inicial es PIC.
+- Comandos reales de C-PIC:
+  - Compilar: `sdcc -m<arch> -p<device> --use-non-free -c archivo.c`.
+  - Enlazar: `sdcc -m<arch> -p<device> --use-non-free <objetos> -o proyecto.hex`.
+  - Includes: `-I<projectDir>`, `-I<filesDir>/usr/share/sdcc/include`, `-I<filesDir>/usr/share/sdcc/non-free/include`.
+  - Librerías: `-L<filesDir>/usr/share/sdcc/lib/<arch>` y `non-free/lib/<arch>`.
+- Extensiones SDCC que el agente debe reconocer: `__sfr`, `__at`, `__interrupt`, `__critical`, `__naked`, `__asm`, `__endasm`, `__code`, `__data`, `__xdata`, `__idata`, `__pdata`, `__bit`, `__sbit`.
+- Debe validar que el header del dispositivo exista antes de compilar; si no, decirlo y no inventar registros.
+- No debe asumir que todo PIC tiene las mismas interrupciones, bancos o memoria; consultar el header y el datasheet incluido.
+- Si el código usa `#include <pic14/pic16f628a.h>`, inyectar solo los registros relevantes del header, no el header completo.
+
+#### Modo ASM (GPUTILS)
+
+- Herramientas: `gpasm`, `gplink`, `gpdasm`, `gpvc`, `gpstrip`, `gpvo`.
+- Comandos reales de C-PIC:
+  - Ensamblar: `gpasm -c -p <device> archivo.asm` (con `-I<projectDir>`).
+  - Enlazar: `gplink -o proyecto.hex <objetos>`.
+  - Desensamblar: `gpdasm` (según opciones del binario).
+- Sintaxis que debe respetar: `PROCESSOR`, `INCLUDE`, `ORG`, `END`, `__CONFIG`/`CONFIG`, `BANKSEL`, `UDATA`, `CODE`, `RES`, `EQU`, `DB`, `DW`, `DT`, `GOTO`, `CALL`, `MOVLW`, `MOVWF`, `BTFSC`, `BTFSS`, `DECFSZ`, `RETLW`, `RETFIE`, `SLEEP`.
+- Debe distinguir mayúsculas/minúsculas y el estilo de GPUTILS; no usar sintaxis de otros ensambladores (MASM, AVR, etc.).
+- No inventar directivas de configuración; verificar el `.inc` del dispositivo.
+- Para proyectos mixtos C+ASM, no adivinar: compilar C con SDCC y ASM con GPUTILS, y enlazar con las reglas del proyecto; si no está claro, preguntar al usuario.
+
+#### Reglas de selección de modo
+
+- Si el archivo activo termina en `.c`/`.h` → modo C.
+- Si termina en `.asm`/`.inc` → modo ASM.
+- Si el usuario pide “convertir a ASM”, generar un archivo `.asm` nuevo, no sobrescribir el `.c`.
+- Si el proyecto tiene ambos, compilar el módulo correspondiente y no mezclar argumentos.
+- El `compile_project` debe recibir `mode: "c" | "asm"`, `arch` y `device`; el servidor no decide la arquitectura, la app la valida con `PortRegistry`/`PortConfig`.
+
+#### Qué debe hacer C-PIC IA con los errores
+
+1. Parsear `archivo:línea: error`.
+2. Leer solo el archivo/línea relevante.
+3. Proponer un parche mínimo.
+4. Compilar de nuevo.
+5. Si el error persiste 2 veces, cambiar de enfoque o pedir intervención.
+6. Si el error es de entorno (header faltante, binario, permisos), no culpar al código; explicar el problema real.
+
+### 9.8 RAG y conocimiento PIC
 
 El modelo no conoce todos los registros de todos los PIC. Para reducir errores:
 
@@ -1402,7 +1630,7 @@ El modelo no conoce todos los registros de todos los PIC. Para reducir errores:
 - Para MVP: `search_text` + lectura de headers; embeddings solo si el costo/beneficio lo justifica.
 - Nunca confiar en la memoria del modelo para bits de configuración (`__CONFIG`); verificar con el header y el compilador.
 
-### 9.8 Limitaciones reales
+### 9.9 Limitaciones reales
 
 - El modelo puede alucinar registros, bits o sintaxis de SDCC.
 - El compilador es la verdad; el agente debe compilar y leer errores.
@@ -1422,7 +1650,7 @@ El modelo no conoce todos los registros de todos los PIC. Para reducir errores:
 | Pagos digitales | Play Billing SUBS + consumables; sin Stripe/enlaces externos | Pendiente |
 | Suscripciones | Base plans, precios claros, cancelación, grace period | Pendiente |
 | Contenido generado por IA | Moderación, botón de reporte, términos, no malware | Pendiente |
-| Data Safety | Declarar código/mensajes enviados a DeepSeek; cifrado; borrado | Pendiente |
+| Data Safety | Declarar código/mensajes enviados a DeepSeek; cifrado; borrado; consentimiento | Pendiente |
 | Privacidad | Política actualizada con DeepSeek, retención, transferencia | Pendiente |
 | Eliminación de cuenta | In-app + web si hay creación de cuenta | Pendiente |
 | App access para revisión | Credenciales de prueba y cómo probar la compra | Pendiente |
@@ -1813,6 +2041,9 @@ Margen antes de infra: 3.99 - 1.20 - 0.5985 = 2.1915 USD (54.9%)
 
 - [ ] `ToolchainService` extraído y probado; la UI actual sigue funcionando.
 - [ ] `chat` con Auth + App Check + cuota + rate limit.
+- [ ] Pantalla de consentimiento de C-PIC IA (sin premarcar, con “Ahora no”).
+- [ ] `chat` rechaza con `consent_required` si no hay consentimiento vigente.
+- [ ] Revocación de consentimiento + borrado de historial local y server-side.
 - [ ] Clave solo en Secret Manager; rotación probada.
 - [ ] Herramientas allowlisted; rutas sandbox; timeouts; abort.
 - [ ] Diff/aprobación/undo; snapshots.

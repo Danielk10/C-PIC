@@ -58,6 +58,19 @@ Impulsada por **SDCC 4.5.0** (Small Device C Compiler), **GPUTILS 1.5.2** (GNU P
 
 ---
 
+## 🤖 C-PIC IA (en diseño — no disponible todavía)
+
+**C-PIC IA** será una **función de inteligencia artificial integrada dentro de C-PIC**, no una aplicación aparte. Estará enfocada en **C y ASM para microcontroladores** compilados con **SDCC 4.5.0** y **GPUTILS 1.5.2**.
+
+- Usará los **recursos existentes de la app**: editor, proyectos, plantillas, `PortRegistry`, `PortConfig`, headers SDCC/GPUTILS, `SdccExecutor`/`GpUtilsExecutor`, exportación SAF, tema e idiomas.
+- Podrá **leer, editar con diff, compilar y verificar** el proyecto del usuario; no recompila C-PIC ni el APK.
+- Tendrá **tres planes** (Básico, Medio y Full) mediante **Google Play Billing**, con cuota de tokens.
+- La clave de DeepSeek **no estará en la app**: vivirá en Secret Manager y se usará mediante un proxy server-side (Cloud Functions/Cloud Run).
+- **Requerirá consentimiento explícito y revocable** antes de enviar mensajes o archivos a la API de IA. Sin consentimiento, el editor y el compilador seguirán funcionando offline.
+- La guía completa de arquitectura, consentimiento, seguridad, planes y hoja de ruta está en **[GUIA_AGENTE_IA_DEEPSEEK.md](GUIA_AGENTE_IA_DEEPSEEK.md)**.
+
+---
+
 ## 🎯 Matriz de Puertos y Compatibilidad (SDCC 4.5.0)
 
 | Familia de Puerto | Variantes / Sub-arquitecturas | Flag SDCC | Selector de Dispositivos | Modo ASM (GPUTILS) |
@@ -193,7 +206,7 @@ C-PIC/
 4. **[NOMBRES_BINARIOS_VS_ANTIGUOS.md](NOMBRES_BINARIOS_VS_ANTIGUOS.md)**: Mapeo de los 60 ejecutables y 12 librerías nativas adaptadas a Google Play.
 5. **[REPORTE_LIMPIEZA_ASSETS.md](REPORTE_LIMPIEZA_ASSETS.md)**: Detalle del ahorro de espacio de más de 150 MB al depurar fuentes y binarios redundantes.
 6. **[REPORTE_ANALISIS_DEPENDENCIAS.md](REPORTE_ANALISIS_DEPENDENCIAS.md)**: Análisis de dependencias `DT_NEEDED` y alineación estricta de páginas a 16 KB.
-7. **[GUIA_AGENTE_IA_DEEPSEEK.md](GUIA_AGENTE_IA_DEEPSEEK.md)**: Guía de implementación futura del agente de consola con IA, planes, cuotas, Firebase y DeepSeek.
+7. **[GUIA_AGENTE_IA_DEEPSEEK.md](GUIA_AGENTE_IA_DEEPSEEK.md)**: **C-PIC IA**, la función de IA integrada (en diseño): C/ASM, consentimiento, planes, cuotas, Firebase y DeepSeek.
 
 ---
 
