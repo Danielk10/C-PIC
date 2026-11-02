@@ -145,7 +145,8 @@ Para el agente faltan:
 | Contexto | Nombre |
 |---|---|
 | UI, README, Play Store, planes | **C-PIC IA** |
-| Código Android (clases) | Prefijo `CpicIa...`: `CpicIaPanel`, `CpicIaController`, `CpicIaApiClient` |
+| Código Android (clases) | Prefijo `CpicIa...`: `CpicIaPanel`, `CpicIaApiClient` |
+| Código nativo (C++ NDK) | `libcpicia.so`: `agent_core`, `console_engine`, `session_store`, `patch_engine` |
 | Paquete Android | `com.diamon.ptc.cpicia` |
 | Término técnico interno | “agente” (solo en documentación técnica, no en la UI) |
 | Proveedor del modelo | DeepSeek (API; no es el nombre del agente) |
@@ -155,6 +156,8 @@ Para el agente faltan:
 - El **agente de IA integrado en C-PIC**, accesible desde el menú/toolbar y desde el editor.
 - Vive en la **misma ventana de terminal** que el Log actual, como pestaña propia (**C-PIC IA**): contenidos independientes, misma ventana con minimizar/expandir.
 - Un asistente especializado en **C y ASM para microcontroladores** compilados con **SDCC 4.5.0** y **GPUTILS 1.5.2**.
+- Guarda, lista, carga y borra **conversaciones** desde la consola de la pestaña, como una terminal nativa (§6.10 y §7.5).
+- Su núcleo (bucle del agente, consola y sesiones) está escrito en **C++ NDK** (`libcpicia.so`); la UI y la red quedan en Java.
 - Un agente que **lee, edita, compila y verifica** el proyecto del usuario con las herramientas de la app.
 - Un consumidor de los **recursos existentes** de C-PIC: familias (`PortRegistry`), configuración de puerto (`PortConfig`), lista de dispositivos, plantillas (`DEFAULT_C`, `DEFAULT_ASM`), headers `.h`/`.inc`, ejemplos, tema, strings, `FileManager`, SAF y `SdccExecutor`/`GpUtilsExecutor`.
 - Un agente **opcional y online**: si el usuario no acepta el consentimiento o no hay red, el editor y el compilador siguen funcionando offline.
@@ -204,6 +207,7 @@ C-PIC ya tiene el editor de código con pestañas, los includes/headers de SDCC 
 | `ucsim`/`s51` (8051) | El agente lanza pruebas en el simulador y lee el estado para validar lógica |
 | `gpdasm` | Desensamblar `.hex`/`.o` y explicar el código compilado |
 | Log de compilación | Pulsación larga en una línea del log → “C-PIC IA: explicar este error y proponer corrección” |
+| Consola nativa del agente | Sesiones desde la consola: `session save/load/delete/purge/export` y `workspace ls/cd/cat/rm`, con historial de comandos (núcleo C++ NDK) |
 | `FileManager`/SAF | Exportar `.hex`/`.bin` generados; importar un proyecto externo al workspace |
 | Historial local | Snapshots y undo de los cambios del agente |
 | Headers de dispositivo | Generar y validar `__CONFIG`/`CONFIG` con los bits reales del `.inc`/`.h` |
@@ -276,7 +280,8 @@ flowchart TB
         UI["CpicIaPanel<br/>pestaña IA: chat + consola + diff"]
         TP["TerminalPanel<br/>pestañas Log y C-PIC IA"]
         LB["LogBus<br/>build → Log y → IA"]
-        AC["CpicIaController<br/>bucle de herramientas"]
+        AC["AgentCore (C++ NDK)<br/>bucle + consola + sesiones"]
+        SE["SessionStore (C++)<br/>sessions/*.json en sandbox"]
         TR["ToolRegistry<br/>allowlist + esquemas"]
         WS["Workspace<br/>sandbox de archivos"]
         TC["ToolchainService<br/>SDCC / GPUTILS / ucsim"]
@@ -301,6 +306,7 @@ flowchart TB
     UI --> AC
     UI --> TP
     AC --> TR
+    AC --> SE
     TR --> WS
     TR --> TC
     TC --> NB
@@ -327,8 +333,11 @@ flowchart TB
 | `CpicIaPanel` | Pestaña C-PIC IA embebida en la ventana de terminal: chat, consola, plan, cuota, dificultad, diff, aprobar/rechazar, abortar | App |
 | `TerminalPanel` | Ventana de terminal compartida con dos pestañas independientes: **Log** (actual) y **C-PIC IA**; minimizar/expandir/limpiar | App |
 | `LogBus` | Bus de logs: la salida de compilación/tools/simulador se escribe a la vez en la pestaña Log y en la pestaña C-PIC IA | App |
-| `CpicIaController` | Bucle de conversación, tool calls, límites, cancelación | App |
-| `CpicIaApiClient` | Llamada HTTPS al proxy, streaming opcional, reintentos | App |
+| `AgentCore` (C++ NDK, `libcpicia.so`) | Bucle del agente, tool calls, límites, cancelación; máquina de estados nativa | App (nativo) |
+| `ConsoleEngine` (C++ NDK) | Parser de línea, historial, comandos `session`/`workspace`/`help` | App (nativo) |
+| `SessionStore` (C++ NDK) | Guardar/listar/cargar/borrar conversaciones en el sandbox (JSON) | App (nativo) |
+| `PatchEngine` (C++ NDK) | `apply_patch`, diff, undo, checksums | App (nativo) |
+| `CpicIaApiClient` | Llamada HTTPS al proxy (OkHttp), streaming opcional, reintentos; C++ pide red vía JNI | App (Java) |
 | `ToolRegistry` | Esquemas JSON, validación, allowlist, ejecución | App |
 | `Workspace` | Rutas canónicas, snapshots, backups, cuarentena | App |
 | `PatchManager` | Diff, apply/reject, undo, checksums | App (Java; opcional C++) |
@@ -980,16 +989,17 @@ Reglas:
 ```text
 com.diamon.ptc.cpicia
 ├── api/           CpicIaApiClient, DTOs, SSE, errores
-├── core/          CpicIaController, AgentMessage, AgentLoop, límites
+├── core/          CpicIaApiClient (puente de red), DTOs, límites (el bucle vive en C++)
 ├── tools/         AgentTool, ToolRegistry, ToolResult, validadores
 ├── workspace/     Workspace, FileSnapshot, PatchManager, Diff
 ├── toolchain/     ToolchainService, BuildRequest, BuildResult, DiagnosticParser
 ├── billing/       SubscriptionManager, EntitlementRepository
 ├── ui/            CpicIaPanel, TerminalPanel, LogBus, DiffView, QuotaView
-└── native/        (opcional) CpicIaNative para diff/parse
+└── native/        (C++ NDK, `libcpicia.so`) agent_core, console_engine,
+                   session_store, patch_engine, json_min, jni_bridge
 ```
 
-No meter todo en `MainActivity`. La actividad actual ya es demasiado grande. C-PIC IA debe ser una **vista embebida** (`CpicIaPanel`) dentro de la ventana de terminal de `MainActivity`, con su controlador y un `ToolchainService` compartido; la lógica de la ventana (pestañas, minimizar, expandir, caché) se extrae a `TerminalPanel`.
+No meter todo en `MainActivity`. La actividad actual ya es demasiado grande. C-PIC IA debe ser una **vista embebida** (`CpicIaPanel`) dentro de la ventana de terminal de `MainActivity`, con su **núcleo nativo C++** (`libcpicia.so`: bucle, consola y sesiones) y un `ToolchainService` compartido; la lógica de la ventana (pestañas, minimizar, expandir, caché) se extrae a `TerminalPanel`.
 
 ### 6.2 Herramientas (contrato JSON)
 
@@ -1075,6 +1085,7 @@ Límites recomendados:
 - 30 s de timeout por tool call; 120 s para compilación.
 - Cancelación: cerrar la conexión HTTP y `destroyForcibly()` del proceso.
 - Si el modelo repite el mismo error 2 veces, cambiar de estrategia o pedir al usuario.
+- Este bucle vive en **C++ (`agent_core`)**; la red se pide vía `onNeedNetwork` (JNI) y los resultados de herramientas entran por `nativeSubmitToolResult`.
 
 ### 6.4 Contexto: lo que se envía en cada turno
 
@@ -1133,7 +1144,7 @@ public final class BuildResult {
 }
 ```
 
-`ToolchainService.compile(request, listener)` usa `SdccExecutor`/`GpUtilsExecutor`; `MainActivity` y `CpicIaController` lo llaman. Esto evita duplicar la lógica de `-mpic14`, `--use-non-free`, `-I`, `-L`, `packihx`, etc.
+`ToolchainService.compile(request, listener)` usa `SdccExecutor`/`GpUtilsExecutor`; `MainActivity` y el núcleo nativo (`agent_core`, vía JNI) lo llaman. Esto evita duplicar la lógica de `-mpic14`, `--use-non-free`, `-I`, `-L`, `packihx`, etc.
 
 `DiagnosticParser` debe entender formatos típicos:
 
@@ -1258,9 +1269,29 @@ Para C-PIC, se puede:
 
 No hace falta un terminal completo tipo bash; de hecho, es mejor no tenerlo por seguridad y por política.
 
+### 6.10 Sesiones: guardar, seleccionar y borrar conversaciones
+
+C-PIC IA debe permitir **guardar conversaciones, elegirlas y borrarlas del sandbox**, todo desde la consola de la pestaña del agente (ver comandos en §7.5) y también con fichas táctiles en la UI.
+
+Ciclo de vida:
+
+1. **Guardar:** el usuario escribe `session save mi_proyecto` (o pulsa “Guardar”). Se escribe `filesDir/agent/sessions/<id>.json` con mensajes, tool calls, diffs resumidos, tokens usados, plan, nivel, dispositivo y arquitectura.
+2. **Listar y seleccionar:** `sessions` muestra id, nombre, fecha, mensajes y tokens. `session load <id>` carga la conversación y su contexto de proyecto; la conversación actual se autoguarda antes.
+3. **Borrar:** `session delete <id>` pide confirmación y elimina solo el JSON; con `--with-workspace` borra también su carpeta del proyecto. `session purge [días]` limpia por retención.
+4. **Autoguardado:** cada 2 minutos, al terminar una tarea y al salir; sobrevive a la muerte del proceso.
+5. **No se vuelve a cobrar:** cargar una conversación no debita tokens por el historial ya pagado; solo los turnos nuevos.
+6. **Exportar:** `session export <id>` saca el JSON/txt vía SAF (con `FileManager`).
+
+Reglas de almacenamiento:
+
+- Todo queda **dentro del sandbox** de la app (`filesDir/agent/`); borrar los datos de la app borra las sesiones.
+- Las sesiones contienen código del usuario: no se suben a Firestore por defecto, no van a los logs, y se borran con el historial al revocar el consentimiento.
+- Tamaño máximo por sesión (p. ej. 5 MB) y TTL configurable (p. ej. 180 días, respetando la retención del plan).
+- La consola es la vía canónica; la UI con fichas es un acceso rápido que llama a los mismos comandos nativos.
+
 ---
 
-## 7. Capa nativa en C++: qué hacer y qué no
+## 7. Núcleo nativo C++ NDK (`libcpicia.so`)
 
 ### 7.1 Estado actual
 
@@ -1269,66 +1300,140 @@ No hace falta un terminal completo tipo bash; de hecho, es mejor no tenerlo por 
 - Los binarios reales (SDCC, GPUTILS, ucsim) son prebuilt en `jniLibs/arm64-v8a/`, no se compilan desde el repo.
 - `app/src/main/cpp` no contiene el código fuente de SDCC; los `.c` que aparecen en el repo son assets/headers de SDCC (en `fake_root`/`assets`), no el motor del compilador.
 
-### 7.2 Qué merece la pena en C++
+### 7.2 Decisión de producto: el agente se escribe en C++ NDK
 
-| Pieza | ¿C++? | Motivo |
+**C-PIC IA tendrá su núcleo nativo en C++ (NDK):** el bucle del agente, la consola de comandos, la gestión de sesiones/conversaciones y el motor de parches viven en una librería nativa `libcpicia.so`. Java/Kotlin queda para lo que Android obliga: UI, red, Firebase, Play Billing y lanzar los binarios del toolchain.
+
+Reparto:
+
+| Capa | Lenguaje | Pieza |
 |---|---|---|
-| UI, chat, navegación | No | Java/Android Views es más rápido de desarrollar. |
-| HTTP/HTTPS/SSE | No | OkHttp en Java; TLS, proxies, reintentos, cancelación. |
-| JSON | No | `org.json`/Moshi/Gson; menos riesgo que un parser C++ a mano. |
-| Firebase Auth/Firestore/App Check | No | SDK oficial Android. |
-| Play Billing | No | SDK oficial Java. |
-| Diff/patch de archivos grandes | **Opcional** | Myers diff en C++ puede ser más rápido, pero Java basta para archivos de 256 KB. |
-| Tokenizer/parser de C/ASM | **Opcional** | Útil para resaltado/estructura; hay librerías, pero no es crítico. |
-| Supervisor de procesos/timeout | **Opcional** | `ProcessBuilder` ya funciona; C++ `fork/exec` añade riesgos SELinux/W^X. |
-| Hex/bin parser, checksums | **Opcional** | C++ rápido, pero Java también. |
-| Cifrado/almacenamiento | No | Android Keystore/Java; no reinventar. |
+| Núcleo del agente | **C++ NDK** | Máquina de estados del bucle, tool calls, límites, cancelación |
+| Consola | **C++ NDK** | Parser de línea, historial, comandos `session`, `workspace`, `help` |
+| Sesiones | **C++ NDK** | Guardar/listar/cargar/borrar conversaciones en el sandbox (JSON) |
+| Parches/diff/undo | **C++ NDK** | `apply_patch`, diff unificado, pila de undo, checksums |
+| UI | Java | `CpicIaPanel`, `TerminalPanel`, vistas, diff, plan/cuota |
+| Red (HTTPS/SSE) | Java | OkHttp; C++ pide red vía callback JNI; nunca TLS en C++ |
+| Firebase/Play Billing | Java | SDK oficiales |
+| Ejecución de binarios | Java | `ToolchainService` con `ProcessBuilder` (SDCC/GPUTILS/ucsim) |
 
-### 7.3 Si se decide crear `libagentcore.so`
+### 7.3 Estructura del código nativo
 
-Mantener una ABI **estrecha** y sin red:
-
-```cpp
-extern "C" JNIEXPORT jstring JNICALL
-Java_com_diamon_ptc_cpicia_native_CpicIaNative_applyPatch(
-    JNIEnv* env, jobject, jstring original, jstring search, jstring replace);
-
-extern "C" JNIEXPORT jstring JNICALL
-Java_com_diamon_ptc_cpicia_native_CpicIaNative_unifiedDiff(
-    JNIEnv* env, jobject, jstring before, jstring after);
+```text
+app/src/main/cpp/cpicia/
+├── jni_bridge.cpp        // JNI: punto de entrada C++ <-> Java (UI, red, logs)
+├── agent_core.h/.cpp     // máquina de estados del agente (idle → turn → tools → done)
+├── console_engine.h/.cpp // parser de línea, historial, comandos de consola
+├── session_store.h/.cpp  // guardar/listar/cargar/borrar conversaciones (JSON en sandbox)
+├── patch_engine.h/.cpp   // apply_patch, diff unificado, undo, checksums
+├── json_min.h/.cpp       // JSON mínimo (writer/reader) o nlohmann vendored
+└── CMakeLists.txt
 ```
 
-CMake:
+Ubicación de datos en el sandbox (todo dentro de `filesDir`, borrable con los datos de la app):
 
-```cmake
-add_library(agentcore SHARED native/agentcore.cpp)
-target_link_libraries(agentcore log android)
-target_link_options(agentcore PRIVATE "-Wl,-z,max-page-size=16384")
+```text
+filesDir/agent/sessions/<id>.json   ← conversaciones guardadas
+filesDir/agent/workspace/<proyecto>/ ← archivos del proyecto del agente
+filesDir/agent/.history/            ← snapshots/undo
 ```
 
-Carga:
+### 7.4 ABI JNI (contrato C++ ↔ Java)
 
-```java
-static { System.loadLibrary("agentcore"); }
+Entrada (Java → C++):
+
+| Función | Propósito |
+|---|---|
+| `nativeInit(sandboxPath, logCallback)` | Inicializa el núcleo con la ruta del sandbox |
+| `nativeConsoleExecute(line)` | Ejecuta un comando de consola y devuelve su salida |
+| `nativeSubmitUser(text)` | Envía un mensaje del usuario al bucle |
+| `nativeSubmitToolResult(toolCallId, json)` | Devuelve el resultado de una herramienta |
+| `nativeApprove(toolCallId, ok)` | Aprueba/rechaza un parche o acción |
+| `nativeAbort()` | Cancela la tarea actual |
+| `nativeSetLevel(level)` | Cambia la dificultad |
+| `nativeSetProjectContext(json)` | Dispositivo, arquitectura, árbol del proyecto |
+| `nativeSessionList()` | Lista conversaciones guardadas |
+| `nativeSessionSave(name)` | Guarda la conversación actual |
+| `nativeSessionLoad(id)` | Carga una conversación |
+| `nativeSessionDelete(id)` | Borra una conversación del sandbox |
+| `nativeGetState()` | Estado para reconstruir la UI |
+
+Salida (C++ → Java, callbacks):
+
+| Callback | Propósito |
+|---|---|
+| `onNeedNetwork(messagesJson, requestId, level)` | C++ pide llamar al proxy; Java hace el HTTP con OkHttp y devuelve `nativeSubmitToolResult`/respuesta |
+| `onLog(line, source)` | Línea para `LogBus` (Log y pestaña C-PIC IA) |
+| `onUiUpdate(stateJson)` | Actualizar chat, cuota, estado |
+| `onRequestApproval(toolCallJson)` | Pedir aprobación de diff/acción al usuario |
+
+### 7.5 Consola de sesiones (comandos)
+
+La pestaña C-PIC IA es una **terminal nativa**: además del chat, tiene línea de comandos con historial (flechas) y autocompletado básico. Comandos:
+
+```text
+help                     lista de comandos
+sessions                 conversaciones guardadas (id, nombre, fecha, mensajes, tokens)
+session save [nombre]    guarda la conversación actual
+session load <id|nombre> carga una conversación (autoguarda la actual antes)
+session delete <id|nombre>          borra la conversación del sandbox (pide confirmar)
+session delete <id> --with-workspace borra también su carpeta del workspace
+session rename <id> <nuevo>
+session clear             limpia la conversación actual sin guardar
+session export <id>       exporta la conversación (JSON/txt) vía SAF
+session purge [días]      borra sesiones más viejas que N días (retención)
+session autosave on|off   activa/desactiva autoguardado (default: on, cada 2 min y al cambiar de tarea)
+workspace ls|cd|cat|rm    gestiona archivos del workspace (sandbox; sin shell)
 ```
 
 Reglas:
 
-- No poner la clave ni lógica de negocio sensible en C++ (los strings se extraen).
-- No hacer HTTP/TLS en C++ salvo que haya una razón de peso.
-- No usar `fork/exec` para binarios; seguir con `ProcessBuilder`.
-- Probar en arm64 real; no hay emulador x86 en el APK.
-- Mantener alineación 16 KB y `useLegacyPackaging` como el resto.
+- `session delete` es destructivo y pide confirmación explícita en pantalla; borra solo el JSON de la conversación salvo `--with-workspace`.
+- `session load` no vuelve a cobrar tokens: el historial ya fue debitado; los turnos nuevos se cobran normal.
+- Autoguardado: cada 2 minutos, al terminar una tarea y al salir; sobrevive a `onSaveInstanceState` y muerte del proceso.
+- La UI también muestra las sesiones como fichas tocables (lista/seleccionar/borrar), pero la vía canónica es la consola.
+- Tamaño máximo por sesión: 5 MB; TTL de retención configurable (default 180 días, respetando el historial del plan).
+- Las conversaciones contienen código: viven solo en el sandbox privado, no se suben a Firestore salvo que se activen opcionalmente, y se borran con `session delete` o al borrar datos de la app.
 
-### 7.4 Por qué no hacer todo el agente en C++
+### 7.6 Reglas del puente C++ ↔ Java
 
-- Firebase/Play Billing/Auth no tienen SDK C++ en Android; habría que hacer JNI para todo.
-- HTTP/SSE, JSON, TLS, reintentos y cancelación son más lentos de implementar y depurar en C++.
-- Crashlytics NDK existe, pero el stack de UI/red es Java.
-- El cuello de botella es la latencia del LLM y la compilación, no el lenguaje.
-- El equipo (tú) mantiene más fácil Java/TS que C++ moderno con JNI.
+- **Nada de secretos en C++**: la clave DeepSeek solo vive en Secret Manager del backend.
+- **Sin TLS/HTTP en C++**: la red la hace Java (OkHttp) vía `onNeedNetwork`; C++ no toca sockets.
+- **Sin `fork/exec` en C++**: los binarios SDCC/GPUTILS/ucsim se lanzan desde Java (`ToolchainService`, `ProcessBuilder`), nunca desde el núcleo nativo.
+- **Hilo único en el núcleo**: el estado del agente se protege con un `std::mutex`; los callbacks JNI se encolan.
+- **Mensajes en memoria nativa**: el historial vive en C++; Java recibe estados JSON para pintar.
+- **Build:** CMake con `add_library(cpicia SHARED ...)`, enlazar `log` y `android`, alineación 16 KB, `useLegacyPackaging`.
+- **ABI solo arm64-v8a** como el resto del APK.
 
-**Recomendación:** Java para el 90 %, C++ solo si un perfil de rendimiento demuestra que hace falta.
+CMake:
+
+```cmake
+add_library(cpicia SHARED
+    cpicia/jni_bridge.cpp
+    cpicia/agent_core.cpp
+    cpicia/console_engine.cpp
+    cpicia/session_store.cpp
+    cpicia/patch_engine.cpp
+    cpicia/json_min.cpp)
+target_link_libraries(cpicia log android)
+target_link_options(cpicia PRIVATE "-Wl,-z,max-page-size=16384")
+```
+
+Carga en Java:
+
+```java
+static { System.loadLibrary("cpicia"); }
+```
+
+### 7.7 Pruebas del núcleo nativo
+
+- Pruebas unitarias C++ compiladas con el toolchain host (asserts simples o Catch2 vendored) para: parser de consola, session store (save/load/delete/purge), patch/diff/undo, máquina de estados.
+- Pruebas instrumentadas en dispositivo arm64 para JNI + sandbox real (crear, guardar, borrar, `session purge`).
+- Pruebas de integración: C++ pide red → Java responde con un mock → el bucle completa una tarea de edición+compilación.
+
+### 7.8 Qué NO meter en C++
+
+- TLS, HTTP, retry de red, Firebase, Play Billing, UI y `ProcessBuilder` siguen en Java. El objetivo del núcleo nativo es el bucle del agente, la consola y las sesiones; no reinventar el SDK de Android.
 
 ---
 
@@ -2052,7 +2157,7 @@ Play necesita probar la IA y la suscripción. Prepara:
 | 0. Producto/legal | 1 semana | Alcance, precios, política, términos, Data Safety borrador | Decisiones del dueño |
 | 1. Refactor toolchain + ventana de terminal | 2 semanas | `ToolchainService`, `BuildResult`, `DiagnosticParser`; `TerminalPanel` con pestañas **Log**/**C-PIC IA**, botón IA junto a minimizar/restaurar y `LogBus` (build en ambas pestañas) | Compila igual que hoy; la ventana funciona con las dos pestañas; tests |
 | 2. Backend base | 2 semanas | Auth, App Check, Firestore, Functions, Secret Manager, cuota, mock DeepSeek | `chat` responde con cuota; tests |
-| 3. Agente MVP | 3 semanas | `CpicIaController`, tools, workspace, diff, UI, compile loop | Edita y compila un proyecto de prueba |
+| 3. Agente MVP | 3 semanas | `libcpicia.so` (bucle, consola, sesiones, parches), tools, workspace, diff, UI, compile loop | Edita y compila un proyecto de prueba; guarda/carga/borra sesiones desde la consola |
 | 4. Billing | 2 semanas | SUBS, flujo Términos → Planes → Compra, verificación server-side, RTDN, entitlement, restore, pacing semanal ÷4 y rollover | Compra/renueva/cancela en test |
 | 5. Hardening | 2 semanas | Seguridad, moderación, límites, telemetría, pruebas de carga | Sin hallazgos críticos |
 | 6. Beta/launch | 3–4 semanas | Closed testing, feedback, pricing, store listing | Métricas mínimas y aprobación |
@@ -2064,7 +2169,9 @@ Total MVP: **10–14 semanas** a tiempo completo; 4–6 meses a medio tiempo. La
 Incluir:
 
 - 3 planes + demo opcional (fuera del flujo de compra).
-- Flash por defecto; Pro solo Medio/Full.
+- Dificultad por plan: Básico Rápido+Equilibrado; Medio +Avanzado; Full +Máximo.
+- Núcleo del agente en **C++ NDK** (`libcpicia.so`): bucle, consola, sesiones y parches.
+- Sesiones desde la consola: guardar, listar, cargar, borrar y exportar conversaciones.
 - Chat + herramientas de lectura/edición/compilación.
 - Diff con aprobación y undo.
 - Cuota server-side y medidor en UI.
@@ -2244,7 +2351,7 @@ Antes de escribir código, responder:
 6. **Datos:** ¿retener 30/90/180 días? ¿Borrado inmediato?
 7. **Streaming:** ¿MVP sin streaming o esperar Cloud Run?
 8. **Auto-aprobación:** ¿solo Full, o nunca? ¿Qué operaciones requieren confirmación?
-9. **C++:** ¿hace falta `libagentcore.so` o Java basta?
+9. **C++:** confirmado: núcleo en C++ NDK (`libcpicia.so`); ¿alguna pieza adicional debe vivir en nativo?
 10. **Presupuesto:** ¿cuánto para DeepSeek/Firebase durante 6 meses?
 11. **Legal:** ¿política/términos revisados? ¿GDPR/LGPD?
 12. **Soporte:** ¿quién responde? ¿SLA?
@@ -2304,6 +2411,12 @@ Código de referencia:
 | `app/src/main/java/com/diamon/ptc/cpicia/ui/CpicIaPanel.java` | Pestaña C-PIC IA embebida en la ventana de terminal |
 | `app/src/main/java/com/diamon/ptc/cpicia/ui/TerminalPanel.java` | Ventana de terminal con pestañas Log/C-PIC IA (minimizar/expandir/limpiar) |
 | `app/src/main/java/com/diamon/ptc/cpicia/ui/LogBus.java` | Bus de logs que escribe a la vez en Log y en C-PIC IA |
+| `app/src/main/cpp/cpicia/agent_core.cpp` | Núcleo C++ del agente (bucle, tool calls, límites, cancelación) |
+| `app/src/main/cpp/cpicia/console_engine.cpp` | Consola C++: parser, historial, comandos `session`/`workspace`/`help` |
+| `app/src/main/cpp/cpicia/session_store.cpp` | Guardar/listar/cargar/borrar conversaciones (JSON en `filesDir/agent/sessions/`) |
+| `app/src/main/cpp/cpicia/patch_engine.cpp` | `apply_patch`, diff, undo, checksums |
+| `app/src/main/cpp/cpicia/json_min.cpp` | JSON mínimo para sesiones/mensajes |
+| `app/src/main/cpp/cpicia/jni_bridge.cpp` | JNI: entrada Java → C++ y callbacks C++ → Java |
 | `app/src/main/java/com/diamon/ptc/billing/SubscriptionManager.java` | Play Billing SUBS |
 | `app/src/main/java/com/diamon/ptc/billing/EntitlementRepository.java` | Plan/cuota |
 | `app/src/main/res/layout/agent_panel.xml` | Pestaña C-PIC IA (incluida en `activity_main.xml`) |
@@ -2322,6 +2435,7 @@ Código de referencia:
 
 | Ruta | Cambio |
 |---|---|
+| `app/src/main/cpp/CMakeLists.txt` | Añadir `add_library(cpicia SHARED ...)` con las fuentes de `cpicia/`, enlazar `log`/`android` y mantener alineación 16 KB |
 | `app/build.gradle` | Dependencias Firebase/Auth/Firestore/Functions/App Check/OkHttp/RecyclerView; `buildConfigField` para región; no secretos |
 | `gradle/libs.versions.toml` | Versiones |
 | `app/src/main/AndroidManifest.xml` | Sin Activity nueva (C-PIC IA es una pestaña dentro de `MainActivity`); `INTERNET` ya está; foreground service si aplica; no exportar actividades |
@@ -2386,6 +2500,8 @@ Margen antes de infra: 3.99 - 1.20 - 0.5985 = 2.1915 USD (54.9%)
 - [ ] Selector de dificultad (Rápido/Equilibrado/Avanzado/Máximo) con mapeo server-side.
 - [ ] Ventana de terminal con pestañas Log/C-PIC IA; botón IA junto a minimizar/restaurar.
 - [ ] `LogBus`: compilación/tools/simulador escriben en Log y en C-PIC IA a la vez.
+- [ ] `libcpicia.so` (C++ NDK): bucle del agente, consola y sesiones compilados con CMake 16 KB.
+- [ ] `session save/load/delete/purge/export` desde la consola; confirmación de borrado y TTL.
 - [ ] `reasoning_effort`/thinking validados; `reasoning_content` devuelto con tools.
 - [ ] Revocación de consentimiento + borrado de historial local y server-side.
 - [ ] Clave solo en Secret Manager; rotación probada.

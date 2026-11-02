@@ -66,6 +66,7 @@ Impulsada por **SDCC 4.5.0** (Small Device C Compiler), **GPUTILS 1.5.2** (GNU P
 - Podrá **leer, editar con diff, compilar y verificar** el proyecto del usuario; no recompila C-PIC ni el APK.
 - El usuario podrá elegir la **dificultad**: **Rápido, Equilibrado, Avanzado o Máximo**, usando modelo + `thinking` + `reasoning_effort` de DeepSeek; el consumo se descuenta de la cuota.
 - El botón **IA** estará en la barra de la terminal, junto a los botones de minimizar/restaurar. C-PIC IA será una **pestaña de esa misma ventana** con su propia terminal; la salida de compilación, emulador y herramientas aparecerá en el Log y en la pestaña de C-PIC IA a la vez.
+- Las conversaciones se podrán **guardar, seleccionar y borrar** desde la consola del agente (como una terminal nativa). El núcleo del agente (bucle, consola y sesiones) estará escrito en **C++ NDK**.
 - Al pulsar el botón IA: **Términos de Uso** (con consentimiento de datos a la IA) → si acepta → **los 3 planes** (Básico, Medio y Full) → compra con Play Billing → **se habilita el uso**.
 - Los tokens son **mensuales y se reparten en 4 semanas**; el sobrante del mes **se acumula al mes siguiente si renueva**, y si cancela, caduca al expirar la suscripción.
 - Tendrá **tres planes** (Básico, Medio y Full) mediante **Google Play Billing**, con cuota de tokens.
