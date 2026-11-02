@@ -145,7 +145,7 @@ Para el agente faltan:
 | Contexto | Nombre |
 |---|---|
 | UI, README, Play Store, planes | **C-PIC IA** |
-| Código Android (clases) | Prefijo `CpicIa...`: `CpicIaActivity`, `CpicIaController`, `CpicIaApiClient` |
+| Código Android (clases) | Prefijo `CpicIa...`: `CpicIaPanel`, `CpicIaController`, `CpicIaApiClient` |
 | Paquete Android | `com.diamon.ptc.cpicia` |
 | Término técnico interno | “agente” (solo en documentación técnica, no en la UI) |
 | Proveedor del modelo | DeepSeek (API; no es el nombre del agente) |
@@ -153,6 +153,7 @@ Para el agente faltan:
 **Qué es:**
 
 - El **agente de IA integrado en C-PIC**, accesible desde el menú/toolbar y desde el editor.
+- Vive en la **misma ventana de terminal** que el Log actual, como pestaña propia (**C-PIC IA**): contenidos independientes, misma ventana con minimizar/expandir.
 - Un asistente especializado en **C y ASM para microcontroladores** compilados con **SDCC 4.5.0** y **GPUTILS 1.5.2**.
 - Un agente que **lee, edita, compila y verifica** el proyecto del usuario con las herramientas de la app.
 - Un consumidor de los **recursos existentes** de C-PIC: familias (`PortRegistry`), configuración de puerto (`PortConfig`), lista de dispositivos, plantillas (`DEFAULT_C`, `DEFAULT_ASM`), headers `.h`/`.inc`, ejemplos, tema, strings, `FileManager`, SAF y `SdccExecutor`/`GpUtilsExecutor`.
@@ -170,7 +171,8 @@ Para el agente faltan:
 
 | Punto de entrada | Acción |
 |---|---|
-| Menú/toolbar de `MainActivity` | Abrir “C-PIC IA” |
+| Botón **IA** en la barra de la terminal | Está junto a los botones de minimizar/restaurar; abre o conmuta la pestaña C-PIC IA en la misma ventana |
+| Menú/toolbar de `MainActivity` | Abrir “C-PIC IA” (acceso alternativo) |
 | Botón flotante o tarjeta en el editor | “Preguntar a C-PIC IA sobre este archivo” |
 | Selección de texto | “Explicar”, “Corregir”, “Convertir a ASM” (según el modo) |
 | Consola de compilación | “C-PIC IA: explicar este error y proponer corrección” |
@@ -182,6 +184,50 @@ Para el agente faltan:
 - Los planes de C-PIC IA son suscripciones (`SUBS`) independientes.
 - El compilador, el editor y la exportación **no** dependen de la suscripción de IA.
 - La IA no debe bloquear el arranque de la app ni la compilación offline.
+
+### 1.9 Qué más puede integrar C-PIC IA (lo que la app ya tiene)
+
+C-PIC ya tiene el editor de código con pestañas, los includes/headers de SDCC y GPUTILS, las plantillas y las herramientas. C-PIC IA debe integrarse con todo eso; no es un chat aislado.
+
+**Integraciones del MVP (ya existe el material en la app):**
+
+| Recurso actual de C-PIC | Integración con C-PIC IA |
+|---|---|
+| Editor y selección de texto | “Explicar”, “Corregir”, “Convertir a ASM” sobre la selección; el agente lee el archivo activo y sus pestañas |
+| Pestañas y proyectos | Contexto multi-archivo; el agente trabaja sobre el proyecto activo, no sobre copias sueltas |
+| Includes y headers (`usr/share/sdcc`, `gputils/header`) | RAG: extraer registros/bits del header incluido; validar `#include`; proponer el include correcto |
+| Plantillas `DEFAULT_C`/`DEFAULT_ASM` y lista de dispositivos | Generar código inicial por dispositivo y arquitectura |
+| `PortRegistry`/`PortConfig` | Arquitectura, flags, `--use-non-free`, memoria del dispositivo en el contexto |
+| `SdccExecutor`/`GpUtilsExecutor` | Compilar, ensamblar y enlazar; el agente lanza builds reales y lee el resultado |
+| `IntelHexParser` | Leer `.hex`, resumen de memoria usada, comparar builds |
+| `.map`/`.lst`/`.mem` | Informe de RAM/ROM/stack; detectar desbordamientos; explicar dónde se gasta la memoria |
+| `ucsim`/`s51` (8051) | El agente lanza pruebas en el simulador y lee el estado para validar lógica |
+| `gpdasm` | Desensamblar `.hex`/`.o` y explicar el código compilado |
+| Log de compilación | Pulsación larga en una línea del log → “C-PIC IA: explicar este error y proponer corrección” |
+| `FileManager`/SAF | Exportar `.hex`/`.bin` generados; importar un proyecto externo al workspace |
+| Historial local | Snapshots y undo de los cambios del agente |
+| Headers de dispositivo | Generar y validar `__CONFIG`/`CONFIG` con los bits reales del `.inc`/`.h` |
+| Snippets generados | Guardar fragmentos útiles generados por el agente para reutilizar |
+
+**Fase 2 (requiere más trabajo):**
+
+- Autocompletado inline en el editor con FIM de DeepSeek (beta, no-thinking, `deepseek-flash`).
+- Análisis y limpieza de warnings de SDCC.
+- Traducción C ↔ ASM con verificación de compilación.
+- Pruebas automáticas: el agente genera un script para `ucsim`/`s51`, lo corre y compara salidas.
+- Reporte de memoria (RAM/ROM) por build, con gráfico en la terminal.
+- Modo plan: TODO multi-paso con aprobación antes de cada fase.
+- Exportación del historial de C-PIC IA a PDF (patrón de `TerminalPDFReportGenerator` de Calculo_Estructural).
+
+**Qué NO integrar:**
+
+- Shell libre (`sh -c`, pipes) ni descarga de binarios: viola la allowlist y las políticas.
+- Acceso a otras apps o al sistema: el sandbox sigue siendo `filesDir`.
+- Compilación del APK o del código fuente de C-PIC.
+- Modelo de lenguaje local offline: no es viable a corto plazo; el compilador offline ya cubre el caso sin red.
+- Voz o imágenes: no aportan para código de microcontroladores en el MVP.
+
+**La consola de referencia:** `Calculo_Estructural` ya resuelve la ventana de terminal con historial, abort y exportación PDF; C-PIC IA debe replicar ese nivel de consola dentro de la pestaña del agente (ver §6.7).
 
 ---
 
@@ -227,7 +273,9 @@ La guía asume **(1)**. Si el dueño quiere (2), hay que replantear el producto 
 ```mermaid
 flowchart TB
     subgraph Android["App Android (C-PIC)"]
-        UI["Agent UI<br/>chat + consola + diff"]
+        UI["CpicIaPanel<br/>pestaña IA: chat + consola + diff"]
+        TP["TerminalPanel<br/>pestañas Log y C-PIC IA"]
+        LB["LogBus<br/>build → Log y → IA"]
         AC["CpicIaController<br/>bucle de herramientas"]
         TR["ToolRegistry<br/>allowlist + esquemas"]
         WS["Workspace<br/>sandbox de archivos"]
@@ -251,10 +299,13 @@ flowchart TB
     PLAY["Google Play<br/>Billing + Developer API"]
 
     UI --> AC
+    UI --> TP
     AC --> TR
     TR --> WS
     TR --> TC
     TC --> NB
+    TC --> LB
+    LB --> TP
     AC -->|"HTTPS + ID token + App Check"| FN
     FN --> SM
     FN --> DS
@@ -273,7 +324,9 @@ flowchart TB
 
 | Componente | Responsabilidad | Dónde vive |
 |---|---|---|
-| `CpicIaActivity` / `CpicIaFragment` | Chat, consola, plan, cuota, modelo, diff, aprobar/rechazar, abortar | App |
+| `CpicIaPanel` | Pestaña C-PIC IA embebida en la ventana de terminal: chat, consola, plan, cuota, dificultad, diff, aprobar/rechazar, abortar | App |
+| `TerminalPanel` | Ventana de terminal compartida con dos pestañas independientes: **Log** (actual) y **C-PIC IA**; minimizar/expandir/limpiar | App |
+| `LogBus` | Bus de logs: la salida de compilación/tools/simulador se escribe a la vez en la pestaña Log y en la pestaña C-PIC IA | App |
 | `CpicIaController` | Bucle de conversación, tool calls, límites, cancelación | App |
 | `CpicIaApiClient` | Llamada HTTPS al proxy, streaming opcional, reintentos | App |
 | `ToolRegistry` | Esquemas JSON, validación, allowlist, ejecución | App |
@@ -835,11 +888,11 @@ com.diamon.ptc.cpicia
 ├── workspace/     Workspace, FileSnapshot, PatchManager, Diff
 ├── toolchain/     ToolchainService, BuildRequest, BuildResult, DiagnosticParser
 ├── billing/       SubscriptionManager, EntitlementRepository
-├── ui/            CpicIaActivity, CpicIaAdapter, DiffView, QuotaView
+├── ui/            CpicIaPanel, TerminalPanel, LogBus, DiffView, QuotaView
 └── native/        (opcional) CpicIaNative para diff/parse
 ```
 
-No meter todo en `MainActivity`. La actividad actual ya es demasiado grande; el agente debe ser una `Activity`/`Fragment` separada y un servicio de toolchain compartido.
+No meter todo en `MainActivity`. La actividad actual ya es demasiado grande. C-PIC IA debe ser una **vista embebida** (`CpicIaPanel`) dentro de la ventana de terminal de `MainActivity`, con su controlador y un `ToolchainService` compartido; la lógica de la ventana (pestañas, minimizar, expandir, caché) se extrae a `TerminalPanel`.
 
 ### 6.2 Herramientas (contrato JSON)
 
@@ -1001,47 +1054,83 @@ Convertir a:
 
 Así el agente puede corregir sin leer todo el log.
 
-### 6.7 UI/UX propuesta
+### 6.7 UI/UX propuesta: ventana de terminal compartida (Log + C-PIC IA)
 
-Pantalla `CpicIaActivity`:
+Requisito del producto: **C-PIC IA vive en la misma ventana de terminal de `MainActivity`**, no en una pantalla aparte. La ventana actual (`card_logs`) pasa a tener **dos pestañas independientes**:
+
+- **Pestaña `Log`:** la terminal actual de C-PIC (salida de compilación, herramientas, emulador).
+- **Pestaña `C-PIC IA`:** la terminal de trabajo del agente (chat, tool calls, diffs, build en vivo).
+- La barra de la ventana es compartida: título, pestañas y los botones de siempre.
 
 ```text
-┌──────────────────────────────────────────┐
-│  C-PIC IA               [Plan: Medio]    │
-│  Cuota: 8.2M / 12M   [Nivel: Equilibrado ▾] │
-├──────────────────────────────────────────┤
-│  Tú: Corrige el error de compilación     │
-│  Agente: Veo un error en main.c:42...    │
-│  ┌─ Herramienta: read_file ────────────┐ │
-│  │ main.c (líneas 30-60)               │ │
-│  └─────────────────────────────────────┘ │
-│  ┌─ Diff propuesto ────────────────────┐ │
-│  │ - TRISB = 0x00;                     │ │
-│  │ + TRISB = 0xFF;                     │ │
-│  │ [Aplicar] [Rechazar]                │ │
-│  └─────────────────────────────────────┘ │
-│  ┌─ Compilación ───────────────────────┐ │
-│  │ sdcc -mpic14 -p16f628a ...          │ │
-│  │ OK · 1.2 s · demo.hex               │ │
-│  └─────────────────────────────────────┘ │
-├──────────────────────────────────────────┤
-│ [Escribe una instrucción...]      [▶]    │
-└──────────────────────────────────────────┘
+┌─ Terminal ───────────────[Log][C-PIC IA]────[IA][Min][Expand][Clear]─┐
+│  (pestaña Log)                                                        │
+│  $ sdcc -mpic14 -p16f628a ...                                         │
+│  main.c:42: error 101: syntax error ...                               │
+│  (pestaña C-PIC IA)                                                   │
+│  Tú: corrige el error de main.c                                       │
+│  C-PIC IA: voy a leer main.c y corregir...                            │
+│  ▸ tool read_file main.c                                              │
+│  ▸ diff: - TRISB = 0x00;  + TRISB = 0xFF;   [Aplicar][Rechazar]      │
+│  ▸ build  $ sdcc ...  OK · 1.2 s · demo.hex  (igual que la pestaña Log)│
+├──────────────────────────────────────────────────────────────────────┤
+│ [Escribe una instrucción para C-PIC IA...]                     [▶]    │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-Elementos:
+**Barra de la ventana:**
+
+| Control | Comportamiento |
+|---|---|
+| `[Log]` / `[C-PIC IA]` | Pestañas: conmutan la vista. Cada una tiene su propio scroll, historial y caché. |
+| Botón **IA** | Está junto a los botones de restaurar/minimizar de la terminal. Abre o conmuta a la pestaña C-PIC IA. Si es la primera vez, muestra el consentimiento antes de activar. |
+| Minimizar / Restaurar | Actúan sobre la ventana completa (ambas pestañas), igual que hoy. |
+| Expandir / Contraer | Igual que hoy, sobre la ventana completa. |
+| Limpiar | Limpia la pestaña activa (Log o C-PIC IA), no las dos. |
+
+**Independencia de las dos terminales:**
+
+- La pestaña **Log** conserva el comportamiento actual: `log()`, `logRaw()`, `LogScrollView`, caché `terminal_cache.tmp`, copiar con pulsación larga.
+- La pestaña **C-PIC IA** tiene su propio contenedor (RecyclerView/TextView), su input con historial, su caché `agent_cache.tmp` y su botón Limpiar.
+- Minimizar/expandir es de la ventana; el contenido de cada pestaña es independiente.
+
+**Salida compartida con `LogBus`:**
+
+```text
+Compilación / gpasm / gplink / packihx / makebin / ucsim / s51
+        │
+        ▼
+     LogBus (líneas con origen y timestamp)
+        ├──▶ pestaña Log          (como hoy)
+        └──▶ pestaña C-PIC IA     (bajo la etiqueta "build", solo si la pestaña existe)
+```
+
+- Toda compilación, prueba en el emulador/simulador o herramienta escribe **a la vez** en la pestaña Log y en la pestaña C-PIC IA cuando el agente está trabajando.
+- La pestaña Log sigue siendo la fuente de verdad de la compilación offline; C-PIC IA replica esas líneas para que el usuario no cambie de pestaña mientras el agente compila.
+- Cuando el agente inicia una compilación, las líneas llegan con `source: "agent"` y se marcan en la pestaña C-PIC IA; en la pestaña Log aparecen sin cambios.
+- Si la pestaña C-PIC IA no se ha abierto nunca, `LogBus` no guarda duplicados (o los guarda en un buffer pequeño para el primer abrir).
+
+**Elementos de la pestaña C-PIC IA:**
 
 - Chat con bloques de código y botón “copiar”.
 - Tarjetas de herramienta colapsables (entrada/salida).
 - Diff con “Aplicar”, “Rechazar”, “Editar a mano”.
-- Barra de cuota y plan; botón “Mejorar plan” (abre Play Billing).
+- Barra de plan/cuota y botón “Mejorar plan” (abre Play Billing).
 - Selector de dificultad: **Rápido / Equilibrado / Avanzado / Máximo** (modelo + thinking + effort), con descripción, modelo real y consumo orientativo.
-- Botón “Detener” siempre visible durante una ejecución.
+- Indicador de actividad en el botón IA mientras el agente trabaja; botón “Detener” dentro de la pestaña.
 - Historial de sesiones; borrar; exportar.
 - Estado offline: “La IA requiere conexión; el compilador sigue disponible”.
 - Errores claros: cuota agotada, sin red, token inválido, compra pendiente.
 - Accesibilidad: content descriptions, tamaños táctiles, no depender solo de color.
 - Strings en `values/` (inglés) y `values-es/` (español), con paridad 100 % (norma del repo).
+
+**Cambios en `activity_main.xml`:**
+
+- Mantener `card_logs` como contenedor de la ventana.
+- Añadir `TabLayout`/segmented buttons `tab_log` y `tab_cpic_ia` en la barra de la ventana.
+- Añadir `btn_agent_ai` **entre el título y `btn_minimize_terminal`** (junto a los botones de restaurar/minimizar).
+- Añadir el contenedor de la pestaña C-PIC IA (`agent_panel`) debajo de la barra, al lado de `scroll_logs`; visibilidad según la pestaña activa.
+- Sin Activity nueva: C-PIC IA es una vista dentro de `MainActivity`.
 
 ### 6.8 Tareas largas y ciclo de vida
 
@@ -1620,7 +1709,7 @@ Para Full se puede habilitar `maximo` con 128K si el costo lo permite; el techo 
 
 #### 9.5.3 UI del selector
 
-En `CpicIaActivity`, junto al plan/cuota:
+En la pestaña C-PIC IA (`CpicIaPanel`), junto al plan/cuota:
 
 ```text
 [Nivel: Equilibrado ▾]  Flash · thinking low · ~2x
@@ -1844,7 +1933,7 @@ Play necesita probar la IA y la suscripción. Prepara:
 | Fase | Duración | Entregables | Criterio de salida |
 |---|---:|---|---|
 | 0. Producto/legal | 1 semana | Alcance, precios, política, términos, Data Safety borrador | Decisiones del dueño |
-| 1. Refactor toolchain + consola | 2 semanas | `ToolchainService`, `BuildResult`, `DiagnosticParser`; consola básica | Compila igual que hoy; tests |
+| 1. Refactor toolchain + ventana de terminal | 2 semanas | `ToolchainService`, `BuildResult`, `DiagnosticParser`; `TerminalPanel` con pestañas **Log**/**C-PIC IA**, botón IA junto a minimizar/restaurar y `LogBus` (build en ambas pestañas) | Compila igual que hoy; la ventana funciona con las dos pestañas; tests |
 | 2. Backend base | 2 semanas | Auth, App Check, Firestore, Functions, Secret Manager, cuota, mock DeepSeek | `chat` responde con cuota; tests |
 | 3. Agente MVP | 3 semanas | `CpicIaController`, tools, workspace, diff, UI, compile loop | Edita y compila un proyecto de prueba |
 | 4. Billing | 2 semanas | SUBS, verificación server-side, RTDN, entitlement, restore | Compra/renueva/cancela en test |
@@ -2090,15 +2179,17 @@ Código de referencia:
 
 | Ruta | Propósito |
 |---|---|
-| `app/src/main/java/com/diamon/ptc/agent/...` | Paquete del agente (ver §6.1) |
+| `app/src/main/java/com/diamon/ptc/cpicia/...` | Paquete de C-PIC IA (ver §6.1) |
 | `app/src/main/java/com/diamon/ptc/toolchain/ToolchainService.java` | Compilación reutilizable |
 | `app/src/main/java/com/diamon/ptc/toolchain/BuildRequest.java` | Request |
 | `app/src/main/java/com/diamon/ptc/toolchain/BuildResult.java` | Resultado |
 | `app/src/main/java/com/diamon/ptc/toolchain/DiagnosticParser.java` | Errores SDCC/ASlink |
+| `app/src/main/java/com/diamon/ptc/cpicia/ui/CpicIaPanel.java` | Pestaña C-PIC IA embebida en la ventana de terminal |
+| `app/src/main/java/com/diamon/ptc/cpicia/ui/TerminalPanel.java` | Ventana de terminal con pestañas Log/C-PIC IA (minimizar/expandir/limpiar) |
+| `app/src/main/java/com/diamon/ptc/cpicia/ui/LogBus.java` | Bus de logs que escribe a la vez en Log y en C-PIC IA |
 | `app/src/main/java/com/diamon/ptc/billing/SubscriptionManager.java` | Play Billing SUBS |
 | `app/src/main/java/com/diamon/ptc/billing/EntitlementRepository.java` | Plan/cuota |
-| `app/src/main/java/com/diamon/ptc/agent/ui/CpicIaActivity.java` | UI del agente |
-| `app/src/main/res/layout/activity_agent.xml` | Layout |
+| `app/src/main/res/layout/agent_panel.xml` | Pestaña C-PIC IA (incluida en `activity_main.xml`) |
 | `app/src/main/res/layout/item_message.xml` | Mensaje |
 | `app/src/main/res/layout/item_diff.xml` | Diff |
 | `app/src/main/res/values/strings_agent.xml` | Strings EN |
@@ -2116,8 +2207,9 @@ Código de referencia:
 |---|---|
 | `app/build.gradle` | Dependencias Firebase/Auth/Firestore/Functions/App Check/OkHttp/RecyclerView; `buildConfigField` para región; no secretos |
 | `gradle/libs.versions.toml` | Versiones |
-| `app/src/main/AndroidManifest.xml` | `CpicIaActivity`, `INTERNET` (ya está), foreground service si aplica; no exportar actividades |
-| `MainActivity.java` | Mover compilación a `ToolchainService`; añadir menú “Asistente IA”; no duplicar lógica |
+| `app/src/main/AndroidManifest.xml` | Sin Activity nueva (C-PIC IA es una pestaña dentro de `MainActivity`); `INTERNET` ya está; foreground service si aplica; no exportar actividades |
+| `app/src/main/res/layout/activity_main.xml` | Añadir pestañas `tab_log`/`tab_cpic_ia`, botón `btn_agent_ai` junto a minimizar/restaurar y contenedor `agent_panel` dentro de `card_logs` |
+| `MainActivity.java` | Mover compilación a `ToolchainService`; conectar `TerminalPanel` y `LogBus`; el botón IA abre la pestaña C-PIC IA; no duplicar lógica |
 | `BillingManager.java` | Mantener `remove_ads`; no mezclar con suscripciones o delegar en `SubscriptionManager` |
 | `SdccExecutor.java` | Añadir timeout/cancelación si no existe; no cambiar el comportamiento actual |
 | `GpUtilsExecutor.java` | Igual |
@@ -2173,6 +2265,8 @@ Margen antes de infra: 3.99 - 1.20 - 0.5985 = 2.1915 USD (54.9%)
 - [ ] Pantalla de consentimiento de C-PIC IA (sin premarcar, con “Ahora no”).
 - [ ] `chat` rechaza con `consent_required` si no hay consentimiento vigente.
 - [ ] Selector de dificultad (Rápido/Equilibrado/Avanzado/Máximo) con mapeo server-side.
+- [ ] Ventana de terminal con pestañas Log/C-PIC IA; botón IA junto a minimizar/restaurar.
+- [ ] `LogBus`: compilación/tools/simulador escriben en Log y en C-PIC IA a la vez.
 - [ ] `reasoning_effort`/thinking validados; `reasoning_content` devuelto con tools.
 - [ ] Revocación de consentimiento + borrado de historial local y server-side.
 - [ ] Clave solo en Secret Manager; rotación probada.
