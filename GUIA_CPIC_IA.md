@@ -171,7 +171,7 @@ Para el agente faltan:
 
 | Punto de entrada | Acción |
 |---|---|
-| Botón **IA** en la barra de la terminal | Está junto a los botones de minimizar/restaurar; abre o conmuta la pestaña C-PIC IA en la misma ventana |
+| Botón **IA** en la barra de la terminal | Está junto a los botones de minimizar/restaurar. Flujo: Términos de Uso (con consentimiento de datos) → si acepta → 3 planes → compra Play Billing → se habilita y abre la pestaña C-PIC IA |
 | Menú/toolbar de `MainActivity` | Abrir “C-PIC IA” (acceso alternativo) |
 | Botón flotante o tarjeta en el editor | “Preguntar a C-PIC IA sobre este archivo” |
 | Selección de texto | “Explicar”, “Corregir”, “Convertir a ASM” (según el modo) |
@@ -503,6 +503,8 @@ El código y los comentarios del usuario son **datos no confiables**. Un archivo
 
 C-PIC IA **no se activa sola**. Antes de la primera llamada a DeepSeek debe existir un consentimiento **específico, informado, previo y revocable**. Un check enterrado en la política de privacidad no es suficiente; debe ser una pantalla propia de C-PIC IA.
 
+**Cuándo aparece:** al pulsar el botón IA de la barra de la terminal se muestra la pantalla de **Términos de Uso de C-PIC IA**, que incluye este consentimiento de datos. Si el usuario no acepta, no se muestra la pantalla de planes ni se hace ninguna llamada (flujo completo en §5.8).
+
 #### 4.6.1 Qué debe decir la pantalla de consentimiento
 
 La pantalla debe explicar, en lenguaje claro y en el idioma del usuario:
@@ -707,6 +709,8 @@ Ventajas:
 - Ofertas (trial, intro) por base plan.
 - Menos productos que mantener.
 
+> **MVP: solo mensual.** El flujo de tokens del producto es mensual (÷ 4 semanas) con rollover al renovar (§5.3 y §5.4). Las variantes anuales quedan como extensión futura: o bien 12 cuotas mensuales servidas igual, o tokens anuales con el mismo ritmo semanal; se decide más adelante.
+
 Alternativa: tres productos separados (`sub_basic`, `sub_medium`, `sub_full`). Es más simple de mapear, pero los upgrades son más manuales. Para MVP, una suscripción con 3 base plans es mejor.
 
 Top-ups (consumibles):
@@ -735,31 +739,40 @@ El nivel **Máximo** puede generar muchos `reasoning_tokens`; se cobran como sal
 
 Con los precios de DeepSeek de noviembre 2026, **1 millón de tokens ponderados cuesta como máximo ~$0.30** (Flash, hora pico). En hora valle, la mitad. Así, la cuota se traduce directamente en costo máximo:
 
-| Plan | Precio/mes | Cuota ponderada | Costo máx. IA | Fee Play 15% | Margen bruto aprox. |
-|---|---:|---:|---:|---:|---:|
-| Free | $0 | 200.000 | $0.06 | $0 | — (captación) |
-| Básico | $3.99 | 4.000.000 | $1.20 | $0.60 | **$2.19 (55 %)** |
-| Medio | $8.99 | 12.000.000 | $3.60 | $1.35 | **$4.04 (45 %)** |
-| Full | $19.99 | 30.000.000 | $9.00 | $3.00 | **$7.99 (40 %)** |
+| Plan | Precio/mes | Tokens mensuales | Tokens por semana (÷4) | Costo máx. IA | Fee Play 15% | Margen bruto aprox. |
+|---|---:|---:|---:|---:|---:|---:|
+| Básico | $3.99 | 4.000.000 | 1.000.000 | $1.20 | $0.60 | **$2.19 (55 %)** |
+| Medio | $8.99 | 12.000.000 | 3.000.000 | $3.60 | $1.35 | **$4.04 (45 %)** |
+| Full | $19.99 | 30.000.000 | 7.500.000 | $9.00 | $3.00 | **$7.99 (40 %)** |
+
+> Demo opcional: 200.000 tokens de prueba, sin renovación ni acumulación. No forma parte del flujo de compra; se puede ofrecer aparte o como trial de Play.
+
+**Reparto semanal y acumulación (rollover):**
+
+- Los tokens son **mensuales**; se reparten en **4 semanas** (`cuota ÷ 4` por semana) para repartir el gasto y evitar que un solo día queme el mes.
+- Lo que no se gasta en una semana **sigue disponible dentro del mismo mes**: el límite semanal es un ritmo, no un descarte.
+- Al renovar la suscripción, el **sobrante del mes se suma a los tokens del mes siguiente** (se acumula en `carriedIn`).
+- Si el usuario **cancela**: conserva el acceso hasta la expiración y puede gastar lo que quede; al expirar, el sobrante **se pierde** (no hay rollover sin renovación).
+- Tope de acumulación opcional y recomendado (p. ej. máximo 3 meses de cuota acumulada) para controlar el riesgo; configurable en Remote Config.
 
 > “Margen bruto” antes de infraestructura, impuestos, soporte y marketing. El fee de Play puede ser 15 % o 30 % según elegibilidad; ver sensibilidad en §5.7.
 
 Características por plan:
 
-| Característica | Free | Básico | Medio | Full |
-|---|---|---|---|---|
-| Dificultad | Rápido | Todos (Rápido/Equilibrado/Avanzado/Máximo) | Todos | Todos |
-| Contexto máx. por petición | 32K | 64K | 128K | 256K |
-| Salida máx. (techo del plan) | 8K | 64K | 64K | 128K |
-| Tool calls/turno | 12 | 24 | 48 | 80 |
-| Peticiones/día | 20 | 100 | 300 | 1.000 |
-| Sesiones concurrentes | 1 | 1 | 2 | 3 |
-| Historial | 7 días | 30 días | 90 días | 180 días |
-| Cola prioritaria | No | No | Sí | Sí |
-| Auto-aprobación de parches | No | No | No | Opcional, con límites |
-| Soporte | Comunidad | Email | Email prioritario | Prioritario |
+| Característica | Básico | Medio | Full |
+|---|---|---|---|
+| Dificultad | Rápido + Equilibrado | + Avanzado | + Máximo |
+| Contexto máx. por petición | 64K | 128K | 256K |
+| Salida máx. (techo del plan) | 64K | 64K | 128K |
+| Tool calls/turno | 24 | 48 | 80 |
+| Peticiones/día | 100 | 300 | 1.000 |
+| Sesiones concurrentes | 1 | 2 | 3 |
+| Historial | 30 días | 90 días | 180 días |
+| Cola prioritaria | No | Sí | Sí |
+| Auto-aprobación de parches | No | No | Opcional, con límites |
+| Soporte | Email | Email prioritario | Prioritario |
 
-> El “techo del plan” es el máximo absoluto de `max_tokens`; cada nivel usa un valor menor (ver §9.5.1). Además, el servidor recorta `max_tokens` para que entrada + salida quepan en el contexto del plan. Todos los planes pagos pueden elegir los 4 niveles y el consumo se descuenta de la cuota. Si prefieres segmentar, puedes limitar Avanzado/Máximo a Medio/Full desde Remote Config; la recomendación es no bloquear el nivel, sino cobrarlo en cuota.
+> El “techo del plan” es el máximo absoluto de `max_tokens`; cada nivel usa un valor menor (ver §9.5.1). Además, el servidor recorta `max_tokens` para que entrada + salida quepan en el contexto del plan. Los niveles no incluidos en un plan se muestran bloqueados con botón “Mejorar plan”; todo es ajustable desde Remote Config.
 
 **Regla de oro:** la seguridad (sandbox, confirmación de destructivos, moderación) **no se vende**. Full no es “sin límites”; es más cuota/contexto/prioridad.
 
@@ -785,6 +798,19 @@ El servidor debe medir, no el cliente:
 6. Registrar `requestId` para idempotencia; si el cliente reintenta, no cobrar dos veces.
 7. Actualizar `usage/{uid}/periods/{YYYY-MM}` y un contador diario.
 8. Si la cuota se agota: `429` con `reason: quota_exhausted`, `resetAt`, y opción de top-up.
+
+**Pacing semanal y rollover (fórmula del servidor):**
+
+```text
+weeklyQuota = monthlyQuota / 4
+w           = semana del periodo (1..4)
+available   = carriedIn + w * weeklyQuota - usedPeriod
+```
+
+- La semana 1 el usuario solo puede gastar `carriedIn + weeklyQuota`; lo que no gaste sigue disponible las semanas 2–4 (el ritmo se acumula dentro del mes).
+- En la renovación (suscripción activa): `leftover = carriedIn + monthlyQuota - usedPeriod` → pasa a `carriedIn` del mes siguiente (con tope opcional).
+- En la cancelación: se mantiene el acceso hasta `expiryTime`; al expirar, el sobrante se pierde.
+- El contador diario sigue existiendo aparte (rate limit por día).
 
 Nunca confiar en `usage` que envíe el cliente. Si el cliente dice “gasté 10 tokens”, ignorarlo.
 
@@ -822,7 +848,7 @@ Estados y acceso:
 | `ON_HOLD` | Restringir IA; mantener datos; ofrecer actualizar pago |
 | `PAUSED` | Restringir IA; permitir reactivar |
 | `CANCELED` | Acceso hasta `expiryTime`; no renovar |
-| `EXPIRED` | Bajar a Free; conservar datos un tiempo |
+| `EXPIRED` | Quedar sin plan (demo opcional); conservar datos un tiempo; el sobrante caduca |
 | `PENDING` | No conceder hasta `PURCHASED` |
 | `REVOKED` | Cortar acceso; marcar fraude |
 
@@ -873,6 +899,77 @@ Punto de equilibrio:
 - Si el dueño desarrolla él mismo, el “costo” es tiempo; el proyecto puede ser rentable como ingreso complementario, no como reemplazo de sueldo, hasta ~500–1,000 subs.
 
 **Conclusión económica:** el margen unitario es excelente porque DeepSeek es barato; el negocio es viable si se controla el abuso, el soporte y el churn. El riesgo financiero no es la API, es **no conseguir o retener usuarios**.
+
+### 5.8 Flujo de activación: Términos → Planes → Compra → Habilitado
+
+Así se comporta el botón IA de la barra de la terminal:
+
+```text
+Pulsar botón IA
+   │
+   ├─ ¿Términos de C-PIC IA aceptados?
+   │     └─ No  → Pantalla de Términos de Uso + consentimiento de datos
+   │                  ├─ "Acepto"  → guardar términos/consentimiento → siguiente paso
+   │                  └─ "Ahora no" → se cierra; sin IA; compilador intacto
+   │
+   ├─ ¿Suscripción activa?
+   │     └─ No  → Pantalla de planes (Básico / Medio / Full)
+   │                  ├─ "Suscribirse" → Play Billing (SUBS)
+   │                  │      ├─ PENDING  → aviso "compra pendiente"; no se habilita
+   │                  │      └─ PURCHASED → verifyPurchase + RTDN
+   │                  │              └─ ACTIVE → entitlement + C-PIC IA habilitada
+   │                  └─ "Restaurar compra" → queryPurchases → verifyPurchase
+   │
+   └─ Sí  → abrir la pestaña C-PIC IA (usar cuota)
+```
+
+Reglas:
+
+1. **Términos primero, compra después.** La pantalla de términos incluye el consentimiento de datos a DeepSeek (ver §4.6) y no tiene el checkbox premarcado. Si no acepta, no hay pantalla de planes ni llamadas.
+2. **Los tres planes se muestran después de aceptar.** Precios de Play (no hardcodear), tokens mensuales y semanales, niveles de dificultad, contexto, soporte (descripciones en §5.9). Botones “Suscribirse” y “Restaurar compra”.
+3. **La compra habilita el uso.** No se concede nada con estado `PENDING`; se habilita cuando el servidor ve `ACTIVE`/`IN_GRACE_PERIOD` en Play.
+4. **Términos y consentimiento quedan registrados** en `users/{uid}/terms/ai` y `users/{uid}/consent/ai` con versión y timestamp; si cambian, se vuelve a pedir.
+5. **Límites semanales:** `cuota ÷ 4` por semana; el sobrante semanal sigue disponible dentro del mes (§5.4).
+6. **Rollover:** al renovar, el sobrante del mes se suma al siguiente. Al cancelar, el acceso dura hasta la expiración y el sobrante se pierde al terminar.
+7. **Restauración:** si el usuario cambia de dispositivo, “Restaurar compra” recupera el plan y el servidor conserva la cuota del periodo.
+
+### 5.9 Descripción detallada de cada plan (pantalla de compra)
+
+**Básico — $3.99/mes**
+
+- **4.000.000 tokens mensuales**, repartidos en 4 semanas (1.000.000/semana).
+- **Dificultad:** Rápido y Equilibrado (`deepseek-flash`, razonamiento bajo).
+- Contexto hasta 64K; salida hasta 64K; 24 tool calls por turno.
+- Hasta 100 peticiones/día; 1 sesión a la vez.
+- Historial de 30 días; soporte por email.
+- **Rollover:** el sobrante mensual se suma al mes siguiente si renueva.
+- Ideal para estudiantes y principiantes: explicar código, corregir errores de sintaxis, compilar y verificar proyectos pequeños de C/ASM.
+
+**Medio — $8.99/mes**
+
+- **12.000.000 tokens mensuales**, repartidos en 4 semanas (3.000.000/semana).
+- **Dificultad:** Rápido, Equilibrado y **Avanzado** (`deepseek-v4-pro`, razonamiento alto).
+- Contexto hasta 128K; 48 tool calls por turno; 300 peticiones/día; 2 sesiones.
+- Historial de 90 días; cola prioritaria; soporte prioritario por email.
+- **Rollover** incluido.
+- Ideal para makers y desarrolladores: proyectos de varios archivos, refactors, bugs complejos y análisis de `.map`/`.lst`/memoria.
+
+**Full — $19.99/mes**
+
+- **30.000.000 tokens mensuales**, repartidos en 4 semanas (7.500.000/semana).
+- **Dificultad:** todos los niveles incluido **Máximo** (`deepseek-v4-pro`, razonamiento máximo).
+- Contexto hasta 256K; salida hasta 128K; 80 tool calls por turno; 1.000 peticiones/día; 3 sesiones.
+- Historial de 180 días; prioridad máxima; auto-aprobación de parches opcional (con límites); soporte prioritario.
+- **Rollover** incluido.
+- Ideal para profesionales e ingenieros: arquitectura de firmware, diagnóstico profundo, pruebas en simulador y desarrollo intensivo.
+
+**Notas comunes a los tres planes:**
+
+- Los precios de referencia; el precio real lo muestra Play Billing según país.
+- La compra habilita **solo C-PIC IA**; el editor, el compilador y la exportación siguen siendo gratis y offline.
+- La seguridad no se vende: la confirmación de acciones destructivas aplica en los tres planes.
+- Al cancelar, se conserva el acceso hasta el fin del periodo; el sobrante caduca al expirar.
+- Todo (cuotas, niveles, topes de acumulación) es ajustable en Remote Config sin publicar APK.
 
 ---
 
@@ -1083,7 +1180,7 @@ Requisito del producto: **C-PIC IA vive en la misma ventana de terminal de `Main
 | Control | Comportamiento |
 |---|---|
 | `[Log]` / `[C-PIC IA]` | Pestañas: conmutan la vista. Cada una tiene su propio scroll, historial y caché. |
-| Botón **IA** | Está junto a los botones de restaurar/minimizar de la terminal. Abre o conmuta a la pestaña C-PIC IA. Si es la primera vez, muestra el consentimiento antes de activar. |
+| Botón **IA** | Está junto a los botones de restaurar/minimizar de la terminal. Si no hay términos aceptados → pantalla de Términos; si no hay plan → pantalla de los 3 planes (compra/restaurar); con plan activo → abre o conmuta la pestaña C-PIC IA. |
 | Minimizar / Restaurar | Actúan sobre la ventana completa (ambas pestañas), igual que hoy. |
 | Expandir / Contraer | Igual que hoy, sobre la ventana completa. |
 | Limpiar | Limpia la pestaña activa (Log o C-PIC IA), no las dos. |
@@ -1116,6 +1213,7 @@ Compilación / gpasm / gplink / packihx / makebin / ucsim / s51
 - Tarjetas de herramienta colapsables (entrada/salida).
 - Diff con “Aplicar”, “Rechazar”, “Editar a mano”.
 - Barra de plan/cuota y botón “Mejorar plan” (abre Play Billing).
+- La barra de cuota muestra el mes y la semana: “Mes: 8.2M / 12M · Semana 2: 1.9M / 3M · Acumulado previo: 1.2M”, y el ritmo semanal de §5.4.
 - Selector de dificultad: **Rápido / Equilibrado / Avanzado / Máximo** (modelo + thinking + effort), con descripción, modelo real y consumo orientativo.
 - Indicador de actividad en el botón IA mientras el agente trabaja; botón “Detener” dentro de la pestaña.
 - Historial de sesiones; borrar; exportar.
@@ -1258,7 +1356,7 @@ Reglas:
 
 ```text
 users/{uid}
-  plan: "free" | "basic" | "medium" | "full"
+  plan: "demo" | "basic" | "medium" | "full"
   planExpiresAt: timestamp
   autoRenewing: boolean
   quotaPeriodStart: timestamp
@@ -1281,7 +1379,18 @@ users/{uid}/consent/ai
   locale: string
   appVersion: string
 
+users/{uid}/terms/ai
+  version: string
+  accepted: boolean
+  acceptedAt: timestamp
+  locale: string
+  appVersion: string
+
 usage/{uid}/periods/{YYYY-MM}
+  monthlyQuota: number      // cuota del plan
+  weeklyQuota: number       // monthlyQuota / 4
+  carriedIn: number         // sobrante del mes anterior (rollover)
+  usedPeriod: number        // ponderado usado en el periodo
   inputCacheHit: number
   inputCacheMiss: number
   output: number
@@ -1361,7 +1470,7 @@ export const chat = onCall(
     if (!level) throw new HttpsError("invalid-argument", "Nivel inválido");
 
     const user = await db.doc(`users/${uid}`).get();
-    const plan = user.get("plan") ?? "free";
+    const plan = user.get("plan") ?? "demo";
     const entitlement = getEntitlement(plan); // límites server-side
 
     if (!entitlement.levels.includes(body.level)) {
@@ -1379,11 +1488,13 @@ export const chat = onCall(
 
     await db.runTransaction(async (tx) => {
       const usage = await tx.get(usageRef);
-      const used = usage.get("weighted") ?? 0;
-      if (used + estimated > entitlement.quota) {
-        throw new HttpsError("resource-exhausted", "Cuota agotada");
+      const usedPeriod = usage.get("usedPeriod") ?? 0;
+      const week = weekIndexWithinPeriod(entitlement.quotaPeriodStart, entitlement.quotaPeriodEnd); // 1..4
+      const spendable = entitlement.carriedIn + week * entitlement.weeklyQuota - usedPeriod;
+      if (estimated > spendable) {
+        throw new HttpsError("resource-exhausted", "Límite semanal/mensual alcanzado");
       }
-      tx.set(usageRef, { weighted: used + estimated, reserved: estimated }, { merge: true });
+      tx.set(usageRef, { weighted: (usage.get("weighted") ?? 0) + estimated, reserved: estimated }, { merge: true });
     });
 
     const response = await fetch("https://api.deepseek.com/chat/completions", {
@@ -1427,6 +1538,8 @@ Notas:
 - `level` es la única elección del cliente; `model`, `thinking`, `reasoning_effort` y `max_tokens` los decide el servidor con `LEVELS`.
 - En thinking no se envían `temperature`, `presence_penalty` ni `frequency_penalty`.
 - `requestId` idempotente: si se repite, devolver la respuesta cacheada o el mismo débito.
+- `commitUsage` suma el uso real a `usedPeriod` y libera la reserva sobrante.
+- Al renovar (RTDN `SUBSCRIPTION_RENEWED`), calcular `leftover = carriedIn + monthlyQuota - usedPeriod` y guardarlo como `carriedIn` del periodo nuevo (si sigue activa); si el plan expiró, el sobrante se pierde.
 - Si DeepSeek tarda más que el timeout, liberar reserva y devolver `deadline-exceeded`.
 - No loggear `messages`, `reasoning_content` ni la respuesta; solo `uid` hash, tokens, latencia, modelo y nivel.
 
@@ -1696,9 +1809,12 @@ Para Full se puede habilitar `maximo` con 128K si el costo lo permite; el techo 
 
 #### 9.5.2 Reglas de producto
 
-- **Free:** solo `rapido` (o `equilibrado` limitado a 1–2 veces/día como prueba).
-- **Básico, Medio y Full:** pueden elegir los 4 niveles; el nivel se paga con cuota. Si prefieres segmentar, limita `avanzado`/`maximo` a Medio/Full desde Remote Config, pero no bloquees la seguridad.
-- **Default:** `equilibrado` en planes pagos; `rapido` en Free. Recordar la elección en `users/{uid}.aiLevel`.
+- **Demo (opcional):** solo `rapido`, 200.000 tokens, sin rollover.
+- **Básico:** `rapido` + `equilibrado`.
+- **Medio:** `rapido` + `equilibrado` + `avanzado`.
+- **Full:** los 4 niveles (`rapido`, `equilibrado`, `avanzado`, `maximo`).
+- **Default:** `rapido` en demo; `equilibrado` en Básico/Medio/Full. Recordar la elección en `users/{uid}.aiLevel`.
+- Los niveles no incluidos se muestran bloqueados con “Mejorar plan”. El mapeo plan → niveles vive en Remote Config; el servidor valida siempre.
 - **Cambio de nivel:** libre antes de enviar; no cuesta cambiar, solo el uso. Si se cambia a un nivel superior, avisar “consumirá más cuota”.
 - **Auto (opcional, no MVP):** empezar en `equilibrado`, escalar a `avanzado` si la compilación falla 2 veces; avisar del cambio y del costo. No hacer escalado silencioso.
 - **Fallback:** si el nivel elegido falla por timeout/capacidad, ofrecer bajar de nivel; nunca degradar sin avisar.
@@ -1893,11 +2009,12 @@ Puntos clave:
 - Mostrar precio formateado por Play, periodicidad, renovación automática, cómo cancelar.
 - No decir “ilimitado” si hay fair use.
 - Explicar la cuota en tokens de forma simple (“≈ 140 tareas al mes”).
+- Mostrar que la cuota se reparte en **4 semanas** y que el sobrante del mes se acumula al siguiente si renueva; al cancelar, el sobrante caduca al expirar.
 - Mostrar el **nivel de dificultad** y que Máximo consume más cuota/tiempo; no cambiarlo sin avisar.
 - No presentar Máximo como garantía de mejor resultado: es una opción de razonamiento, no una promesa.
 - Avisar cuando quede 20 %/10 % de cuota; ofrecer top-up.
 - No bloquear el acceso al compilador offline por falta de suscripción; solo la IA.
-- Si se cancela, mantener acceso hasta el final del periodo; luego bajar a Free.
+- Si se cancela, mantener acceso hasta el final del periodo; después queda sin plan (demo opcional) y el sobrante caduca.
 - Si hay trial, avisar de la fecha de cobro; Play envía recordatorio, pero la app también puede.
 
 ### 10.4 Data Safety (borrador)
@@ -1936,7 +2053,7 @@ Play necesita probar la IA y la suscripción. Prepara:
 | 1. Refactor toolchain + ventana de terminal | 2 semanas | `ToolchainService`, `BuildResult`, `DiagnosticParser`; `TerminalPanel` con pestañas **Log**/**C-PIC IA**, botón IA junto a minimizar/restaurar y `LogBus` (build en ambas pestañas) | Compila igual que hoy; la ventana funciona con las dos pestañas; tests |
 | 2. Backend base | 2 semanas | Auth, App Check, Firestore, Functions, Secret Manager, cuota, mock DeepSeek | `chat` responde con cuota; tests |
 | 3. Agente MVP | 3 semanas | `CpicIaController`, tools, workspace, diff, UI, compile loop | Edita y compila un proyecto de prueba |
-| 4. Billing | 2 semanas | SUBS, verificación server-side, RTDN, entitlement, restore | Compra/renueva/cancela en test |
+| 4. Billing | 2 semanas | SUBS, flujo Términos → Planes → Compra, verificación server-side, RTDN, entitlement, restore, pacing semanal ÷4 y rollover | Compra/renueva/cancela en test |
 | 5. Hardening | 2 semanas | Seguridad, moderación, límites, telemetría, pruebas de carga | Sin hallazgos críticos |
 | 6. Beta/launch | 3–4 semanas | Closed testing, feedback, pricing, store listing | Métricas mínimas y aprobación |
 
@@ -1946,7 +2063,7 @@ Total MVP: **10–14 semanas** a tiempo completo; 4–6 meses a medio tiempo. La
 
 Incluir:
 
-- 3 planes + Free.
+- 3 planes + demo opcional (fuera del flujo de compra).
 - Flash por defecto; Pro solo Medio/Full.
 - Chat + herramientas de lectura/edición/compilación.
 - Diff con aprobación y undo.
@@ -2121,9 +2238,9 @@ Antes de escribir código, responder:
 
 1. **Alcance:** ¿agente solo para proyectos PIC del usuario, o también para otros proyectos?
 2. **Precio:** ¿$3.99/$8.99/$19.99, o precios locales más bajos? ¿Anual?
-3. **Free tier:** ¿200K tokens, 7 días de prueba, o solo demo?
+3. **Demo:** ¿200K tokens de prueba antes de comprar, o compra directa sin demo?
 4. **Modelo:** ¿Flash only en Básico, Pro en Medio/Full? ¿Thinking mode?
-5. **Cuenta:** ¿anónimo para Free y Google para pagos? ¿Historial sync?
+5. **Cuenta:** ¿anónimo para la demo y Google para pagos? ¿Historial sync?
 6. **Datos:** ¿retener 30/90/180 días? ¿Borrado inmediato?
 7. **Streaming:** ¿MVP sin streaming o esperar Cloud Run?
 8. **Auto-aprobación:** ¿solo Full, o nunca? ¿Qué operaciones requieren confirmación?
@@ -2264,6 +2381,8 @@ Margen antes de infra: 3.99 - 1.20 - 0.5985 = 2.1915 USD (54.9%)
 - [ ] `chat` con Auth + App Check + cuota + rate limit.
 - [ ] Pantalla de consentimiento de C-PIC IA (sin premarcar, con “Ahora no”).
 - [ ] `chat` rechaza con `consent_required` si no hay consentimiento vigente.
+- [ ] Flujo del botón IA: Términos → 3 planes → compra Play → uso habilitado (PENDING no habilita).
+- [ ] Reparto semanal (÷4) y rollover al renovar; sobrante caduca al cancelar.
 - [ ] Selector de dificultad (Rápido/Equilibrado/Avanzado/Máximo) con mapeo server-side.
 - [ ] Ventana de terminal con pestañas Log/C-PIC IA; botón IA junto a minimizar/restaurar.
 - [ ] `LogBus`: compilación/tools/simulador escriben en Log y en C-PIC IA a la vez.
