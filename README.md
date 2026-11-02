@@ -192,7 +192,8 @@ C-PIC/
 ├── fake_root/                                     # Estructura base inmutable de referencia
 ├── libs/                                          # Librerías dinámicas compartidas de soporte
 ├── setup-sdk.sh                                   # Script instalador del SDK 37 y NDK 30
-├── build_picsim_custom.sh                         # Compila PICsim (PIC emulator) para arm64
+├── build_picsim_custom.sh                         # Compila PICsim (PIC emulator) con NDK
+├── build_picsim_termux.sh                         # Compila PICsim nativo en Termux
 ├── upload_play_store.py                           # Script de subida automática a Google Play
 ├── GUIA_CPIC_IA.md                     # Guía de C-PIC IA, el agente integrado
 ├── RELEASE_NOTES_v1.4.14.md                       # Notas del lanzamiento v1.4.14 (Vigente)
@@ -214,7 +215,8 @@ C-PIC/
 5. **[REPORTE_LIMPIEZA_ASSETS.md](REPORTE_LIMPIEZA_ASSETS.md)**: Detalle del ahorro de espacio de más de 150 MB al depurar fuentes y binarios redundantes.
 6. **[REPORTE_ANALISIS_DEPENDENCIAS.md](REPORTE_ANALISIS_DEPENDENCIAS.md)**: Análisis de dependencias `DT_NEEDED` y alineación estricta de páginas a 16 KB.
 7. **[build_picsim_custom.sh](build_picsim_custom.sh)**: Compila e integra PICsim (emulador PIC) para arm64/NDK.
-8. **[GUIA_CPIC_IA.md](GUIA_CPIC_IA.md)**: **C-PIC IA**, el agente integrado de C-PIC (en diseño): C/ASM, consentimiento, planes, cuotas, Firebase y DeepSeek.
+8. **[build_picsim_termux.sh](build_picsim_termux.sh)**: Compila PICsim de forma nativa en Termux (clang) y lo integra en `jniLibs`.
+9. **[GUIA_CPIC_IA.md](GUIA_CPIC_IA.md)**: **C-PIC IA**, el agente integrado de C-PIC (en diseño): C/ASM, consentimiento, planes, cuotas, Firebase y DeepSeek.
 
 ---
 
