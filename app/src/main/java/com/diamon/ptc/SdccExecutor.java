@@ -220,14 +220,11 @@ public class SdccExecutor {
     }
 
     public int executeSimulator(File workingDir, String simBinary, File hexFile, String commandScript, ProcessListener listener) {
-        String simName = (simBinary != null && !simBinary.isEmpty()) ? simBinary : "s51";
-        File binFile = new File(nativeLibDir, "lib" + simName + ".so");
-        if (!binFile.exists()) {
-            if (new File(nativeLibDir, "libs51.so").exists()) {
-                simName = "s51";
-            } else if (new File(nativeLibDir, "libucsim_51.so").exists()) {
-                simName = "ucsim_51";
-            }
+        String simName = (simBinary != null) ? simBinary.trim() : "";
+        if (simName.isEmpty()) {
+            String err = "Error: no hay simulador configurado para esta arquitectura.\n";
+            if (listener != null) listener.onProcessOutput(err);
+            return -1;
         }
 
         List<String> args = new ArrayList<>();

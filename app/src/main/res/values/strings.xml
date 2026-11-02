@@ -164,6 +164,7 @@
     <string name="btn_run_packihx">Run packihx</string>
     <string name="btn_run_makebin">Run makebin</string>
     <string name="btn_run_simulator">Simulate with ucSim</string>
+    <string name="btn_simulator_unavailable">No simulator for this architecture</string>
     <string name="log_packihx_started">--- Running packihx on %s ---</string>
     <string name="log_packihx_success">[packihx] HEX normalized successfully: %s</string>
     <string name="log_packihx_failed">[packihx] Error running packihx (code %d).</string>
@@ -173,6 +174,7 @@
     <string name="log_simulator_started">--- Starting simulation with %1$s for %2$s ---</string>
     <string name="log_simulator_finished">--- Simulation finished successfully (code %d) ---</string>
     <string name="log_simulator_failed">[ERROR] Could not execute simulator %s.</string>
+    <string name="log_simulator_not_available">--- No simulator available for %1$s. PIC simulation is not supported; use gpdasm or test on hardware. ---</string>
     <string name="log_no_hex_for_tool">Error: Compile the project first to generate the .hex file.</string>
     <string name="dialog_select_viewer_format">Which file format do you want to inspect?</string>
     <string name="format_hex_file">Intel HEX File .hex</string>

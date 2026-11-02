@@ -33,7 +33,10 @@ public final class PortRegistry {
                 .useNonFree(true)
                 .defaultDevice("16F628A")
                 .outputFormat("")
-                .simulatorBinary("ucsim_p1516")
+                // PIC no tiene simulador real en ucsim: ucsim_p1516 es una CPU
+                // P1516 de 32 bits, no un PIC14/PIC16. Se valida con gpdasm,
+                // .map/.lst y hardware real.
+                .simulatorBinary(null)
                 .defaultCCode(
                         "#include <pic14/pic16f628a.h>\n\n" +
                         "// Ejemplo básico para PIC16F628A\n" +

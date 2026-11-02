@@ -100,6 +100,15 @@ public class PortConfig {
         return headerIncludeDir != null;
     }
 
+    /**
+     * Devuelve true si esta familia tiene un simulador real disponible.
+     * PIC no tiene simulador en ucsim: ucsim_p1516 es otra CPU (P1516),
+     * por eso no debe usarse para firmware PIC.
+     */
+    public boolean supportsSimulation() {
+        return simulatorBinary != null && !simulatorBinary.trim().isEmpty();
+    }
+
     public static class Builder {
         String familyName;
         String sdccArch;

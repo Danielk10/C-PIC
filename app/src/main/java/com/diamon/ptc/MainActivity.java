@@ -1992,10 +1992,18 @@ public class MainActivity extends AppCompatActivity {
 
         View btnSim = view.findViewById(R.id.btn_run_simulator_action);
         if (btnSim != null) {
-            btnSim.setOnClickListener(v -> {
-                dialog.dismiss();
-                runSimulatorNow();
-            });
+            if (currentPort == null || !currentPort.supportsSimulation()) {
+                btnSim.setEnabled(false);
+                btnSim.setAlpha(0.5f);
+                if (btnSim instanceof android.widget.TextView) {
+                    ((android.widget.TextView) btnSim).setText(R.string.btn_simulator_unavailable);
+                }
+            } else {
+                btnSim.setOnClickListener(v -> {
+                    dialog.dismiss();
+                    runSimulatorNow();
+                });
+            }
         }
 
         dialog.show();
@@ -2060,6 +2068,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void runSimulatorNow() {
+        if (currentPort == null || !currentPort.supportsSimulation()) {
+            String family = (currentPort != null) ? currentPort.familyName : "PIC (Microchip)";
+            log(getString(R.string.log_simulator_not_available, family));
+            return;
+        }
         String projectName = resolveProjectName();
         if (projectName == null) {
             log(getString(R.string.log_compile_first));
@@ -2075,10 +2088,8 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        String simName = (currentPort != null && currentPort.simulatorBinary != null) 
-                         ? currentPort.simulatorBinary 
-                         : "s51";
-        String familyName = (currentPort != null) ? currentPort.familyName : "MCS-51";
+        String simName = currentPort.simulatorBinary;
+        String familyName = currentPort.familyName;
 
         File finalHex = hexFile;
         executeAsync(() -> {
