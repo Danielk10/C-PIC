@@ -1,16 +1,19 @@
-# Guía de implementación futura — C-PIC IA
+# Guía de implementación futura — C-PIC IA (agente integrado)
 
-**Producto:** **C-PIC IA**, la función de inteligencia artificial integrada en C-PIC Compiler (`com.diamon.ptc`)  
+**Producto:** **C-PIC IA**, el agente de inteligencia artificial integrado en C-PIC Compiler (`com.diamon.ptc`)  
 **Repositorio:** `Danielk10/C-PIC`  
 **Documento:** análisis técnico, arquitectura, seguridad, consentimiento, monetización y hoja de ruta  
 **Fecha de análisis:** 2026-11-02  
 **Estado:** guía de implementación futura; **no hay código de C-PIC IA implementado todavía**  
 **Referencia de consola nativa:** `Danielk10/Calculo_Estructural` (terminal con sandbox y ejecución de binarios)
 
-> **C-PIC IA no es una app aparte.** Es una función dentro de C-PIC: mismo APK, mismo
-> `applicationId`, mismo proyecto del usuario, mismo editor, mismo compilador SDCC/GPUTILS,
-> mismos recursos de la app y la misma facturación de Google Play. Se entra desde el menú
-> de C-PIC, no desde un icono nuevo en el lanzador.
+> **C-PIC IA no es una app aparte.** Es un agente integrado dentro de C-PIC: mismo APK,
+> mismo `applicationId`, mismo proyecto del usuario, mismo editor, mismo compilador
+> SDCC/GPUTILS, mismos recursos de la app y la misma facturación de Google Play. Se entra
+> desde el menú de C-PIC, no desde un icono nuevo en el lanzador.
+>
+> **DeepSeek es el proveedor del modelo, no el nombre del agente.** El agente se llama
+> **C-PIC IA**; DeepSeek es la API que usa por detrás.
 
 ---
 
@@ -21,14 +24,14 @@ La idea es **técnicamente viable y económicamente rentable a pequeña escala**
 Resumen de conclusiones:
 
 1. **La clave de DeepSeek nunca debe viajar al cliente.** Firebase no tiene un “almacén de secretos” legible por la app. La forma correcta es **Secret Manager + Cloud Functions/Cloud Run**: la app llama a tu backend, y el backend llama a DeepSeek. Remote Config, Firestore o `SharedPreferences` no sirven para secretos.
-2. **C-PIC IA debe modificar el proyecto del usuario (C/ASM para microcontroladores con SDCC), no el código fuente de C-PIC.** Compilar la propia app Android en el teléfono requeriría SDK, `aapt2`, firma y un modelo de distribución distinto; además choca con las políticas de Google Play. Lo viable y útil es una función de IA que edita, compila y verifica firmware C/ASM con los binarios que ya tienes.
+2. **C-PIC IA debe modificar el proyecto del usuario (C/ASM para microcontroladores con SDCC), no el código fuente de C-PIC.** Compilar la propia app Android en el teléfono requeriría SDK, `aapt2`, firma y un modelo de distribución distinto; además choca con las políticas de Google Play. Lo viable y útil es un agente de IA que edita, compila y verifica firmware C/ASM con los binarios que ya tienes.
 3. **La consola actual de C-PIC es un visor de logs, no una terminal interactiva.** `MainActivity` pinta `textLogs` y ejecuta herramientas con `SdccExecutor`/`GpUtilsExecutor`. `Calculo_Estructural` ya tiene el patrón que falta: `TerminalCommandExecutor` (sandbox, `ls`, `cd`, `cat`, `rm`, `echo >`), `TerminalFragment` (entrada, historial, abortar) y `CalculixExecutor` (`ProcessBuilder`, streaming, `destroyForcibly`). Se debe portar ese patrón, no reinventarlo.
 4. **Los planes Básico/Medio/Full con cuota de tokens son viables.** DeepSeek Flash cuesta aproximadamente **$0.15–$0.30 por millón de tokens de entrada** y **$0.60–$1.20 por millón de salida** (según hora valle/pico, noviembre 2026). Con una cuota ponderada y un margen del 40–60 %, los precios de $3.99 / $8.99 / $19.99 funcionan. El costo real no es la API: es **desarrollo, soporte, refusals de Play, abuso y mantenimiento**.
 5. **Google Play Billing es obligatorio** para vender la suscripción digital dentro de la app. No se puede usar Stripe ni un enlace externo para la compra dentro de la app (salvo programas regulatorios específicos). El plan de “compras internas de Google” es el correcto.
 6. **El esfuerzo realista para un MVP pulido es 8–12 semanas a tiempo completo** (o 4–6 meses a medio tiempo). Un “Claude Code” genérico no es realista; un **copiloto de firmware PIC con herramientas, diffs, compilación y auto-corrección** sí lo es.
 7. **C++ no es necesario para el 90 % del agente.** La app ya es Java + binarios nativos. Lo recomendable es Java/Kotlin para red, UI, billing, Firebase y orquestación; C++ solo para piezas concretas (diff/patch rápido, parser, supervisor de procesos) si hacen falta. Meter HTTP/TLS/JSON/Firebase en C++ solo aumenta el riesgo y el tiempo.
 8. **El mayor riesgo no es técnico, es de confianza y política:** enviar código del usuario a DeepSeek, generar código defectuoso para hardware real, abuso de la API, y que Play rechace la app por contenido generado por IA o por la suscripción. Hay que diseñar privacidad, moderación y límites desde el día uno.
-9. **C-PIC IA es una función de la app, no un producto separado.** Debe usar los recursos existentes de C-PIC: `PortRegistry`/`PortConfig` (familias y dispositivos), plantillas `DEFAULT_C`/`DEFAULT_ASM`, headers de `usr/share/sdcc` y `usr/share/gputils`, `SdccExecutor`/`GpUtilsExecutor`, `FileManager`/SAF, tema, strings en inglés/español, Firebase y Play Billing. El compilador offline sigue funcionando aunque el usuario no acepte la IA.
+9. **C-PIC IA es el agente integrado de la app, no un producto separado.** Debe usar los recursos existentes de C-PIC: `PortRegistry`/`PortConfig` (familias y dispositivos), plantillas `DEFAULT_C`/`DEFAULT_ASM`, headers de `usr/share/sdcc` y `usr/share/gputils`, `SdccExecutor`/`GpUtilsExecutor`, `FileManager`/SAF, tema, strings en inglés/español, Firebase y Play Billing. El compilador offline sigue funcionando aunque el usuario no acepte la IA.
 10. **El consentimiento es obligatorio y revocable.** Antes de la primera llamada, C-PIC IA debe explicar qué datos salen (mensaje, archivos seleccionados, errores de compilación, dispositivo/arquitectura), a quién van (DeepSeek y Google Cloud/Firebase), para qué, cuánto se retienen y cómo se borran. Sin consentimiento, el backend debe rechazar la petición; el usuario puede revocarlo y seguir usando el compilador.
 
 **Recomendación:** construir primero un **MVP cerrado** con 3 planes, proxy server-side, cuota ponderada, herramientas allowlisted, compilación SDCC/GPUTILS, diff con aprobación y beta cerrada. No abrir “modo autónomo total” hasta tener datos de uso, costos y incidentes.
@@ -135,15 +138,25 @@ Para el agente faltan:
 
 ### 1.8 C-PIC IA: definición exacta del producto
 
-**Nombre:** **C-PIC IA** (siempre con el guion de C-PIC y “IA” en mayúsculas). No usar nombres separados como “PIC Assistant”, “SDCC Copilot” o “C-PIC Agent” en la interfaz; el producto es C-PIC IA.
+**Nombre:** **C-PIC IA** (siempre con el guion de C-PIC y “IA” en mayúsculas). No usar nombres separados como “PIC Assistant”, “SDCC Copilot” o “C-PIC Agent” en la interfaz; el agente se llama **C-PIC IA**. DeepSeek es solo el proveedor del modelo.
+
+**Convención de nombres:**
+
+| Contexto | Nombre |
+|---|---|
+| UI, README, Play Store, planes | **C-PIC IA** |
+| Código Android (clases) | Prefijo `CpicIa...`: `CpicIaActivity`, `CpicIaController`, `CpicIaApiClient` |
+| Paquete Android | `com.diamon.ptc.cpicia` |
+| Término técnico interno | “agente” (solo en documentación técnica, no en la UI) |
+| Proveedor del modelo | DeepSeek (API; no es el nombre del agente) |
 
 **Qué es:**
 
-- Una **función de IA dentro de C-PIC**, accesible desde el menú/toolbar y desde el editor.
+- El **agente de IA integrado en C-PIC**, accesible desde el menú/toolbar y desde el editor.
 - Un asistente especializado en **C y ASM para microcontroladores** compilados con **SDCC 4.5.0** y **GPUTILS 1.5.2**.
 - Un agente que **lee, edita, compila y verifica** el proyecto del usuario con las herramientas de la app.
 - Un consumidor de los **recursos existentes** de C-PIC: familias (`PortRegistry`), configuración de puerto (`PortConfig`), lista de dispositivos, plantillas (`DEFAULT_C`, `DEFAULT_ASM`), headers `.h`/`.inc`, ejemplos, tema, strings, `FileManager`, SAF y `SdccExecutor`/`GpUtilsExecutor`.
-- Una función **opcional y online**: si el usuario no acepta el consentimiento o no hay red, el editor y el compilador siguen funcionando offline.
+- Un agente **opcional y online**: si el usuario no acepta el consentimiento o no hay red, el editor y el compilador siguen funcionando offline.
 
 **Qué no es:**
 
@@ -215,7 +228,7 @@ La guía asume **(1)**. Si el dueño quiere (2), hay que replantear el producto 
 flowchart TB
     subgraph Android["App Android (C-PIC)"]
         UI["Agent UI<br/>chat + consola + diff"]
-        AC["AgentController<br/>bucle de herramientas"]
+        AC["CpicIaController<br/>bucle de herramientas"]
         TR["ToolRegistry<br/>allowlist + esquemas"]
         WS["Workspace<br/>sandbox de archivos"]
         TC["ToolchainService<br/>SDCC / GPUTILS / ucsim"]
@@ -260,9 +273,9 @@ flowchart TB
 
 | Componente | Responsabilidad | Dónde vive |
 |---|---|---|
-| `AgentActivity` / `AgentFragment` | Chat, consola, plan, cuota, modelo, diff, aprobar/rechazar, abortar | App |
-| `AgentController` | Bucle de conversación, tool calls, límites, cancelación | App |
-| `AgentApiClient` | Llamada HTTPS al proxy, streaming opcional, reintentos | App |
+| `CpicIaActivity` / `CpicIaFragment` | Chat, consola, plan, cuota, modelo, diff, aprobar/rechazar, abortar | App |
+| `CpicIaController` | Bucle de conversación, tool calls, límites, cancelación | App |
+| `CpicIaApiClient` | Llamada HTTPS al proxy, streaming opcional, reintentos | App |
 | `ToolRegistry` | Esquemas JSON, validación, allowlist, ejecución | App |
 | `Workspace` | Rutas canónicas, snapshots, backups, cuarentena | App |
 | `PatchManager` | Diff, apply/reject, undo, checksums | App (Java; opcional C++) |
@@ -805,15 +818,15 @@ Punto de equilibrio:
 ### 6.1 Paquetes propuestos
 
 ```text
-com.diamon.ptc.agent
-├── api/           AgentApiClient, DTOs, SSE, errores
-├── core/          AgentController, AgentMessage, AgentLoop, límites
+com.diamon.ptc.cpicia
+├── api/           CpicIaApiClient, DTOs, SSE, errores
+├── core/          CpicIaController, AgentMessage, AgentLoop, límites
 ├── tools/         AgentTool, ToolRegistry, ToolResult, validadores
 ├── workspace/     Workspace, FileSnapshot, PatchManager, Diff
 ├── toolchain/     ToolchainService, BuildRequest, BuildResult, DiagnosticParser
 ├── billing/       SubscriptionManager, EntitlementRepository
-├── ui/            AgentActivity, AgentAdapter, DiffView, QuotaView
-└── native/        (opcional) AgentNative para diff/parse
+├── ui/            CpicIaActivity, CpicIaAdapter, DiffView, QuotaView
+└── native/        (opcional) CpicIaNative para diff/parse
 ```
 
 No meter todo en `MainActivity`. La actividad actual ya es demasiado grande; el agente debe ser una `Activity`/`Fragment` separada y un servicio de toolchain compartido.
@@ -960,7 +973,7 @@ public final class BuildResult {
 }
 ```
 
-`ToolchainService.compile(request, listener)` usa `SdccExecutor`/`GpUtilsExecutor`; `MainActivity` y `AgentController` lo llaman. Esto evita duplicar la lógica de `-mpic14`, `--use-non-free`, `-I`, `-L`, `packihx`, etc.
+`ToolchainService.compile(request, listener)` usa `SdccExecutor`/`GpUtilsExecutor`; `MainActivity` y `CpicIaController` lo llaman. Esto evita duplicar la lógica de `-mpic14`, `--use-non-free`, `-I`, `-L`, `packihx`, etc.
 
 `DiagnosticParser` debe entender formatos típicos:
 
@@ -980,7 +993,7 @@ Así el agente puede corregir sin leer todo el log.
 
 ### 6.7 UI/UX propuesta
 
-Pantalla `AgentActivity`:
+Pantalla `CpicIaActivity`:
 
 ```text
 ┌──────────────────────────────────────────┐
@@ -1080,11 +1093,11 @@ Mantener una ABI **estrecha** y sin red:
 
 ```cpp
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_diamon_ptc_agent_native_AgentNative_applyPatch(
+Java_com_diamon_ptc_cpicia_native_CpicIaNative_applyPatch(
     JNIEnv* env, jobject, jstring original, jstring search, jstring replace);
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_diamon_ptc_agent_native_AgentNative_unifiedDiff(
+Java_com_diamon_ptc_cpicia_native_CpicIaNative_unifiedDiff(
     JNIEnv* env, jobject, jstring before, jstring after);
 ```
 
@@ -1717,7 +1730,7 @@ Play necesita probar la IA y la suscripción. Prepara:
 | 0. Producto/legal | 1 semana | Alcance, precios, política, términos, Data Safety borrador | Decisiones del dueño |
 | 1. Refactor toolchain + consola | 2 semanas | `ToolchainService`, `BuildResult`, `DiagnosticParser`; consola básica | Compila igual que hoy; tests |
 | 2. Backend base | 2 semanas | Auth, App Check, Firestore, Functions, Secret Manager, cuota, mock DeepSeek | `chat` responde con cuota; tests |
-| 3. Agente MVP | 3 semanas | `AgentController`, tools, workspace, diff, UI, compile loop | Edita y compila un proyecto de prueba |
+| 3. Agente MVP | 3 semanas | `CpicIaController`, tools, workspace, diff, UI, compile loop | Edita y compila un proyecto de prueba |
 | 4. Billing | 2 semanas | SUBS, verificación server-side, RTDN, entitlement, restore | Compra/renueva/cancela en test |
 | 5. Hardening | 2 semanas | Seguridad, moderación, límites, telemetría, pruebas de carga | Sin hallazgos críticos |
 | 6. Beta/launch | 3–4 semanas | Closed testing, feedback, pricing, store listing | Métricas mínimas y aprobación |
@@ -1968,7 +1981,7 @@ Código de referencia:
 | `app/src/main/java/com/diamon/ptc/toolchain/DiagnosticParser.java` | Errores SDCC/ASlink |
 | `app/src/main/java/com/diamon/ptc/billing/SubscriptionManager.java` | Play Billing SUBS |
 | `app/src/main/java/com/diamon/ptc/billing/EntitlementRepository.java` | Plan/cuota |
-| `app/src/main/java/com/diamon/ptc/agent/ui/AgentActivity.java` | UI del agente |
+| `app/src/main/java/com/diamon/ptc/agent/ui/CpicIaActivity.java` | UI del agente |
 | `app/src/main/res/layout/activity_agent.xml` | Layout |
 | `app/src/main/res/layout/item_message.xml` | Mensaje |
 | `app/src/main/res/layout/item_diff.xml` | Diff |
@@ -1987,7 +2000,7 @@ Código de referencia:
 |---|---|
 | `app/build.gradle` | Dependencias Firebase/Auth/Firestore/Functions/App Check/OkHttp/RecyclerView; `buildConfigField` para región; no secretos |
 | `gradle/libs.versions.toml` | Versiones |
-| `app/src/main/AndroidManifest.xml` | `AgentActivity`, `INTERNET` (ya está), foreground service si aplica; no exportar actividades |
+| `app/src/main/AndroidManifest.xml` | `CpicIaActivity`, `INTERNET` (ya está), foreground service si aplica; no exportar actividades |
 | `MainActivity.java` | Mover compilación a `ToolchainService`; añadir menú “Asistente IA”; no duplicar lógica |
 | `BillingManager.java` | Mantener `remove_ads`; no mezclar con suscripciones o delegar en `SubscriptionManager` |
 | `SdccExecutor.java` | Añadir timeout/cancelación si no existe; no cambiar el comportamiento actual |
