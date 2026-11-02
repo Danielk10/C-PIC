@@ -2091,6 +2091,25 @@ public class MainActivity extends AppCompatActivity {
         String simName = currentPort.simulatorBinary;
         String familyName = currentPort.familyName;
 
+        if ("picsim".equals(simName)) {
+            String processor = resolvePicsimProcessor(getSelectedDevice());
+            if (processor == null) {
+                log(getString(R.string.log_simulator_not_available, familyName));
+                return;
+            }
+            File finalHex = hexFile;
+            executeAsync(() -> {
+                log(getString(R.string.log_simulator_started, simName + " [" + processor + "]", familyName));
+                int result = sdcc.executePicsimStreaming(projectDir, processor, finalHex, 20, this::logRaw);
+                if (result == 0) {
+                    log(getString(R.string.log_simulator_finished, result));
+                } else {
+                    log(getString(R.string.log_simulator_failed, simName));
+                }
+            });
+            return;
+        }
+
         File finalHex = hexFile;
         executeAsync(() -> {
             log(getString(R.string.log_simulator_started, simName, familyName));
@@ -2101,6 +2120,20 @@ public class MainActivity extends AppCompatActivity {
                 log(getString(R.string.log_simulator_failed, simName));
             }
         });
+    }
+
+    private String resolvePicsimProcessor(String device) {
+        String value = (device != null && !device.trim().isEmpty())
+                ? device
+                : (currentPort != null ? currentPort.defaultDevice : null);
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        value = value.trim().toUpperCase(Locale.US).replaceAll("[^A-Z0-9]", "");
+        if (!value.startsWith("PIC")) {
+            value = "PIC" + value;
+        }
+        return value;
     }
 
     private void viewGeneratedFile(String extension) {

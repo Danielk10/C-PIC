@@ -6,6 +6,8 @@ import android.util.Log;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
@@ -234,6 +236,68 @@ public class SdccExecutor {
         args.add(hexFile.getAbsolutePath());
 
         return executeToolStreaming(workingDir, simName, args, listener);
+    }
+
+    /**
+     * Ejecuta PICsim (libpicsim.so) de forma no interactiva.
+     * PICsim espera: "n" (n pasos), el número en hexadecimal y "q" para salir.
+     * La salida incluye secuencias ANSI; se limpian antes de enviarla al log.
+     */
+    public int executePicsimStreaming(File workingDir, String processor, File hexFile, int steps, ProcessListener listener) {
+        File binaryFile = new File(nativeLibDir, "libpicsim.so");
+        if (!binaryFile.exists()) {
+            binaryFile = new File(workDir, "usr/bin/picsim");
+        }
+        if (!binaryFile.exists()) {
+            String err = "Error: no se encontro el binario PICsim (" + binaryFile.getAbsolutePath() + ")\n";
+            Log.e(TAG, err);
+            if (listener != null) listener.onProcessOutput(err);
+            return -1;
+        }
+
+        List<String> command = new ArrayList<>();
+        command.add(binaryFile.getAbsolutePath());
+        command.add(processor);
+        command.add(hexFile.getAbsolutePath());
+
+        try {
+            ProcessBuilder pb = new ProcessBuilder(command);
+            pb.directory(workingDir != null ? workingDir : workDir);
+            pb.redirectErrorStream(true);
+
+            Process process = pb.start();
+
+            // Entrada interactiva de PICsim: n -> pasos (hex) -> q
+            try (OutputStream stdin = process.getOutputStream()) {
+                String commands = "n\n" + Integer.toHexString(Math.max(1, steps)) + "\nq\n";
+                stdin.write(commands.getBytes(StandardCharsets.US_ASCII));
+                stdin.flush();
+            } catch (Exception e) {
+                Log.w(TAG, "No se pudo enviar la secuencia a PICsim: " + e.getMessage());
+            }
+
+            try (java.io.InputStream in = process.getInputStream();
+                 InputStreamReader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
+                char[] buffer = new char[512];
+                int read;
+                while ((read = reader.read(buffer)) != -1) {
+                    String chunk = stripAnsi(new String(buffer, 0, read));
+                    if (listener != null && !chunk.isEmpty()) {
+                        listener.onProcessOutput(chunk);
+                    }
+                }
+            }
+
+            return waitForProcess(process, "picsim", listener);
+        } catch (Exception e) {
+            Log.e(TAG, "Error ejecutando PICsim: " + e.getMessage(), e);
+            if (listener != null) listener.onProcessOutput("Error: " + e.getMessage() + "\n");
+            return -1;
+        }
+    }
+
+    private static String stripAnsi(String text) {
+        return text.replaceAll("\u001B\\[[0-9;]*[A-Za-z]", "");
     }
 
     /**

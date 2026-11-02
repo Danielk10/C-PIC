@@ -71,6 +71,7 @@ A continuación se detalla la correspondencia entre los nombres originales de la
 | `ucsim_tlcs` | `libucsim_tlcs.so` | `usr/bin/ucsim_tlcs` | Simulador Toshiba TLCS |
 | `ucsim_xa` | `libucsim_xa.so` | `usr/bin/ucsim_xa` | Simulador Philips XA |
 | `ucsim_z80` | `libucsim_z80.so` | `usr/bin/ucsim_z80` | Simulador Zilog Z80 |
+| `picsim` | `libpicsim.so` | `usr/bin/picsim` | Simulador PIC (PICsim, PIC16F628A/PIC16F84A/PIC18...) |
 
 ---
 

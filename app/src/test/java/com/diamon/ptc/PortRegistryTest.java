@@ -48,10 +48,10 @@ public class PortRegistryTest {
     }
 
     @Test
-    public void testPicHasNoSimulatorConfigured() {
+    public void testPicHasPicsimConfigured() {
         PortConfig pic = PortRegistry.getPort(PortRegistry.findIndexByFamily("PIC (Microchip)"));
-        assertNull("PIC no debe tener simulador: ucsim_p1516 es otra CPU", pic.simulatorBinary);
-        assertFalse("PIC no debe reportar simulación disponible", pic.supportsSimulation());
+        assertEquals("picsim", pic.simulatorBinary);
+        assertTrue("PIC debe reportar simulación disponible con PICsim", pic.supportsSimulation());
     }
 
     @Test
@@ -186,17 +186,13 @@ public class PortRegistryTest {
     public void testSimulatorBinaryMappings() {
         for (int i = 0; i < PortRegistry.getPortCount(); i++) {
             PortConfig port = PortRegistry.getPort(i);
-            if ("PIC (Microchip)".equals(port.familyName)) {
-                assertNull("PIC no tiene simulador real; ucsim_p1516 es otra CPU", port.simulatorBinary);
-                continue;
-            }
             assertNotNull("El simulador no debe ser nulo para " + port.familyName, port.simulatorBinary);
             assertFalse("El nombre del simulador no debe estar vacío para " + port.familyName, port.simulatorBinary.trim().isEmpty());
         }
 
         // Validate specific mappings
         PortConfig pic = PortRegistry.getPort(PortRegistry.findIndexByFamily("PIC (Microchip)"));
-        assertNull("PIC no debe apuntar a ucsim_p1516 (CPU P1516)", pic.simulatorBinary);
+        assertEquals("picsim", pic.simulatorBinary);
 
         PortConfig mcs51 = PortRegistry.getPort(PortRegistry.findIndexByFamily("MCS-51 (8051)"));
         assertEquals("s51", mcs51.simulatorBinary);

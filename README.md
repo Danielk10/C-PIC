@@ -22,7 +22,7 @@
 
 **C PIC Compiler** es una suite de desarrollo móvil nativa profesional de alto rendimiento diseñada para escribir, editar, compilar, depurar y simular código en **lenguaje C** y **ensamblador (ASM)** directamente desde dispositivos Android para **24 arquitecturas de microcontroladores**.
 
-Impulsada por **SDCC 4.5.0** (Small Device C Compiler), **GPUTILS 1.5.2** (GNU PIC Utilities) y la suite de simuladores **ucSim**, esta herramienta permite a ingenieros de sistemas embebidos, estudiantes y makers generar archivos binarios (`.hex`, `.ihx`, `.bin`, `.map`, `.lst`, `.o`, `.rel`) de manera 100% autónoma y sin conexión a internet.
+Impulsada por **SDCC 4.5.0** (Small Device C Compiler), **GPUTILS 1.5.2** (GNU PIC Utilities) y los simuladores **ucSim + PICsim**, esta herramienta permite a ingenieros de sistemas embebidos, estudiantes y makers generar archivos binarios (`.hex`, `.ihx`, `.bin`, `.map`, `.lst`, `.o`, `.rel`) de manera 100% autónoma y sin conexión a internet.
 
 ---
 
@@ -42,6 +42,7 @@ Impulsada por **SDCC 4.5.0** (Small Device C Compiler), **GPUTILS 1.5.2** (GNU P
   - **PDK (Padauk)**: PDK13 (13 bits), PDK14 (14 bits), PDK15 (15 bits).
   - **MOS 6502 / 65C02**: Microprocesadores clásicos de 8 bits y WDC 65C02.
   - **Fairchild F8**: Microcontrolador F8.
+- ✅ **Simulación PIC real con PICsim**: PIC16F628A, PIC16F84A, PIC16F648A, PIC16F877A y varios PIC18; el resto de familias usa ucSim.
 - ✅ **Terminal Nativa de Registros y Streaming**:
   - Salida de comandos en tiempo real estilo terminal sin enlaces rotos ni bloqueos.
   - Auto-desplazamiento inteligente (`LogScrollView`) que respeta la navegación del usuario.
@@ -51,7 +52,7 @@ Impulsada por **SDCC 4.5.0** (Small Device C Compiler), **GPUTILS 1.5.2** (GNU P
   - Carga automática de plantillas funcionales validadas para cada arquitectura al cambiar de familia.
   - Soporte de múltiples pestañas y proyectos independientes.
 - ✅ **Alineación ELF a 16 KB (`max-page-size=16384`)**:
-  - Todos los 72 binarios y librerías dinámicas están alineados a 16 KB, garantizando compatibilidad total con **Android 15, Android 16 y Android 17**.
+  - Todos los 73 binarios y librerías dinámicas están alineados a 16 KB, garantizando compatibilidad total con **Android 15, Android 16 y Android 17**.
 - ✅ **Cumplimiento Estricto de Google Play**:
   - Ejecutables y librerías empaquetados bajo el estándar `lib<nombre>.so` en `jniLibs/arm64-v8a/` y reconstruidos transparentemente en tiempo de ejecución.
 - ✅ **Internacionalización Completa**: Interfaz y mensajes completamente localizados en español e inglés sin cadenas hardcodeadas.
@@ -178,7 +179,7 @@ C-PIC/
 │       │   │   ├── BillingManager.java            # Gestión de compras in-app y facturación
 │       │   │   ├── views/LogScrollView.java       # ScrollView con soporte de auto-desplazamiento inteligente
 │       │   │   └── policy/PolicyActivity.java     # Pantalla de política de privacidad
-│       │   ├── jniLibs/arm64-v8a/                 # 72 binarios nativos ARM64 (lib*.so)
+│       │   ├── jniLibs/arm64-v8a/                 # 73 binarios nativos ARM64 (lib*.so)
 │       │   └── res/                               # Layouts, recursos gráficos y cadenas localizadas
 │       │       ├── layout/activity_main.xml       # Layout principal con spinners de arquitectura y terminal
 │       │       ├── values/strings.xml             # Cadenas en Español
@@ -191,6 +192,7 @@ C-PIC/
 ├── fake_root/                                     # Estructura base inmutable de referencia
 ├── libs/                                          # Librerías dinámicas compartidas de soporte
 ├── setup-sdk.sh                                   # Script instalador del SDK 37 y NDK 30
+├── build_picsim_custom.sh                         # Compila PICsim (PIC emulator) para arm64
 ├── upload_play_store.py                           # Script de subida automática a Google Play
 ├── GUIA_CPIC_IA.md                     # Guía de C-PIC IA, el agente integrado
 ├── RELEASE_NOTES_v1.4.14.md                       # Notas del lanzamiento v1.4.14 (Vigente)
@@ -211,7 +213,8 @@ C-PIC/
 4. **[NOMBRES_BINARIOS_VS_ANTIGUOS.md](NOMBRES_BINARIOS_VS_ANTIGUOS.md)**: Mapeo de los 60 ejecutables y 12 librerías nativas adaptadas a Google Play.
 5. **[REPORTE_LIMPIEZA_ASSETS.md](REPORTE_LIMPIEZA_ASSETS.md)**: Detalle del ahorro de espacio de más de 150 MB al depurar fuentes y binarios redundantes.
 6. **[REPORTE_ANALISIS_DEPENDENCIAS.md](REPORTE_ANALISIS_DEPENDENCIAS.md)**: Análisis de dependencias `DT_NEEDED` y alineación estricta de páginas a 16 KB.
-7. **[GUIA_CPIC_IA.md](GUIA_CPIC_IA.md)**: **C-PIC IA**, el agente integrado de C-PIC (en diseño): C/ASM, consentimiento, planes, cuotas, Firebase y DeepSeek.
+7. **[build_picsim_custom.sh](build_picsim_custom.sh)**: Compila e integra PICsim (emulador PIC) para arm64/NDK.
+8. **[GUIA_CPIC_IA.md](GUIA_CPIC_IA.md)**: **C-PIC IA**, el agente integrado de C-PIC (en diseño): C/ASM, consentimiento, planes, cuotas, Firebase y DeepSeek.
 
 ---
 

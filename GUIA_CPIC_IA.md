@@ -247,7 +247,7 @@ C-PIC ya tiene el editor de código con pestañas, los includes/headers de SDCC 
 | Compilar C/ASM con SDCC/GPUTILS | **Sí** | Ya funciona; extraer `ToolchainService`. |
 | Leer errores del compilador y corregir en bucle | **Sí** | Parsear `file:line: error`; limitar reintentos. |
 | Ejecutar simulador 8051 | **Sí** | `s51`/`ucsim_51` ya está. |
-| Simular PIC | **No hoy** | No hay `gpsim` en `jniLibs`; habría que compilarlo. |
+| Simular PIC | **Sí, con PICsim** | PICsim cubre PIC16F628A/16F84A/16F648A/16F877A y varios PIC18; no todos los PIC. |
 | Usar `gpdasm`, `gpvc`, `gpstrip`, `packihx`, `makebin` | **Sí** | Allowlist de binarios existentes. |
 | Shell arbitrario (`sh -c`, pipes, `&&`) | **No recomendable** | Riesgo de seguridad y de política; usar herramientas. |
 | Modificar el código fuente de C-PIC y reconstruir el APK | **No** | No hay SDK Android en el dispositivo; firma/distribución; fuera de alcance. |
@@ -2065,7 +2065,7 @@ El modelo no conoce todos los registros de todos los PIC. Para reducir errores:
 
 - El modelo puede alucinar registros, bits o sintaxis de SDCC.
 - El compilador es la verdad; el agente debe compilar y leer errores.
-- No hay simulador PIC en el APK; no se puede validar comportamiento dinámico de PIC.
+- PICsim cubre un subconjunto de PIC (16F628A/16F84A/16F648A/16F877A y varios PIC18); para dispositivos no soportados no hay simulación PIC.
 - Para 8051 sí hay `s51`/`ucsim`; para PIC solo compilación/desensamblado.
 - El contexto de 1M no significa “meter todo el repo”: cuesta, tarda y distrae.
 - La calidad depende del prompt, de los headers y de la capacidad de iterar; no es magia.
@@ -2185,7 +2185,7 @@ Incluir:
 Excluir del MVP:
 
 - Streaming token a token (v2).
-- Simulación PIC (no hay binario).
+- Simulación PIC con PICsim: solo dispositivos soportados; el resto requiere hardware o gpsim.
 - Auto-aprobación total.
 - Subagentes/multiagente.
 - Voz/imagen.
@@ -2307,7 +2307,7 @@ Carga:
 - Poner la clave en el APK/Remote Config: no; es un fallo de seguridad garantizado.
 - Modificar y recompilar la propia app C-PIC en el teléfono: no; es otro producto.
 - Prometer “ilimitado” con API de pago: no; el abuso te arruina.
-- Simular PIC sin `gpsim`: no hoy; sería un proyecto aparte.
+- Simular PIC con PICsim: ya integrado para dispositivos soportados; gpsim sería para ampliar cobertura.
 - Competir por precio con herramientas gratuitas: no; compite por foco, calidad y comunidad.
 - Esperar ingresos altos con pocos usuarios: no; 50 subs ≈ $150–250/mes de margen, no un sueldo.
 
