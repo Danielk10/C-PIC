@@ -4,7 +4,7 @@
     <string name="app_name">C PIC Compiler</string>
 
     <!-- AdMob IDs (same in all languages) -->
-    <string name="admob_app_id">ca-app-pub-5141499161332805~8263601193</string>
+    <string name="admob_app_id">ca-app-pub-5141499161332805~6823623013</string>
     <string name="ad_banner_id">ca-app-pub-5141499161332805/1220566600</string>
     <string name="ad_interstitial_id">ca-app-pub-5141499161332805/8342402367</string>
 

@@ -157,6 +157,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean isUpdatingProjectName; // Flag para evitar bucles infinitos en el TextWatcher
     private boolean currentModeIsC;
     private InterstitialAd mInterstitialAd;
+    private boolean adsRequested = false;
     private BillingManager billingManager;
     private String adsPrice = null;
 
@@ -262,14 +263,49 @@ public class MainActivity extends AppCompatActivity {
 
         // Initialize AdMob only if ads should be shown
         if (BillingManager.shouldShowAds(this)) {
-            MobileAds.initialize(this, initializationStatus -> postToUi(() -> {
-                AdRequest adRequest = new AdRequest.Builder().build();
-                binding.adViewBanner.loadAd(adRequest);
-            }));
-            loadInterstitialAd();
+            ConsentManager.requestConsent(this, canRequestAds -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                invalidateOptionsMenu();
+                applyConsentState(canRequestAds);
+            });
         } else {
             binding.adViewBanner.setVisibility(View.GONE);
         }
+    }
+
+    /** Inicializa o retira los anuncios según la decisión de privacidad. */
+    private void applyConsentState(boolean canRequestAds) {
+        if (!BillingManager.shouldShowAds(this) || !canRequestAds) {
+            adsRequested = false;
+            if (binding != null) {
+                binding.adViewBanner.pause();
+                binding.adViewBanner.setVisibility(View.GONE);
+            }
+            mInterstitialAd = null;
+            return;
+        }
+        if (adsRequested) {
+            return;
+        }
+        adsRequested = true;
+        binding.adViewBanner.resume();
+
+        MobileAds.initialize(this, initializationStatus -> postToUi(() -> {
+            AdRequest adRequest = new AdRequest.Builder().build();
+            binding.adViewBanner.loadAd(adRequest);
+            loadInterstitialAd();
+        }));
+    }
+
+    /** Reaplica el estado tras cambiar las opciones de privacidad. */
+    public void onConsentChanged() {
+        if (isFinishing() || isDestroyed()) {
+            return;
+        }
+        invalidateOptionsMenu();
+        applyConsentState(ConsentManager.canRequestAds());
     }
 
     @Override
@@ -454,6 +490,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    public boolean onPrepareOptionsMenu(android.view.Menu menu) {
+        MenuItem privacyItem = menu.findItem(R.id.action_privacy_options);
+        if (privacyItem != null) {
+            privacyItem.setVisible(ConsentManager.isPrivacyOptionsRequired());
+        }
+        return super.onPrepareOptionsMenu(menu);
+    }
+
+    @Override
     public boolean onOptionsItemSelected(android.view.MenuItem item) {
         int id = item.getItemId();
         if (id == R.id.action_load_sample_code) {
@@ -479,6 +524,20 @@ public class MainActivity extends AppCompatActivity {
             return true;
         } else if (id == R.id.action_policy) {
             startActivity(new Intent(this, PolicyActivity.class));
+            return true;
+        } else if (id == R.id.action_privacy_options) {
+            ConsentManager.showPrivacyOptionsForm(
+                    this,
+                    error -> {
+                        if (error != null) {
+                            Toast.makeText(
+                                            this,
+                                            getString(R.string.privacy_options_error),
+                                            Toast.LENGTH_SHORT)
+                                    .show();
+                        }
+                        onConsentChanged();
+                    });
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -1127,6 +1186,7 @@ public class MainActivity extends AppCompatActivity {
     private void loadInterstitialAd() {
         // No cargar intersticiales si los anuncios fueron eliminados
         if (!BillingManager.shouldShowAds(this)) return;
+        if (!ConsentManager.canRequestAds()) return;
 
         AdRequest adRequest = new AdRequest.Builder().build();
         InterstitialAd.load(this, getString(R.string.ad_interstitial_id), adRequest,
@@ -2289,7 +2349,7 @@ public class MainActivity extends AppCompatActivity {
 
         popupView.findViewById(R.id.btn_close_popup).setOnClickListener(v -> {
             // Solo mostrar intersticial si se deben mostrar anuncios
-            if (BillingManager.shouldShowAds(this) && mInterstitialAd != null) {
+            if (BillingManager.shouldShowAds(this) && ConsentManager.canRequestAds() && mInterstitialAd != null) {
                 mInterstitialAd.setFullScreenContentCallback(new FullScreenContentCallback() {
                     @Override
                     public void onAdDismissedFullScreenContent() {
