@@ -10,8 +10,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.DocumentsContract;
 import android.text.Editable;
+import android.text.Layout;
 import android.text.Spannable;
-import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.text.method.LinkMovementMethod;
@@ -33,7 +33,6 @@ import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.annotation.ColorInt;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.annotation.NonNull;
 import com.google.android.gms.ads.AdRequest;
@@ -129,6 +128,24 @@ public class MainActivity extends AppCompatActivity {
     private static final Pattern ASM_DIRECTIVE_PATTERN = Pattern.compile("(?m)^\\s*(#[a-zA-Z_][a-zA-Z0-9_]*|__[a-zA-Z_][a-zA-Z0-9_]*|\\.[a-zA-Z_][a-zA-Z0-9_]*)\\b");
     private static final Pattern ASM_STRING_PATTERN = Pattern.compile("\"(?:\\\\.|[^\"\\\\])*\"");
 
+    /**
+     * El resaltado se limita a la ventana visible (más un margen) y a un
+     * presupuesto fijo de spans por tipo de token. Antes se coloreaba el
+     * documento completo en cada pulsación y MIUI se bloqueaba recorriendo
+     * miles de ForegroundColorSpan al calcular la selección (ANR
+     * miuix.toolbar.FloatingActionModeHelper.onGetContentRect).
+     */
+    private static final int HIGHLIGHT_EXTRA_LINES = 24;
+    private static final int HIGHLIGHT_CHAR_MARGIN = 1500;
+    private static final int MAX_HIGHLIGHT_WINDOW_CHARS = 40000;
+    private static final long HIGHLIGHT_DEBOUNCE_MS = 120L;
+    private static final int MAX_KEYWORD_SPANS = 100;
+    private static final int MAX_PREPROCESSOR_SPANS = 40;
+    private static final int MAX_NUMBER_SPANS = 60;
+    private static final int MAX_STRING_SPANS = 120;
+    private static final int MAX_FUNCTION_SPANS = 80;
+    private static final int MAX_COMMENT_SPANS = 200;
+
     private static class ModuleState {
         final LinkedHashMap<String, String> files = new LinkedHashMap<>();
         String activeFile;
@@ -153,6 +170,8 @@ public class MainActivity extends AppCompatActivity {
 
     private final ModuleState asmState = new ModuleState();
     private final ModuleState cState = new ModuleState();
+    private final List<ForegroundColorSpan> activeHighlightSpans = new ArrayList<>();
+    private final Runnable highlightTask = this::applySyntaxHighlighting;
     private boolean isApplyingHighlight;
     private boolean isUpdatingProjectName; // Flag para evitar bucles infinitos en el TextWatcher
     private boolean currentModeIsC;
@@ -591,7 +610,14 @@ public class MainActivity extends AppCompatActivity {
                 if (isApplyingHighlight) return;
                 saveActiveEditorContent();
                 updateLineNumbers();
-                applySyntaxHighlighting();
+                scheduleSyntaxHighlighting();
+            }
+        });
+
+        // Al desplazarse cambia la zona visible: recolorear solo esa ventana.
+        binding.editAsm.setOnScrollChangeListener((v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
+            if (scrollY != oldScrollY) {
+                scheduleSyntaxHighlighting();
             }
         });
 
@@ -1028,7 +1054,7 @@ public class MainActivity extends AppCompatActivity {
             state.files.put(state.activeFile, newCode);
             binding.editAsm.setText(newCode);
             binding.editAsm.setSelection(binding.editAsm.getText().length());
-            applySyntaxHighlighting();
+            refreshEditorHighlighting();
             updateLineNumbers();
             String deviceName = (selectedDevice != null && !selectedDevice.isEmpty())
                     ? selectedDevice
@@ -1081,7 +1107,7 @@ public class MainActivity extends AppCompatActivity {
         String content = state.files.getOrDefault(state.activeFile, "");
         binding.editAsm.setText(content);
         binding.editAsm.setSelection(binding.editAsm.getText().length());
-        applySyntaxHighlighting();
+        refreshEditorHighlighting();
         updateLineNumbers();
         binding.editAsm.post(this::updateLineNumbers);
     }
@@ -1120,58 +1146,107 @@ public class MainActivity extends AppCompatActivity {
         binding.textLineNumbers.setText(sb.toString());
     }
 
+    /** Programa un resaltado con debounce para no trabajar en cada pulsación. */
+    private void scheduleSyntaxHighlighting() {
+        mainHandler.removeCallbacks(highlightTask);
+        mainHandler.postDelayed(highlightTask, HIGHLIGHT_DEBOUNCE_MS);
+    }
+
+    /** Fuerza un resaltado inmediato y otro tras el layout (cambio de archivo o modo). */
+    private void refreshEditorHighlighting() {
+        mainHandler.removeCallbacks(highlightTask);
+        applySyntaxHighlighting();
+        binding.editAsm.post(this::applySyntaxHighlighting);
+    }
+
     private void applySyntaxHighlighting() {
+        mainHandler.removeCallbacks(highlightTask);
+
         Editable editable = binding.editAsm.getText();
         if (editable == null) return;
 
         isApplyingHighlight = true;
         try {
-            int start = binding.editAsm.getSelectionStart();
-            int end = binding.editAsm.getSelectionEnd();
+            // Solo se eliminan los spans propios; nunca se reemplaza el texto,
+            // así no se recrean miles de spans ni se disparan TextWatchers.
+            for (ForegroundColorSpan span : activeHighlightSpans) {
+                editable.removeSpan(span);
+            }
+            activeHighlightSpans.clear();
 
-            SpannableStringBuilder spannable = new SpannableStringBuilder(editable);
-            ForegroundColorSpan[] old = spannable.getSpans(0, spannable.length(), ForegroundColorSpan.class);
-            for (ForegroundColorSpan span : old) {
-                spannable.removeSpan(span);
+            int length = editable.length();
+            if (length == 0) return;
+
+            int windowStart = 0;
+            int windowEnd = Math.min(length, 20000);
+            Layout layout = binding.editAsm.getLayout();
+            if (layout != null && layout.getLineCount() > 0) {
+                int scrollY = Math.max(0, binding.editAsm.getScrollY());
+                int viewHeight = binding.editAsm.getHeight();
+                if (viewHeight <= 0) {
+                    viewHeight = Math.max(1, binding.editAsm.getLineHeight()) * 30;
+                }
+                int firstLine = Math.max(0,
+                        layout.getLineForVertical(scrollY) - HIGHLIGHT_EXTRA_LINES);
+                int lastLine = Math.min(layout.getLineCount() - 1,
+                        layout.getLineForVertical(scrollY + viewHeight) + HIGHLIGHT_EXTRA_LINES);
+                windowStart = layout.getLineStart(firstLine);
+                windowEnd = layout.getLineEnd(lastLine);
             }
 
-            @ColorInt int keywordColor = 0xFF80CBC4;
-            @ColorInt int preprocessorColor = 0xFFBA68C8;
-            @ColorInt int numberColor = 0xFFFFB74D;
-            @ColorInt int stringColor = 0xFFE6EE9C;
-            @ColorInt int symbolColor = 0xFF64B5F6;
-            @ColorInt int commentColor = 0xFF7F8C8D;
+            int[] window = SyntaxHighlightPlanner.visibleWindow(
+                    length, windowStart, windowEnd, HIGHLIGHT_CHAR_MARGIN);
+            window = SyntaxHighlightPlanner.alignToWholeLines(editable, window[0], window[1]);
+            windowStart = window[0];
+            windowEnd = window[1];
+            if (windowStart >= windowEnd) return;
+            if (windowEnd - windowStart > MAX_HIGHLIGHT_WINDOW_CHARS) {
+                windowEnd = Math.min(length, windowStart + MAX_HIGHLIGHT_WINDOW_CHARS);
+            }
 
-            String source = spannable.toString();
+            String source = editable.subSequence(windowStart, windowEnd).toString();
+            List<int[]> ranges = new ArrayList<>();
+
             if (isCurrentCMode()) {
-                applyPatternColor(spannable, source, C_PATTERN, keywordColor);
-                applyPatternColor(spannable, source, C_PREPROCESSOR_PATTERN, preprocessorColor);
-                applyPatternColor(spannable, source, C_NUMBER_PATTERN, numberColor);
-                applyPatternColor(spannable, source, C_STRING_PATTERN, stringColor);
-                applyPatternColor(spannable, source, C_FUNCTION_PATTERN, symbolColor);
-                applyPatternColor(spannable, source, C_COMMENT_PATTERN, commentColor);
+                ranges.addAll(SyntaxHighlightPlanner.collectRanges(
+                        source, C_PATTERN, 0xFF80CBC4, MAX_KEYWORD_SPANS));
+                ranges.addAll(SyntaxHighlightPlanner.collectRanges(
+                        source, C_PREPROCESSOR_PATTERN, 0xFFBA68C8, MAX_PREPROCESSOR_SPANS));
+                ranges.addAll(SyntaxHighlightPlanner.collectRanges(
+                        source, C_NUMBER_PATTERN, 0xFFFFB74D, MAX_NUMBER_SPANS));
+                ranges.addAll(SyntaxHighlightPlanner.collectRanges(
+                        source, C_STRING_PATTERN, 0xFFE6EE9C, MAX_STRING_SPANS));
+                ranges.addAll(SyntaxHighlightPlanner.collectRanges(
+                        source, C_FUNCTION_PATTERN, 0xFF64B5F6, MAX_FUNCTION_SPANS));
+                ranges.addAll(SyntaxHighlightPlanner.collectRanges(
+                        source, C_COMMENT_PATTERN, 0xFF7F8C8D, MAX_COMMENT_SPANS));
             } else {
-                applyPatternColor(spannable, source, ASM_PATTERN, keywordColor);
-                applyPatternColor(spannable, source, ASM_DIRECTIVE_PATTERN, preprocessorColor);
-                applyPatternColor(spannable, source, ASM_LABEL_PATTERN, symbolColor);
-                applyPatternColor(spannable, source, ASM_NUMBER_PATTERN, numberColor);
-                applyPatternColor(spannable, source, ASM_STRING_PATTERN, stringColor);
-                applyPatternColor(spannable, source, ASM_COMMENT_PATTERN, commentColor);
+                ranges.addAll(SyntaxHighlightPlanner.collectRanges(
+                        source, ASM_PATTERN, 0xFF80CBC4, MAX_KEYWORD_SPANS));
+                ranges.addAll(SyntaxHighlightPlanner.collectRanges(
+                        source, ASM_DIRECTIVE_PATTERN, 0xFFBA68C8, MAX_PREPROCESSOR_SPANS));
+                ranges.addAll(SyntaxHighlightPlanner.collectRanges(
+                        source, ASM_LABEL_PATTERN, 0xFF64B5F6, MAX_FUNCTION_SPANS));
+                ranges.addAll(SyntaxHighlightPlanner.collectRanges(
+                        source, ASM_NUMBER_PATTERN, 0xFFFFB74D, MAX_NUMBER_SPANS));
+                ranges.addAll(SyntaxHighlightPlanner.collectRanges(
+                        source, ASM_STRING_PATTERN, 0xFFE6EE9C, MAX_STRING_SPANS));
+                ranges.addAll(SyntaxHighlightPlanner.collectRanges(
+                        source, ASM_COMMENT_PATTERN, 0xFF7F8C8D, MAX_COMMENT_SPANS));
             }
 
-            editable.replace(0, editable.length(), spannable);
-            int safeStart = Math.max(0, Math.min(start, binding.editAsm.length()));
-            int safeEnd = Math.max(0, Math.min(end, binding.editAsm.length()));
-            binding.editAsm.setSelection(safeStart, safeEnd);
+            for (int[] range : ranges) {
+                int spanStart = windowStart + range[0];
+                int spanEnd = windowStart + range[1];
+                if (spanStart < 0 || spanEnd > editable.length() || spanStart >= spanEnd) continue;
+                ForegroundColorSpan span = new ForegroundColorSpan(range[2]);
+                editable.setSpan(span, spanStart, spanEnd, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                activeHighlightSpans.add(span);
+            }
+        } catch (RuntimeException e) {
+            Log.w(TAG, "No se pudo aplicar el resaltado de sintaxis", e);
         } finally {
             isApplyingHighlight = false;
-        }
-    }
-
-    private void applyPatternColor(SpannableStringBuilder spannable, String source, Pattern pattern, @ColorInt int color) {
-        Matcher matcher = pattern.matcher(source);
-        while (matcher.find()) {
-            spannable.setSpan(new ForegroundColorSpan(color), matcher.start(), matcher.end(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
     }
 
@@ -1279,7 +1354,7 @@ public class MainActivity extends AppCompatActivity {
                                     state.files.put(state.activeFile, newCode);
                                     binding.editAsm.setText(newCode);
                                     binding.editAsm.setSelection(binding.editAsm.getText().length());
-                                    applySyntaxHighlighting();
+                                    refreshEditorHighlighting();
                                     updateLineNumbers();
                                 }
                             }
@@ -1483,7 +1558,7 @@ public class MainActivity extends AppCompatActivity {
             state.files.put(state.activeFile, newCode);
             binding.editAsm.setText(newCode);
             binding.editAsm.setSelection(binding.editAsm.getText().length());
-            applySyntaxHighlighting();
+            refreshEditorHighlighting();
             updateLineNumbers();
         }
     }
