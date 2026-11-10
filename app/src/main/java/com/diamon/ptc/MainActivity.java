@@ -192,6 +192,7 @@ public class MainActivity extends AppCompatActivity {
     private final Handler logHandler = new Handler(Looper.getMainLooper());
     private boolean isLogUpdatePending = false;
     private volatile boolean isCompiling = false;
+    private boolean consentRequested = false;
     private GestorPantalla gestorPantalla;
 
     @Override
@@ -280,18 +281,36 @@ public class MainActivity extends AppCompatActivity {
         });
         billingManager.startConnection();
 
-        // Initialize AdMob only if ads should be shown
-        if (BillingManager.shouldShowAds(this)) {
-            ConsentManager.requestConsent(this, canRequestAds -> {
-                if (isFinishing() || isDestroyed()) {
-                    return;
-                }
-                invalidateOptionsMenu();
-                applyConsentState(canRequestAds);
-            });
-        } else {
+        // El consentimiento UMP se pide en onResourcesReady(), después de
+        // extraer los recursos y ocultar el overlay de carga inicial.
+        if (!BillingManager.shouldShowAds(this)) {
             binding.adViewBanner.setVisibility(View.GONE);
         }
+    }
+
+    /**
+     * Se ejecuta en el hilo principal cuando los recursos ya están extraídos y
+     * el progressbar de inicio se ha ocultado. Solo entonces se solicita el
+     * consentimiento UMP, para no mostrar el formulario encima de la carga.
+     */
+    private void onResourcesReady() {
+        if (isFinishing() || isDestroyed() || consentRequested) {
+            return;
+        }
+        consentRequested = true;
+
+        if (!BillingManager.shouldShowAds(this)) {
+            binding.adViewBanner.setVisibility(View.GONE);
+            return;
+        }
+
+        ConsentManager.requestConsent(this, canRequestAds -> {
+            if (isFinishing() || isDestroyed()) {
+                return;
+            }
+            invalidateOptionsMenu();
+            applyConsentState(canRequestAds);
+        });
     }
 
     /** Inicializa o retira los anuncios según la decisión de privacidad. */
@@ -1286,13 +1305,15 @@ public class MainActivity extends AppCompatActivity {
                 postToUi(() -> binding.loadingOverlay.setVisibility(View.VISIBLE));
                 log(getString(R.string.log_preparing_resources));
                 boolean success = AssetExtractor.extractAssets(this, "data/data/com.diamon.ptc/files/usr", new File(getFilesDir(), "usr"));
-                postToUi(() -> binding.loadingOverlay.setVisibility(View.GONE));
                 log(getString(success ? R.string.log_resources_extracted : R.string.log_resources_extract_error));
             }
             if (sdcc != null) {
                 sdcc.setupSymlinks();
             }
             loadDeviceList();
+            // Ocultar el overlay antes de pedir el consentimiento UMP.
+            postToUi(() -> binding.loadingOverlay.setVisibility(View.GONE));
+            postToUi(this::onResourcesReady);
         });
     }
 
@@ -2126,15 +2147,41 @@ public class MainActivity extends AppCompatActivity {
         }
 
         View btnSim = view.findViewById(R.id.btn_run_simulator_action);
-        if (btnSim != null) {
+        if (btnSim instanceof TextView) {
+            TextView simulatorButton = (TextView) btnSim;
             if (currentPort == null || !currentPort.supportsSimulation()) {
-                btnSim.setEnabled(false);
-                btnSim.setAlpha(0.5f);
-                if (btnSim instanceof android.widget.TextView) {
-                    ((android.widget.TextView) btnSim).setText(R.string.btn_simulator_unavailable);
+                simulatorButton.setEnabled(false);
+                simulatorButton.setAlpha(0.5f);
+                simulatorButton.setText(R.string.btn_simulator_unavailable);
+            } else if (PicsimSupport.isPicsim(currentPort.simulatorBinary)) {
+                String device = getSelectedDevice();
+                String processor = PicsimSupport.normalizeProcessor(device);
+                if (!PicsimSupport.isSupported(processor)) {
+                    simulatorButton.setEnabled(false);
+                    simulatorButton.setAlpha(0.5f);
+                    simulatorButton.setText(getString(
+                            R.string.btn_simulator_unsupported_device,
+                            (device != null && !device.trim().isEmpty())
+                                    ? device
+                                    : currentPort.familyName));
+                } else {
+                    simulatorButton.setEnabled(true);
+                    simulatorButton.setAlpha(1f);
+                    simulatorButton.setText(getString(
+                            R.string.btn_run_simulator_with,
+                            getString(R.string.simulator_name_picsim)));
+                    simulatorButton.setOnClickListener(v -> {
+                        dialog.dismiss();
+                        runSimulatorNow();
+                    });
                 }
             } else {
-                btnSim.setOnClickListener(v -> {
+                simulatorButton.setEnabled(true);
+                simulatorButton.setAlpha(1f);
+                simulatorButton.setText(getString(
+                        R.string.btn_run_simulator_with,
+                        getString(R.string.simulator_name_ucsim)));
+                simulatorButton.setOnClickListener(v -> {
                     dialog.dismiss();
                     runSimulatorNow();
                 });
@@ -2226,20 +2273,31 @@ public class MainActivity extends AppCompatActivity {
         String simName = currentPort.simulatorBinary;
         String familyName = currentPort.familyName;
 
-        if ("picsim".equals(simName)) {
-            String processor = resolvePicsimProcessor(getSelectedDevice());
-            if (processor == null) {
-                log(getString(R.string.log_simulator_not_available, familyName));
+        if (PicsimSupport.isPicsim(simName)) {
+            String device = getSelectedDevice();
+            String processor = PicsimSupport.normalizeProcessor(device);
+            if (!PicsimSupport.isSupported(processor)) {
+                log(getString(
+                        R.string.log_picsim_unsupported_device,
+                        (device != null && !device.trim().isEmpty())
+                                ? device
+                                : familyName));
                 return;
             }
             File finalHex = hexFile;
+            String deviceLabel = (device != null && !device.trim().isEmpty()) ? device : processor;
             executeAsync(() -> {
-                log(getString(R.string.log_simulator_started, simName + " [" + processor + "]", familyName));
+                String simLabel = getString(R.string.simulator_name_picsim) + " [" + processor + "]";
+                log(getString(R.string.log_simulator_started, simLabel, familyName));
                 int result = sdcc.executePicsimStreaming(projectDir, processor, finalHex, 20, this::logRaw);
-                if (result == 0) {
-                    log(getString(R.string.log_simulator_finished, result));
+                if (result == PicsimSupport.RESULT_OK) {
+                    log(getString(R.string.log_simulator_finished, 0));
+                } else if (result == PicsimSupport.RESULT_INIT_ERROR) {
+                    log(getString(R.string.log_picsim_init_failed));
+                } else if (result == PicsimSupport.RESULT_INVALID_PROCESSOR) {
+                    log(getString(R.string.log_picsim_unsupported_device, deviceLabel));
                 } else {
-                    log(getString(R.string.log_simulator_failed, simName));
+                    log(getString(R.string.log_simulator_failed, getString(R.string.simulator_name_picsim)));
                 }
             });
             return;
@@ -2247,7 +2305,8 @@ public class MainActivity extends AppCompatActivity {
 
         File finalHex = hexFile;
         executeAsync(() -> {
-            log(getString(R.string.log_simulator_started, simName, familyName));
+            String simLabel = getString(R.string.simulator_name_ucsim) + " (" + simName + ")";
+            log(getString(R.string.log_simulator_started, simLabel, familyName));
             int result = sdcc.executeSimulator(projectDir, simName, finalHex, "step 20; state; quit", this::logRaw);
             if (result == 0) {
                 log(getString(R.string.log_simulator_finished, result));
@@ -2255,20 +2314,6 @@ public class MainActivity extends AppCompatActivity {
                 log(getString(R.string.log_simulator_failed, simName));
             }
         });
-    }
-
-    private String resolvePicsimProcessor(String device) {
-        String value = (device != null && !device.trim().isEmpty())
-                ? device
-                : (currentPort != null ? currentPort.defaultDevice : null);
-        if (value == null || value.trim().isEmpty()) {
-            return null;
-        }
-        value = value.trim().toUpperCase(Locale.US).replaceAll("[^A-Z0-9]", "");
-        if (!value.startsWith("PIC")) {
-            value = "PIC" + value;
-        }
-        return value;
     }
 
     private void viewGeneratedFile(String extension) {

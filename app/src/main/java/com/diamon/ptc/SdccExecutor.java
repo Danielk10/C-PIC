@@ -18,6 +18,7 @@ import java.util.Map;
  */
 public class SdccExecutor {
     private static final String TAG = "SdccExecutor";
+    private static final int MAX_PICSIM_CAPTURE = 16 * 1024;
 
     private final File workDir;
     private final File nativeLibDir;
@@ -196,7 +197,7 @@ public class SdccExecutor {
                     fos.write(hexBuffer.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
                 }
             } else if (exitCode != 0) {
-                String signalDesc = describeSignalExit(exitCode);
+                String signalDesc = ProcessExitCodes.describeSignal(exitCode);
                 if (signalDesc != null && listener != null) {
                     listener.onProcessOutput("Error nativo: packihx termino por " + signalDesc + "\n");
                 }
@@ -242,6 +243,10 @@ public class SdccExecutor {
      * Ejecuta PICsim (libpicsim.so) de forma no interactiva.
      * PICsim espera: "n" (n pasos), el número en hexadecimal y "q" para salir.
      * La salida incluye secuencias ANSI; se limpian antes de enviarla al log.
+     *
+     * <p>El CLI de PICsim devuelve 1 cuando la simulación termina bien y 0
+     * cuando falla {@code pic_init()}. Por eso el valor de {@code waitFor()}
+     * se traduce con {@link PicsimSupport#classifyExitCode(int, String)}.</p>
      */
     public int executePicsimStreaming(File workingDir, String processor, File hexFile, int steps, ProcessListener listener) {
         File binaryFile = new File(nativeLibDir, "libpicsim.so");
@@ -252,18 +257,30 @@ public class SdccExecutor {
             String err = "Error: no se encontro el binario PICsim (" + binaryFile.getAbsolutePath() + ")\n";
             Log.e(TAG, err);
             if (listener != null) listener.onProcessOutput(err);
-            return -1;
+            return PicsimSupport.RESULT_LAUNCH_ERROR;
+        }
+
+        String normalizedProcessor = PicsimSupport.normalizeProcessor(processor);
+        if (!PicsimSupport.isSupported(normalizedProcessor)) {
+            String err = "Error: PICsim no soporta el procesador " + processor + "\n";
+            Log.e(TAG, err);
+            if (listener != null) listener.onProcessOutput(err);
+            return PicsimSupport.RESULT_INVALID_PROCESSOR;
         }
 
         List<String> command = new ArrayList<>();
         command.add(binaryFile.getAbsolutePath());
-        command.add(processor);
+        command.add(normalizedProcessor);
         command.add(hexFile.getAbsolutePath());
+
+        setupSymlinks();
 
         try {
             ProcessBuilder pb = new ProcessBuilder(command);
             pb.directory(workingDir != null ? workingDir : workDir);
             pb.redirectErrorStream(true);
+
+            configureEnvironment(pb.environment());
 
             Process process = pb.start();
 
@@ -276,48 +293,38 @@ public class SdccExecutor {
                 Log.w(TAG, "No se pudo enviar la secuencia a PICsim: " + e.getMessage());
             }
 
+            StringBuilder captured = new StringBuilder();
             try (java.io.InputStream in = process.getInputStream();
                  InputStreamReader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
                 char[] buffer = new char[512];
                 int read;
                 while ((read = reader.read(buffer)) != -1) {
-                    String chunk = stripAnsi(new String(buffer, 0, read));
-                    if (listener != null && !chunk.isEmpty()) {
+                    String chunk = PicsimSupport.stripSerialNoise(
+                            stripAnsi(new String(buffer, 0, read)));
+                    if (chunk.isEmpty()) {
+                        continue;
+                    }
+                    int remaining = MAX_PICSIM_CAPTURE - captured.length();
+                    if (remaining > 0) {
+                        captured.append(chunk, 0, Math.min(remaining, chunk.length()));
+                    }
+                    if (listener != null) {
                         listener.onProcessOutput(chunk);
                     }
                 }
             }
 
-            return waitForProcess(process, "picsim", listener);
+            int rawExitCode = waitForProcess(process, "picsim", listener);
+            return PicsimSupport.classifyExitCode(rawExitCode, captured.toString());
         } catch (Exception e) {
             Log.e(TAG, "Error ejecutando PICsim: " + e.getMessage(), e);
             if (listener != null) listener.onProcessOutput("Error: " + e.getMessage() + "\n");
-            return -1;
+            return PicsimSupport.RESULT_LAUNCH_ERROR;
         }
     }
 
     private static String stripAnsi(String text) {
         return text.replaceAll("\u001B\\[[0-9;]*[A-Za-z]", "");
-    }
-
-    /**
-     * Detecta si un código de salida corresponde a una señal POSIX (128 + signal).
-     * Retorna una descripción legible o null si no es una señal conocida.
-     */
-    static String describeSignalExit(int exitCode) {
-        if (exitCode <= 128) return null;
-        int signal = exitCode - 128;
-        switch (signal) {
-            case 4:  return "SIGILL (instruccion ilegal)";
-            case 6:  return "SIGABRT (proceso abortado)";
-            case 7:  return "SIGBUS (error de acceso a memoria)";
-            case 8:  return "SIGFPE (error aritmetico)";
-            case 9:  return "SIGKILL (proceso terminado por el sistema)";
-            case 11: return "SIGSEGV (acceso a memoria no valido)";
-            case 14: return "SIGALRM (timeout)";
-            case 15: return "SIGTERM (proceso terminado)";
-            default: return "señal " + signal;
-        }
     }
 
     /**
@@ -327,7 +334,7 @@ public class SdccExecutor {
         try {
             int exitCode = process.waitFor();
             if (exitCode != 0) {
-                String signalDesc = describeSignalExit(exitCode);
+                String signalDesc = ProcessExitCodes.describeSignal(exitCode);
                 if (signalDesc != null) {
                     String msg = "Error nativo: " + binaryName + " termino por " + signalDesc + " (codigo " + exitCode + ")\n";
                     Log.e(TAG, msg);
@@ -417,7 +424,7 @@ public class SdccExecutor {
                 fullLog.append("\n").append(result);
             }
             if (exitCode != 0) {
-                String signalDesc = describeSignalExit(exitCode);
+                String signalDesc = ProcessExitCodes.describeSignal(exitCode);
                 if (signalDesc != null) {
                     fullLog.append("\nError nativo: SDCC termino por ").append(signalDesc);
                 } else if (result.isEmpty()) {

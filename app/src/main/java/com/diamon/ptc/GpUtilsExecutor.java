@@ -89,7 +89,7 @@ public class GpUtilsExecutor {
 
             int exitCode = process.waitFor();
             if (exitCode != 0) {
-                String signalDesc = SdccExecutor.describeSignalExit(exitCode);
+                String signalDesc = ProcessExitCodes.describeSignal(exitCode);
                 if (signalDesc != null) {
                     String msg = "Error nativo: " + binaryName + " termino por " + signalDesc + " (codigo " + exitCode + ")\n";
                     Log.e(TAG, msg);
@@ -186,7 +186,7 @@ public class GpUtilsExecutor {
                 fullLog.append("\n").append(result);
             }
             if (exitCode != 0) {
-                String signalDesc = SdccExecutor.describeSignalExit(exitCode);
+                String signalDesc = ProcessExitCodes.describeSignal(exitCode);
                 if (signalDesc != null) {
                     fullLog.append("\nError nativo: ").append(binaryName).append(" termino por ").append(signalDesc);
                 }

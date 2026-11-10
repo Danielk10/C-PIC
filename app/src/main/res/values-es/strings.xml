@@ -166,7 +166,11 @@
     <string name="btn_run_packihx">Ejecutar packihx</string>
     <string name="btn_run_makebin">Ejecutar makebin</string>
     <string name="btn_run_simulator">Simular con ucSim</string>
+    <string name="btn_run_simulator_with">Simular con %1$s</string>
+    <string name="simulator_name_picsim">PICsim</string>
+    <string name="simulator_name_ucsim">ucSim</string>
     <string name="btn_simulator_unavailable">Sin simulador para esta arquitectura</string>
+    <string name="btn_simulator_unsupported_device">PICsim no soporta %1$s</string>
     <string name="log_packihx_started">--- Ejecutando packihx sobre %s ---</string>
     <string name="log_packihx_success">[packihx] HEX normalizado con éxito: %s</string>
     <string name="log_packihx_failed">[packihx] Error al ejecutar packihx (código %d).</string>
@@ -176,7 +180,9 @@
     <string name="log_simulator_started">--- Iniciando simulación con %1$s para %2$s ---</string>
     <string name="log_simulator_finished">--- Simulación finalizada con éxito (código %d) ---</string>
     <string name="log_simulator_failed">[ERROR] No se pudo ejecutar el simulador %s.</string>
-    <string name="log_simulator_not_available">--- No hay simulador disponible para %1$s. La simulación PIC no está soportada; usa gpdasm o prueba en hardware. ---</string>
+    <string name="log_simulator_not_available">--- No hay simulador disponible para %1$s. ---</string>
+    <string name="log_picsim_unsupported_device">--- PICsim no soporta el dispositivo %1$s. Elige un PIC compatible (por ejemplo PIC16F628A o PIC18F4550) o prueba en hardware. ---</string>
+    <string name="log_picsim_init_failed">[ERROR] PICsim no pudo cargar el archivo HEX. Vuelve a compilar el proyecto antes de simular.</string>
     <string name="log_no_hex_for_tool">Error: Primero compila el proyecto para generar el archivo .hex.</string>
     <string name="dialog_select_viewer_format">¿Qué formato de archivo deseas inspeccionar?</string>
     <string name="format_hex_file">Archivo Intel HEX .hex</string>

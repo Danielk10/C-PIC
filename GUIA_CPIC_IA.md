@@ -49,7 +49,7 @@ Resumen de conclusiones:
 | `MainActivity` | **2.856 líneas**; editor, compilación, exportación, billing y ads en una sola clase |
 | Nativo | `app/src/main/cpp/native-lib.cpp` solo devuelve “Hello from C++”; CMake con alineación 16 KB |
 | Toolchain | 72 binarios en `app/src/main/jniLibs/arm64-v8a/`, renombrados `lib*.so` |
-| SDCC | 4.5.0; GPUTILS 1.5.2; ucsim para varias arquitecturas |
+| SDCC | 4.5.0; GPUTILS 1.5.2; ucsim para varias arquitecturas; PICsim para 33 modelos PIC |
 | minSdk / targetSdk | 24 / 37 (Android 17) |
 | ABIs | solo `arm64-v8a` |
 | Build | AGP 9.4.1, Gradle 9.6.0, NDK 30.0.14904198, CMake 4.1.2 |
@@ -79,8 +79,9 @@ Esto es suficiente para ver errores de SDCC, pero **no** para un agente tipo Cla
 - Configuran `SDCC_HOME`, `SDCC_LIB`, `SDCC_INCLUDE`, `GPUTILS_*`, `LD_LIBRARY_PATH` y `PATH`.
 - Crean symlinks (`sdld`, `sdld8051`, `as*`) en `usr/bin` y `usr/libexec`.
 - Ejecutan con `ProcessBuilder`, `redirectErrorStream(true)`, streaming por `InputStreamReader` y `waitFor()`.
-- Detectan señales POSIX (`SIGSEGV`, `SIGABRT`, etc.) con `describeSignalExit`.
+- Detectan señales POSIX (`SIGSEGV`, `SIGABRT`, etc.) con `ProcessExitCodes.describeSignal`.
 - `SdccExecutor.executeSimulator` usa `s51`/`ucsim_51` para 8051.
+- `SdccExecutor.executePicsimStreaming` usa `libpicsim.so` para PIC y traduce sus códigos de salida con `PicsimSupport`.
 
 **Conclusión:** el agente no debe ejecutar un shell. Debe llamar a estas mismas clases mediante un **registro de herramientas allowlisted**. Eso conserva el entorno, los symlinks y la compatibilidad con Android 10+ (`W^X`).
 
@@ -488,7 +489,7 @@ Reglas:
 - Rechazar `..`, enlaces simbólicos que salgan del workspace, rutas absolutas y nombres con `\0`.
 - Limitar tamaño de lectura/escritura (p. ej. 512 KB por archivo, 4 MB por proyecto).
 - Extensiones permitidas: `.c`, `.h`, `.asm`, `.inc`, `.s`, `.txt`, `.md`, `.hex`, `.bin`, `.map`, `.lst`, `.rel`, `.o`.
-- Binarios allowlisted: `sdcc`, `sdcpp`, `gpasm`, `gplink`, `gplib`, `gpdasm`, `gpvc`, `gpstrip`, `gpvo`, `packihx`, `makebin`, `s51`, `ucsim_*`; **nunca** `sh`, `bash`, `python`, `curl`, `wget`.
+- Binarios allowlisted: `sdcc`, `sdcpp`, `gpasm`, `gplink`, `gplib`, `gpdasm`, `gpvc`, `gpstrip`, `gpvo`, `packihx`, `makebin`, `picsim`, `s51`, `ucsim_*`; **nunca** `sh`, `bash`, `python`, `curl`, `wget`.
 - Validar argumentos: sin `;`, `|`, `&`, `$()`, backticks, redirecciones ni rutas fuera del workspace.
 - Timeout por herramienta (compilación 120 s; simulación 30 s; descarga 0).
 - Salida máxima (p. ej. 200 KB); truncar con aviso.
@@ -2066,7 +2067,7 @@ El modelo no conoce todos los registros de todos los PIC. Para reducir errores:
 - El modelo puede alucinar registros, bits o sintaxis de SDCC.
 - El compilador es la verdad; el agente debe compilar y leer errores.
 - PICsim cubre un subconjunto de PIC (16F628A/16F84A/16F648A/16F877A y varios PIC18); para dispositivos no soportados no hay simulación PIC.
-- Para 8051 sí hay `s51`/`ucsim`; para PIC solo compilación/desensamblado.
+- Para 8051 hay `s51`/`ucsim`; para PIC hay `PICsim` en los 33 modelos soportados y compilación/desensamblado para el resto.
 - El contexto de 1M no significa “meter todo el repo”: cuesta, tarda y distrae.
 - La calidad depende del prompt, de los headers y de la capacidad de iterar; no es magia.
 - **Thinking mode** no admite `temperature`, `presence_penalty` ni `frequency_penalty`; `tool_choice` debe ser `auto` y hay que devolver `reasoning_content` con `tools`.
