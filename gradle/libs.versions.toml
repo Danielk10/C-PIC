@@ -9,15 +9,15 @@ activity = "1.13.0"
 constraintlayout = "2.2.2"
 documentfile = "1.1.0"
 playServicesAds = "25.5.0"
-firebaseCrashlytics = "21.0.0"
-googleServices = "4.5.0"
+firebaseCrashlytics = "21.1.0"
+googleServices = "4.6.0"
 crashlyticsPlugin = "3.0.8"
 # Billing 9.1.0 llama a ActivityOptions.setPendingIntentBackgroundActivityStartMode
 # desde ProxyBillingActivity en builds de Android 14 que no exponen el método
 # (NoSuchMethodError). 8.3.0 es la última 8.x soportada por Play hasta 2027.
 billing = "8.3.0"
 hsdp = "2.2.0"
-firebaseBom = "35.0.2"
+firebaseBom = "35.2.0"
 
 [libraries]
 billing = { group = "com.android.billingclient", name = "billing", version.ref = "billing" }
