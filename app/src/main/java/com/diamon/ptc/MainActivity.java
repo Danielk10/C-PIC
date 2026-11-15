@@ -5,6 +5,7 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -16,6 +17,7 @@ import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.text.method.LinkMovementMethod;
 import android.text.style.ForegroundColorSpan;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -36,6 +38,7 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.annotation.NonNull;
 import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.AdSize;
 import com.google.android.gms.ads.FullScreenContentCallback;
 import com.google.android.gms.ads.LoadAdError;
 import com.google.android.gms.ads.MobileAds;
@@ -176,6 +179,13 @@ public class MainActivity extends AppCompatActivity {
     private boolean isUpdatingProjectName; // Flag para evitar bucles infinitos en el TextWatcher
     private boolean currentModeIsC;
     private InterstitialAd mInterstitialAd;
+    private long mInterstitialLoadedAt = 0;
+    private long mLastInterstitialShownAt = 0;
+    private boolean mInterstitialLoading = false;
+    /** Un intersticial cargado se descarta pasado este tiempo. */
+    private static final long INTERSTITIAL_TTL_MS = 60 * 60 * 1000L;
+    /** Tiempo mínimo entre dos intersticiales. */
+    private static final long INTERSTITIAL_COOLDOWN_MS = 3 * 60 * 1000L;
     private boolean adsRequested = false;
     private BillingManager billingManager;
     private String adsPrice = null;
@@ -329,12 +339,39 @@ public class MainActivity extends AppCompatActivity {
         }
         adsRequested = true;
         binding.adViewBanner.resume();
+        applyAdaptiveBannerSize();
 
         MobileAds.initialize(this, initializationStatus -> postToUi(() -> {
+            // Se recalcula por si el ancho útil cambió tras el consentimiento.
+            applyAdaptiveBannerSize();
             AdRequest adRequest = new AdRequest.Builder().build();
             binding.adViewBanner.loadAd(adRequest);
-            loadInterstitialAd();
         }));
+    }
+
+    /**
+     * Ajusta el banner al ancho real de la pantalla en la orientación actual.
+     *
+     * <p>El {@code app:adSize="BANNER"} del XML es fijo (320x50) y deja franjas
+     * laterales en pantallas de 360-411dp. Solo {@code setAdSize()} en código
+     * convierte el bloque en un banner adaptativo anclado de ancho completo.</p>
+     */
+    private void applyAdaptiveBannerSize() {
+        if (binding == null) {
+            return;
+        }
+        try {
+            DisplayMetrics dm = getResources().getDisplayMetrics();
+            int widthPixels = dm.widthPixels;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                widthPixels = getWindowManager().getCurrentWindowMetrics().getBounds().width();
+            }
+            int widthDp = (int) (widthPixels / dm.density);
+            binding.adViewBanner.setAdSize(
+                    AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(this, widthDp));
+        } catch (RuntimeException e) {
+            Log.w(TAG, "No se pudo calcular el banner adaptativo: " + e.getMessage());
+        }
     }
 
     /** Reaplica el estado tras cambiar las opciones de privacidad. */
@@ -1276,26 +1313,90 @@ public class MainActivity extends AppCompatActivity {
         return currentModeIsC;
     }
 
-    /** Precarga el anuncio intersticial para tenerlo listo al cerrar el visor hex. */
+    /**
+     * Carga el intersticial bajo demanda (al abrir el visor HEX), no al
+     * arrancar. Precargarlo al inicio hacía que caducara antes de que el
+     * usuario cerrara el visor y que el show rate cayera al 14%.
+     */
     private void loadInterstitialAd() {
         // No cargar intersticiales si los anuncios fueron eliminados
         if (!BillingManager.shouldShowAds(this)) return;
         if (!ConsentManager.canRequestAds()) return;
+        if (mInterstitialLoading || isInterstitialFresh()) return;
 
+        mInterstitialLoading = true;
         AdRequest adRequest = new AdRequest.Builder().build();
         InterstitialAd.load(this, getString(R.string.ad_interstitial_id), adRequest,
             new InterstitialAdLoadCallback() {
                 @Override
                 public void onAdLoaded(@NonNull InterstitialAd interstitialAd) {
                     mInterstitialAd = interstitialAd;
+                    mInterstitialLoadedAt = System.currentTimeMillis();
+                    mInterstitialLoading = false;
                     Log.d(TAG, "Interstitial ad loaded.");
                 }
                 @Override
                 public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
                     mInterstitialAd = null;
+                    mInterstitialLoadedAt = 0;
+                    mInterstitialLoading = false;
                     Log.d(TAG, "Interstitial ad failed to load: " + loadAdError.getMessage());
                 }
             });
+    }
+
+    private boolean isInterstitialFresh() {
+        return mInterstitialAd != null
+                && mInterstitialLoadedAt > 0
+                && System.currentTimeMillis() - mInterstitialLoadedAt < INTERSTITIAL_TTL_MS;
+    }
+
+    /** Hay un intersticial listo y ya pasó el tiempo mínimo entre anuncios. */
+    private boolean canShowInterstitialNow() {
+        return BillingManager.shouldShowAds(this)
+                && ConsentManager.canRequestAds()
+                && isInterstitialFresh()
+                && System.currentTimeMillis() - mLastInterstitialShownAt >= INTERSTITIAL_COOLDOWN_MS;
+    }
+
+    /**
+     * Muestra el intersticial ya cargado. El banner se restaura cuando el
+     * anuncio a pantalla completa se cierra, no antes.
+     */
+    private boolean showInterstitialIfAvailable() {
+        if (isFinishing() || isDestroyed() || !canShowInterstitialNow()) {
+            return false;
+        }
+        final InterstitialAd ad = mInterstitialAd;
+        mInterstitialAd = null;
+        mInterstitialLoadedAt = 0;
+        mLastInterstitialShownAt = System.currentTimeMillis();
+
+        ad.setFullScreenContentCallback(new FullScreenContentCallback() {
+            @Override
+            public void onAdDismissedFullScreenContent() {
+                restoreBannerAfterFullScreen();
+            }
+
+            @Override
+            public void onAdFailedToShowFullScreenContent(@NonNull com.google.android.gms.ads.AdError adError) {
+                restoreBannerAfterFullScreen();
+            }
+        });
+        ad.show(this);
+        return true;
+    }
+
+    /** Vuelve a mostrar el banner si la app sigue mostrando anuncios. */
+    private void restoreBannerAfterFullScreen() {
+        if (binding == null || isFinishing() || isDestroyed()) {
+            return;
+        }
+        if (!BillingManager.shouldShowAds(this) || !ConsentManager.canRequestAds()) {
+            binding.adViewBanner.setVisibility(View.GONE);
+            return;
+        }
+        binding.adViewBanner.setVisibility(View.VISIBLE);
     }
 
     private void initResources() {
@@ -2426,6 +2527,24 @@ public class MainActivity extends AppCompatActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 true);
 
+        // El popup ocupa toda la pantalla y tapa el banner: se oculta para no
+        // contar impresiones que el usuario no puede ver ni clics accidentales.
+        if (binding != null) {
+            binding.adViewBanner.setVisibility(View.GONE);
+        }
+        // Cargar el intersticial justo ahora: el usuario pasará unos segundos
+        // leyendo el HEX y el anuncio estará listo al cerrar el visor.
+        loadInterstitialAd();
+        popupWindow.setOnDismissListener(() -> {
+            if (canShowInterstitialNow()) {
+                // Se mantiene el banner oculto y se restaura al cerrar el
+                // anuncio a pantalla completa.
+                mainHandler.post(this::showInterstitialIfAvailable);
+            } else {
+                restoreBannerAfterFullScreen();
+            }
+        });
+
         ListView listView = popupView.findViewById(R.id.list_hex);
         List<String[]> rows = new ArrayList<>();
         if (!memory.isEmpty()) {
@@ -2467,27 +2586,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        popupView.findViewById(R.id.btn_close_popup).setOnClickListener(v -> {
-            // Solo mostrar intersticial si se deben mostrar anuncios
-            if (BillingManager.shouldShowAds(this) && ConsentManager.canRequestAds() && mInterstitialAd != null) {
-                mInterstitialAd.setFullScreenContentCallback(new FullScreenContentCallback() {
-                    @Override
-                    public void onAdDismissedFullScreenContent() {
-                        popupWindow.dismiss();
-                        loadInterstitialAd();
-                    }
-                    @Override
-                    public void onAdFailedToShowFullScreenContent(@NonNull com.google.android.gms.ads.AdError adError) {
-                        popupWindow.dismiss();
-                        loadInterstitialAd();
-                    }
-                });
-                mInterstitialAd.show(MainActivity.this);
-                mInterstitialAd = null;
-            } else {
-                popupWindow.dismiss();
-            }
-        });
+        popupView.findViewById(R.id.btn_close_popup).setOnClickListener(v -> popupWindow.dismiss());
         popupWindow.showAtLocation(binding.getRoot(), Gravity.CENTER, 0, 0);
     }
 

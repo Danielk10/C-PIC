@@ -561,7 +561,7 @@
         <!-- Banner Ad (bottom) -->
         <com.google.android.gms.ads.AdView
             android:id="@+id/adView_banner"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             app:adSize="BANNER"
             app:adUnitId="@string/ad_banner_id"
