@@ -3,22 +3,24 @@
 # build_picsim_custom.sh
 #
 # Compila PICsim (https://github.com/lcgamboa/picsim) para Android arm64
-# con el NDK, siguiendo la lógica de build_sdcc_custom.sh y
-# build_gputils_custom.sh.
+# (arm64-v8a) o ARM de 32 bits (armeabi-v7a) con el NDK, siguiendo la lógica
+# de build_sdcc_custom.sh y build_gputils_custom.sh.
 #
 # Genera:
-#   - picsim              CLI (PIE, arm64)
+#   - picsim              CLI (PIE, ABI seleccionada)
 #   - libpicsim_core.so   librería compartida (opcional, para JNI futuro)
 #   - libpicsim.so        copia del CLI en jniLibs (ejecutable Android)
 #   - headers, COPYING, README, VERSION y ejemplo PIC16F628A en fake_root
 #
 # Uso:
-#   ./build_picsim_custom.sh
+#   ./build_picsim_custom.sh                     # arm64-v8a
+#   ANDROID_ABI=armeabi-v7a ./build_picsim_custom.sh
 #
 # Variables opcionales:
+#   ANDROID_ABI        ABI de destino: arm64-v8a (default) o armeabi-v7a
 #   ANDROID_NDK_HOME   Ruta del NDK (default: /tmp/android-sdk/ndk/30.0.14904198)
 #   ANDROID_API        API mínima (default: 24)
-#   DESTDIR            Destino fake_root (default: $HOME/fake_root)
+#   DESTDIR            Destino fake_root (default: $HOME/fake_root_<abi>)
 #   PICSIM_COMMIT      Commit de PICsim (default: fijado abajo)
 #
 # Nota legal: PICsim es GPL-2.0-or-later. C-PIC es GPL-3.0; conserva
@@ -28,11 +30,28 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+ANDROID_ABI="${ANDROID_ABI:-arm64-v8a}"
+case "$ANDROID_ABI" in
+  arm64-v8a)
+    ABI_TRIPLE="aarch64-linux-android"
+    DEFAULT_DESTDIR="$HOME/fake_root_64_bit"
+    ;;
+  armeabi-v7a)
+    ABI_TRIPLE="armv7a-linux-androideabi"
+    DEFAULT_DESTDIR="$HOME/fake_root_32_bit"
+    ;;
+  *)
+    echo "ERROR: ANDROID_ABI no soportada: $ANDROID_ABI"
+    echo "Usa arm64-v8a o armeabi-v7a."
+    exit 1
+    ;;
+esac
+
 APP_PREFIX="/data/data/com.diamon.ptc/files/usr"
-DESTDIR="${DESTDIR:-$HOME/fake_root}"
+DESTDIR="${DESTDIR:-$DEFAULT_DESTDIR}"
 FAKE_USR="$DESTDIR$APP_PREFIX"
 BUILD_DIR="${BUILD_DIR:-$HOME/build_picsim}"
-JNI_DIR="$SCRIPT_DIR/app/src/main/jniLibs/arm64-v8a"
+JNI_DIR="$SCRIPT_DIR/app/src/main/jniLibs/$ANDROID_ABI"
 
 PICSIM_COMMIT="${PICSIM_COMMIT:-3ee791875e15097a2d219c6afe08a8eadc17b673}"
 PICSIM_URL="https://github.com/lcgamboa/picsim/archive/${PICSIM_COMMIT}.tar.gz"
@@ -42,7 +61,7 @@ NDK="${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-/tmp/android-sdk/ndk/30.0.14904198}
 HOST_TAG="linux-x86_64"
 TOOLCHAIN="$NDK/toolchains/llvm/prebuilt/$HOST_TAG"
 API="${ANDROID_API:-24}"
-CC="$TOOLCHAIN/bin/aarch64-linux-android${API}-clang"
+CC="$TOOLCHAIN/bin/${ABI_TRIPLE}${API}-clang"
 AR="$TOOLCHAIN/bin/llvm-ar"
 RANLIB="$TOOLCHAIN/bin/llvm-ranlib"
 STRIP="$TOOLCHAIN/bin/llvm-strip"
@@ -60,6 +79,7 @@ if [ ! -d "$NDK" ]; then
 fi
 
 echo "=== PICsim build ==="
+echo "ABI:       $ANDROID_ABI"
 echo "NDK:       $NDK"
 echo "API:       $API"
 echo "Commit:    $PICSIM_COMMIT"
@@ -157,7 +177,7 @@ ls -lh "$FAKE_USR/bin/picsim" "$FAKE_USR/bin/libpicsim.so" \
 echo
 echo "Prueba local en el dispositivo (ejemplo):"
 echo "  adb shell \"printf 'n\\\\n20\\\\nq\\\\n' | \\"
-echo "    /data/app/.../lib/arm64/libpicsim.so PIC16F628A /ruta/al/proyecto.hex\""
+echo "    /data/app/.../lib/$ANDROID_ABI/libpicsim.so PIC16F628A /ruta/al/proyecto.hex\""
 echo
 echo "En la app, el ejecutor debe invocar:"
 echo "  libpicsim.so PIC16F628A archivo.hex"

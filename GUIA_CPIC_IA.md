@@ -48,10 +48,10 @@ Resumen de conclusiones:
 | UI | Android Views + ViewBinding + Material |
 | `MainActivity` | **2.856 líneas**; editor, compilación, exportación, billing y ads en una sola clase |
 | Nativo | `app/src/main/cpp/native-lib.cpp` solo devuelve “Hello from C++”; CMake con alineación 16 KB |
-| Toolchain | 72 binarios en `app/src/main/jniLibs/arm64-v8a/`, renombrados `lib*.so` |
+| Toolchain | 73 binarios en `app/src/main/jniLibs/arm64-v8a/` y 72 en `app/src/main/jniLibs/armeabi-v7a/`, renombrados `lib*.so` |
 | SDCC | 4.5.0; GPUTILS 1.5.2; ucsim para varias arquitecturas; PICsim para 33 modelos PIC |
 | minSdk / targetSdk | 24 / 37 (Android 17) |
-| ABIs | solo `arm64-v8a` |
+| ABIs | `arm64-v8a` (64 bits) y `armeabi-v7a` (32 bits) |
 | Build | AGP 9.4.1, Gradle 9.6.0, NDK 30.0.14904198, CMake 4.1.2 |
 | Firebase | Crashlytics + Analytics (BoM 35.0.2); **sin Auth, Firestore, Functions ni App Check** |
 | Billing | `BillingManager` con **una sola compra INAPP** `remove_ads`; sin suscripciones ni verificación server-side |
@@ -1404,7 +1404,7 @@ Reglas:
 - **Hilo único en el núcleo**: el estado del agente se protege con un `std::mutex`; los callbacks JNI se encolan.
 - **Mensajes en memoria nativa**: el historial vive en C++; Java recibe estados JSON para pintar.
 - **Build:** CMake con `add_library(cpicia SHARED ...)`, enlazar `log` y `android`, alineación 16 KB, `useLegacyPackaging`.
-- **ABI solo arm64-v8a** como el resto del APK.
+- **ABI `arm64-v8a` y `armeabi-v7a`**, igual que el resto del APK.
 
 CMake:
 

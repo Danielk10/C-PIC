@@ -455,13 +455,14 @@ public class SdccExecutor {
     public void setupSymlinks() {
         try {
             File usrDir = new File(workDir, "usr");
-            File libexecBase = new File(usrDir, "libexec/sdcc/aarch64-unknown-linux-gnu/12.1.0");
+            String targetTriple = getTargetTriple();
+            File libexecBase = new File(usrDir, "libexec/sdcc/" + targetTriple + "/12.1.0");
             if (!libexecBase.exists()) libexecBase.mkdirs();
 
-            File libexec450 = new File(usrDir, "libexec/sdcc/aarch64-unknown-linux-gnu/4.5.0");
+            File libexec450 = new File(usrDir, "libexec/sdcc/" + targetTriple + "/4.5.0");
             if (!libexec450.exists()) libexec450.mkdirs();
 
-            File libexecArch = new File(usrDir, "libexec/sdcc/aarch64-unknown-linux-gnu");
+            File libexecArch = new File(usrDir, "libexec/sdcc/" + targetTriple);
             if (!libexecArch.exists()) libexecArch.mkdirs();
 
             File libexecGeneric = new File(usrDir, "libexec/sdcc");
@@ -534,7 +535,7 @@ public class SdccExecutor {
             linkSharedLib(libDir, "libreadline.so", "libreadline.so.8");
             linkSharedLib(libDir, "libzstd.so", "libzstd.so.1");
 
-            String targetZ = new File("/system/lib64/libz.so").exists() ? "/system/lib64/libz.so" : "/system/lib/libz.so";
+            String targetZ = android.os.Process.is64Bit() ? "/system/lib64/libz.so" : "/system/lib/libz.so";
             File localZ = new File(nativeLibDir, "libz.so");
             createSymlink(new File(libDir, "libz.so.1"), localZ.exists() ? localZ.getAbsolutePath() : targetZ);
 
@@ -556,6 +557,17 @@ public class SdccExecutor {
         } catch (Exception e) {
             Log.e(TAG, "Error al configurar symlinks: " + e.getMessage());
         }
+    }
+
+    /**
+     * Triple usado por SDCC/cc1 dentro del fake_root. Depende de la ABI con la
+     * que Android instalo la app: arm64-v8a usa aarch64-unknown-linux-gnu y
+     * armeabi-v7a usa armv8l-unknown-linux-gnueabi.
+     */
+    private static String getTargetTriple() {
+        return android.os.Process.is64Bit()
+                ? "aarch64-unknown-linux-gnu"
+                : "armv8l-unknown-linux-gnueabi";
     }
 
     private boolean isSharedLibrary(String name) {

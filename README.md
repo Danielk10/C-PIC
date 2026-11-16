@@ -5,7 +5,7 @@
 ![Version](https://img.shields.io/badge/version-1.4.14-blue.svg)
 ![API Level](https://img.shields.io/badge/API-24%20to%2037-brightgreen.svg)
 ![Android](https://img.shields.io/badge/Android-17%20(API%2037)-blue.svg)
-![Architecture](https://img.shields.io/badge/arch-ARM64-orange.svg)
+![Architecture](https://img.shields.io/badge/arch-ARM64%20%2B%20ARMv7-orange.svg)
 ![Gradle](https://img.shields.io/badge/Gradle-9.6.0-02303A.svg)
 ![AGP](https://img.shields.io/badge/AGP-9.4.1-34A853.svg)
 ![NDK](https://img.shields.io/badge/NDK-30.0.14904198-informational.svg)
@@ -52,9 +52,9 @@ Impulsada por **SDCC 4.5.0** (Small Device C Compiler), **GPUTILS 1.5.2** (GNU P
   - Carga automática de plantillas funcionales validadas para cada arquitectura al cambiar de familia.
   - Soporte de múltiples pestañas y proyectos independientes.
 - ✅ **Alineación ELF a 16 KB (`max-page-size=16384`)**:
-  - Todos los 73 binarios y librerías dinámicas están alineados a 16 KB, garantizando compatibilidad total con **Android 15, Android 16 y Android 17**.
+  - Los 73 binarios/librerías de `arm64-v8a` y los 61 ejecutables de `armeabi-v7a` están alineados a 16 KB; las 11 librerías de 32 bits conservan páginas de 4 KB (el tamaño de página nativo de ARMv7). Así se mantiene compatibilidad con **Android 15, Android 16 y Android 17**.
 - ✅ **Cumplimiento Estricto de Google Play**:
-  - Ejecutables y librerías empaquetados bajo el estándar `lib<nombre>.so` en `jniLibs/arm64-v8a/` y reconstruidos transparentemente en tiempo de ejecución.
+  - Ejecutables y librerías empaquetados bajo el estándar `lib<nombre>.so` en `jniLibs/arm64-v8a/` y `jniLibs/armeabi-v7a/`, y reconstruidos transparentemente en tiempo de ejecución.
 - ✅ **Internacionalización Completa**: Interfaz y mensajes completamente localizados en español e inglés sin cadenas hardcodeadas.
 
 ---
@@ -111,7 +111,7 @@ Impulsada por **SDCC 4.5.0** (Small Device C Compiler), **GPUTILS 1.5.2** (GNU P
 | **CMake** | `4.1.2` |
 | **SDCC (Small Device C Compiler)** | `4.5.0` (24 puertos activos) |
 | **GPUTILS (GNU PIC Utilities)** | `1.5.2` |
-| **Arquitectura de Ejecución** | ARM64 (`arm64-v8a` de 64 bits) |
+| **Arquitectura de Ejecución** | ARM64 (`arm64-v8a`) y ARM 32 bits (`armeabi-v7a`) |
 | **Alineación ELF** | 16 KB (`max-page-size=16384`) |
 
 ---
@@ -180,6 +180,7 @@ C-PIC/
 │       │   │   ├── views/LogScrollView.java       # ScrollView con soporte de auto-desplazamiento inteligente
 │       │   │   └── policy/PolicyActivity.java     # Pantalla de política de privacidad
 │       │   ├── jniLibs/arm64-v8a/                 # 73 binarios nativos ARM64 (lib*.so)
+│       │   ├── jniLibs/armeabi-v7a/               # 72 binarios nativos ARMv7 (lib*.so)
 │       │   └── res/                               # Layouts, recursos gráficos y cadenas localizadas
 │       │       ├── layout/activity_main.xml       # Layout principal con spinners de arquitectura y terminal
 │       │       ├── values/strings.xml             # Cadenas en Español
@@ -189,10 +190,15 @@ C-PIC/
 │           ├── ProjectSourceProcessingTest.java   # Procesamiento de fuentes, headers y exportación
 │           ├── IntelHexParserTest.java            # Validación de análisis de registros HEX
 │           └── LocalSdccMultiPortCompilationTest.java # Compilación real multi-puerto
-├── fake_root/                                     # Estructura base inmutable de referencia
-├── libs/                                          # Librerías dinámicas compartidas de soporte
+├── patch_sdld_android.py                          # Parche ASlink (init_target) para libsdld*.so de 32 bits
+├── fake_root_32_bit/                              # Staging de binarios ARMv7 (referencia, no se empaqueta)
+├── fake_root_64_bit/                              # Staging de binarios ARM64 (referencia, no se empaqueta)
+├── libs_32/                                       # Librerías compartidas ARMv7 de origen
+├── libs_64/                                       # Librerías compartidas ARM64 de origen
 ├── setup-sdk.sh                                   # Script instalador del SDK 37 y NDK 30
-├── build_picsim_custom.sh                         # Compila PICsim (PIC emulator) con NDK
+├── build_picsim_custom.sh                         # Compila PICsim con NDK (ANDROID_ABI=arm64-v8a|armeabi-v7a)
+├── build_sdcc_custom.sh                           # Compila SDCC y lo instala en el staging $HOME/fake_root
+├── build_gputils_custom.sh                        # Compila GPUTILS y lo instala en el staging $HOME/fake_root
 ├── build_picsim_termux.sh                         # Compila PICsim nativo en Termux
 ├── upload_play_store.py                           # Script de subida automática a Google Play
 ├── GUIA_CPIC_IA.md                     # Guía de C-PIC IA, el agente integrado
@@ -211,10 +217,10 @@ C-PIC/
 1. **[RELEASE_NOTES_v1.4.14.md](RELEASE_NOTES_v1.4.14.md)**: Notas completas del lanzamiento actual v1.4.14 (Build 34).
 2. **[GEMINI.md](GEMINI.md)**: Arquitectura del proyecto, variables de entorno y firma.
 3. **[GUIA_PUBLICACION_PLAY_STORE.md](GUIA_PUBLICACION_PLAY_STORE.md)**: Procedimiento para el despliegue a Google Play Console.
-4. **[NOMBRES_BINARIOS_VS_ANTIGUOS.md](NOMBRES_BINARIOS_VS_ANTIGUOS.md)**: Mapeo de los 60 ejecutables y 12 librerías nativas adaptadas a Google Play.
+4. **[NOMBRES_BINARIOS_VS_ANTIGUOS.md](NOMBRES_BINARIOS_VS_ANTIGUOS.md)**: Mapeo de los 61 ejecutables y 12/11 librerías nativas (ARM64/ARMv7), el parche de ASlink y el estado de las rutas de staging.
 5. **[REPORTE_LIMPIEZA_ASSETS.md](REPORTE_LIMPIEZA_ASSETS.md)**: Detalle del ahorro de espacio de más de 150 MB al depurar fuentes y binarios redundantes.
 6. **[REPORTE_ANALISIS_DEPENDENCIAS.md](REPORTE_ANALISIS_DEPENDENCIAS.md)**: Análisis de dependencias `DT_NEEDED` y alineación estricta de páginas a 16 KB.
-7. **[build_picsim_custom.sh](build_picsim_custom.sh)**: Compila e integra PICsim (emulador PIC) para arm64/NDK.
+7. **[build_picsim_custom.sh](build_picsim_custom.sh)**: Compila e integra PICsim (emulador PIC) para arm64-v8a o armeabi-v7a con el NDK (`ANDROID_ABI=...`).
 8. **[build_picsim_termux.sh](build_picsim_termux.sh)**: Compila PICsim de forma nativa en Termux (clang) y lo integra en `jniLibs`.
 9. **[GUIA_CPIC_IA.md](GUIA_CPIC_IA.md)**: **C-PIC IA**, el agente integrado de C-PIC (en diseño): C/ASM, consentimiento, planes, cuotas, Firebase y DeepSeek.
 

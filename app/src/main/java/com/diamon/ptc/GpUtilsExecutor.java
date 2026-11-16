@@ -240,7 +240,7 @@ public class GpUtilsExecutor {
             linkSharedLib(libDir, "libreadline.so", "libreadline.so.8");
             linkSharedLib(libDir, "libzstd.so", "libzstd.so.1");
 
-            String targetZ = new File("/system/lib64/libz.so").exists() ? "/system/lib64/libz.so" : "/system/lib/libz.so";
+            String targetZ = android.os.Process.is64Bit() ? "/system/lib64/libz.so" : "/system/lib/libz.so";
             File localZ = new File(nativeLibDir, "libz.so");
             createSymlink(new File(libDir, "libz.so.1"), localZ.exists() ? localZ.getAbsolutePath() : targetZ);
 

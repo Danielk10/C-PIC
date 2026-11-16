@@ -3,15 +3,26 @@
 
 De acuerdo a las políticas de seguridad de Google Play Store, todos los ejecutables nativos y bibliotecas dinámicas compartidas empaquetadas en un APK/AAB deben residir en la carpeta `jniLibs/<arch>/` y cumplir estrictamente con el patrón de nomenclatura `lib<nombre>.so`.
 
-A continuación se detalla la correspondencia entre los nombres originales de la suite **GPUTILS**, **SDCC** y **UCSIM**, su nombre de empaquetado en `jniLibs/arm64-v8a/`, y la ruta exacta reconstruida en tiempo de ejecución (`fake_root`) mediante enlaces simbólicos.
+La app se publica para dos ABI (`abiFilters "arm64-v8a", "armeabi-v7a"`). Cada una tiene su propia carpeta:
+
+| ABI | Carpeta | Triple de SDCC (`usr/libexec/sdcc/<triple>/`) | Nº de archivos en `jniLibs` |
+|---|---|---|---|
+| `arm64-v8a` (64 bits) | `app/src/main/jniLibs/arm64-v8a/` | `aarch64-unknown-linux-gnu` | 73 |
+| `armeabi-v7a` (32 bits) | `app/src/main/jniLibs/armeabi-v7a/` | `armv8l-unknown-linux-gnueabi` | 72 |
+
+**Los nombres `lib<nombre>.so` son idénticos en ambas carpetas**: el mismo binario y la misma librería existen con el mismo nombre en las dos ABI. El triple de `libexec` se resuelve en tiempo de ejecución con `android.os.Process.is64Bit()` (`SdccExecutor.getTargetTriple()`), y `libz.so` se enlaza contra `/system/lib64` o `/system/lib` según la ABI.
+
+> El triple de 32 bits está **verificado dentro del propio binario**: `strings libcc1.so` del paquete de 32 bits contiene `armv8l-unknown-linux-gnueabi` (sistema de 32 bits sobre CPU ARMv8), y el de 64 bits contiene `aarch64-unknown-linux-gnu`.
+
+A continuación se detalla la correspondencia entre los nombres originales de la suite **GPUTILS**, **SDCC** y **UCSIM**, su nombre de empaquetado en `jniLibs/<abi>/`, y la ruta exacta reconstruida en tiempo de ejecución (`fake_root`) mediante enlaces simbólicos.
 
 ---
 
-## 1. Mapeo de Binarios Ejecutables (60 Binarios)
+## 1. Mapeo de Binarios Ejecutables (61 Binarios por ABI)
 
-| Binario Original | Nombre en `jniLibs/arm64-v8a` | Ruta Reconstruida en App (`usr/bin/` o `usr/libexec/`) | Propósito / Suite |
+| Binario Original | Nombre en `jniLibs/<abi>` | Ruta Reconstruida en App (`usr/bin/` o `usr/libexec/`) | Propósito / Suite |
 |---|---|---|---|
-| `cc1` | `libcc1.so` | `usr/libexec/sdcc/aarch64-unknown-linux-gnu/12.1.0/cc1`, `usr/bin/cc1` | Compilador C interno SDCC |
+| `cc1` | `libcc1.so` | `usr/libexec/sdcc/<triple>/12.1.0/cc1`, `usr/libexec/sdcc/<triple>/4.5.0/cc1`, `usr/bin/cc1` | Compilador C interno SDCC |
 | `gpasm` | `libgpasm.so` | `usr/bin/gpasm` | Ensamblador PIC GNU |
 | `gpdasm` | `libgpdasm.so` | `usr/bin/gpdasm` | Desensamblador PIC GNU |
 | `gplib` | `libgplib.so` | `usr/bin/gplib` | Gestor de librerías GNU PIC |
@@ -75,9 +86,9 @@ A continuación se detalla la correspondencia entre los nombres originales de la
 
 ---
 
-## 2. Mapeo de Librerías Compartidas (12 Librerías)
+## 2. Mapeo de Librerías Compartidas (12 en ARM64 / 11 en ARMv7)
 
-| Librería Original / SONAME | Nombre en `jniLibs/arm64-v8a` | Ruta / Enlace en App (`usr/lib/`) |
+| Librería Original / SONAME | Nombre en `jniLibs/<abi>` | Ruta / Enlace en App (`usr/lib/`) |
 |---|---|---|
 | `libandroid-support.so` | `libandroid-support.so` | `usr/lib/libandroid-support.so` |
 | `libc++_shared.so` | `libc++_shared.so` | `usr/lib/libc++_shared.so` |
@@ -85,17 +96,64 @@ A continuación se detalla la correspondencia entre los nombres originales de la
 | `libgc.so` | `libgc.so` | `usr/lib/libgc.so` |
 | `libgmp.so` | `libgmp.so` | `usr/lib/libgmp.so` |
 | `libiconv.so` | `libiconv.so` | `usr/lib/libiconv.so` |
-| `libisl.so` | `libisl.so` | `usr/lib/libisl.so` |
+| `libisl.so` | `libisl.so` | `usr/lib/libisl.so` (solo `arm64-v8a`) |
 | `libncursesw.so.6` | `libncursesw.so` | `usr/lib/libncursesw.so.6`, `usr/lib/libncursesw.so` |
 | `libpanelw.so.6` | `libpanelw.so` | `usr/lib/libpanelw.so.6`, `usr/lib/libpanelw.so` |
 | `libreadline.so.8` | `libreadline.so` | `usr/lib/libreadline.so.8`, `usr/lib/libreadline.so` |
 | `libz.so.1` | `libz.so` | `usr/lib/libz.so.1`, `usr/lib/libz.so` |
 | `libzstd.so.1` | `libzstd.so` | `usr/lib/libzstd.so.1`, `usr/lib/libzstd.so` |
 
+> ⚠️ **Excepción `libisl.so` en 32 bits**: el paquete de binarios de 32 bits incluye un `libisl.so` que en realidad es un ELF **ARM64** (idéntico al de `libs_64/`). Además, ningún ejecutable de 32 bits lo declara como `NEEDED` (verificado con `readelf -d`). Por eso **no se empaqueta** en `jniLibs/armeabi-v7a/`: incluirlo habría metido una librería de 64 bits en una carpeta de 32 bits y habría hecho fallar el empaquetado o la carga en dispositivos ARMv7.
+
 ---
 
 ## 3. Estado de Archivos en `assets` vs `fake_root`
 
-1. **Binarios y Librerías (`.so`):** Ubicados exclusivamente en `app/src/main/jniLibs/arm64-v8a/` cumpliendo con Google Play.
-2. **Archivos de Assets:** Contienen únicamente los recursos esenciales (`headers` de PIC, archivos `.lkr`, cabeceras C de SDCC y librerías precompiladas `.lib`).
+1. **Binarios y Librerías (`.so`):** Ubicados exclusivamente en `app/src/main/jniLibs/arm64-v8a/` y `app/src/main/jniLibs/armeabi-v7a/`, cumpliendo con Google Play.
+2. **Archivos de Assets:** Contienen únicamente los recursos esenciales (`headers` de PIC, archivos `.lkr`, cabeceras C de SDCC y librerías precompiladas `.lib`). Son **independientes de la ABI**: una sola copia se comparte entre `arm64-v8a` y `armeabi-v7a`.
 3. **Limpieza de Assets:** Se excluyeron los manuales (`doc/`, `man/`) y código fuente de compilación (`src/`) para optimizar el peso del APK y velocidad de inicio.
+
+> ℹ️ **Librerías de destino SDCC (`usr/share/sdcc/lib`, `.lib`/`.o`)**: son código objeto para el microcontrolador PIC destino, no para el host Android, por lo que no dependen de la ABI. Los paquetes de 32 y 64 bits traen variantes con diferencias menores de codegen (`pdk13.lib`, `pic14`, `pic16`, etc.); se conserva el juego ya validado en `assets` (idéntico al paquete de 64 bits) y se usa para ambas ABI.
+
+---
+
+## 4. Parche obligatorio de ASlink (`libsdld*.so`)
+
+Los binarios de 32 bits traen el `sdld` **sin** el ajuste descrito en [`GEMINI.md`](GEMINI.md) §7.3: la función `init_target()` compara `basename(argv[0])` con `strncmp(..., "sdld", 4)`, pero en Android el ejecutable se llama `libsdld.so`, así que `is_sdld` queda a 0, la arquitectura objetivo no se inicializa y el enlace falla (`Undefined Global 'l_IRAM'`, `-Error-<cannot open> : "0x0100.rel"`).
+
+El ajuste se aplica con:
+
+```bash
+python3 patch_sdld_android.py                    # armeabi-v7a (por defecto)
+python3 patch_sdld_android.py <directorio>       # otra carpeta
+```
+
+El script solo actúa sobre ELF32, verifica los 4 valores originales de cada archivo **antes** de escribir y es idempotente (si detecta que ya está aplicado, no vuelve a tocar los bytes). Cubre los 7 enlazadores (`libsdld.so`, `libsdld6808.so`, `libsdldf8.so`, `libsdldgb.so`, `libsdldpdk.so`, `libsdldstm8.so`, `libsdldz80.so`), que son copias idénticas del mismo binario:
+
+| Offset | Antes | Después | Efecto |
+|---|---|---|---|
+| `0x2BEF0` | `EB00053A` | `EB0005AE` | `strncmp` → `strstr` (busca `"sdld"` dentro de `"libsdld.so"`) |
+| `0x2BF08` | `E1A012A1` | `E2611001` | Invierte `is_sdld` (`lsr` → `rsb`), queda 1 si `strstr` encuentra el nombre |
+| `0x2BF18` | `1A000013` | `0A000013` | Cambia el salto: se omite la asignación de objetivo si el nombre no contiene `sdld` |
+| `0x2BF30` | `0A000006` | `0A00000A` | Si ninguna subarquitectura coincide, guarda `target = 4` (MCS-51) |
+
+**Estado**: aplicado a los 7 `libsdld*.so` de `armeabi-v7a` y verificado por desensamblado. Los 7 de `arm64-v8a` ya venían con el ajuste en el paquete de 64 bits (mismo `md5 45435d83e8ff6b227771e93a27286690` en todas las copias), y el script los ignora por ser ELF64.
+
+---
+
+## 5. Rutas de staging (se conservan)
+
+Los árboles `fake_root_32_bit/`, `fake_root_64_bit/`, `libs_32/` y `libs_64/` son el material de entrega de los binarios y **se conservan en el repositorio** como referencia e historial de la actualización. No se empaquetan en el APK/AAB: Gradle solo incluye `jniLibs/<abi>/` y `assets/`, así que no afectan al peso ni al contenido de la app.
+
+Estado de la integración (verificado archivo por archivo):
+
+| Comprobación | Resultado |
+|---|---|
+| Ejecutables de `fake_root_32_bit/.../usr/bin` presentes en `jniLibs/armeabi-v7a` | 61/61 |
+| Ejecutables de `fake_root_64_bit/.../usr/bin` presentes en `jniLibs/arm64-v8a` | 61/61 |
+| Librerías de `libs_32` en `jniLibs/armeabi-v7a` | 11/12 (`libisl.so` excluida por ser ARM64) |
+| Librerías de `libs_64` en `jniLibs/arm64-v8a` | 12/12 |
+| `assets/.../usr/share` vs `fake_root_64_bit/.../usr/share` | idéntico salvo `doc/`, `man/`, `sdcc/lib/src` y `sdcc/non-free/lib/src` (excluidos a propósito) |
+
+Para regenerar el staging: `build_sdcc_custom.sh` y `build_gputils_custom.sh` instalan en `$HOME/fake_root`, y `build_picsim_custom.sh` usa `$HOME/fake_root_64_bit` o `$HOME/fake_root_32_bit` según `ANDROID_ABI`. Las librerías compartidas se toman de `usr/lib` y se renombran a `lib<nombre>.so` al copiarlas a `jniLibs/`.
+

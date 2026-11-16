@@ -95,14 +95,18 @@ Siempre que se preparen, redacten o presenten notas de lanzamiento (Release Note
 
 Al compilar o integrar versiones futuras de SDCC (como SDCC 4.6.0+ o paquetes actualizados desde Termux/código fuente), **es imprescindible cumplir con las siguientes directrices arquitectónicas**:
 
-1. **Restricción de Ejecutables en Android**: Todos los binarios ejecutables ELF deben ubicarse en `app/src/main/jniLibs/arm64-v8a/` bajo el prefijo `lib` y sufijo `.so` (`libsdcc.so`, `libsdld.so`, `libgpasm.so`, etc.). Nunca deben colocarse ejecutables en `assets/` para ejecutarse en `files/usr/bin/` debido a restricciones de SELinux (`W^X` / `app_data_file`) en Android 10+ (API 29+).
-2. **Invocación de Binarios Compañeros**: `libsdcc.so` inspecciona su propio nombre de ejecutable. Al llamarse `libsdcc.so`, deduce que sus herramientas asociadas usan el prefijo `lib` y sufijo `.so` (ejecutando `/data/app/.../lib/arm64/libsdld.so`).
+1. **Restricción de Ejecutables en Android**: Todos los binarios ejecutables ELF deben ubicarse en `app/src/main/jniLibs/arm64-v8a/` (64 bits) o `app/src/main/jniLibs/armeabi-v7a/` (32 bits) bajo el prefijo `lib` y sufijo `.so` (`libsdcc.so`, `libsdld.so`, `libgpasm.so`, etc.). Nunca deben colocarse ejecutables en `assets/` para ejecutarse en `files/usr/bin/` debido a restricciones de SELinux (`W^X` / `app_data_file`) en Android 10+ (API 29+).
+2. **Invocación de Binarios Compañeros**: `libsdcc.so` inspecciona su propio nombre de ejecutable. Al llamarse `libsdcc.so`, deduce que sus herramientas asociadas usan el prefijo `lib` y sufijo `.so` (ejecutando `/data/app/.../lib/arm64/libsdld.so` en arm64-v8a o `/data/app/.../lib/arm/libsdld.so` en armeabi-v7a).
 3. **Requisito Crítico en `libsdld*.so` (ASlink)**:
    - En el código fuente nativo de ASlink (`sdas/linksrc/`), la función `init_target()` comprueba `strncmp(basename(argv[0]), "sdld", 4) == 0`.
    - Como en Android el nombre es `libsdld.so`, la comprobación estándar falla al iniciar con `lib`, provocando que `is_sdld` sea `0` y la arquitectura objetivo quede en `0` (desconocida).
    - **Ajuste Obligatorio en Nuevos Binarios**: Se debe adaptar la búsqueda para detectar `"sdld"` mediante `strstr(base, "sdld")`. Además, si ninguna de las sub-arquitecturas (`gb`, `z80`, `stm8`, etc.) coincide, debe asignar por defecto `target = 4` (MCS-51 / 8051).
    - De omitirse este ajuste, fallará el enlace en MCS-51 con el error `Undefined Global 'l_IRAM'` y la opción de memoria `--iram-size` lanzará `?ASlink-Error-<cannot open> : "0x0100.rel"`.
-4. **Mantenimiento de Enlaces en `SdccExecutor.java`**:
+4. **Triple de `libexec` según ABI**: `SdccExecutor.getTargetTriple()` usa `android.os.Process.is64Bit()` para elegir `aarch64-unknown-linux-gnu` (arm64-v8a) o `armv8l-unknown-linux-gnueabi` (armeabi-v7a). El mismo criterio se aplica al enlace de `libz.so.1` (`/system/lib64` vs `/system/lib`).
+
+5. **Script del parche**: [`patch_sdld_android.py`](patch_sdld_android.py) aplica los ajustes de `init_target()` sobre los 7 `libsdld*.so` de `jniLibs/armeabi-v7a` (los de `arm64-v8a` ya vienen parcheados en origen). Verifica los bytes antes de escribir y es idempotente.
+
+6. **Mantenimiento de Enlaces en `SdccExecutor.java`**:
    - Se deben mantener los enlaces simbólicos explícitos para `sdld`, `sdld8051`, `sdld-8051` y ensambladores `as*` tanto en `usr/bin/` como en las rutas de búsqueda de `usr/libexec/`.
    - La eliminación de enlaces simbólicos previos debe realizarse de forma atómica mediante `Files.deleteIfExists` para evitar excepciones `EEXIST` tras actualizaciones de la aplicación.
 
