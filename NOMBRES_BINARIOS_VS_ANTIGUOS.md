@@ -104,6 +104,8 @@ A continuación se detalla la correspondencia entre los nombres originales de la
 | `libzstd.so.1` | `libzstd.so` | `usr/lib/libzstd.so.1`, `usr/lib/libzstd.so` |
 
 > ⚠️ **Excepción `libisl.so` en 32 bits**: el paquete de binarios de 32 bits incluye un `libisl.so` que en realidad es un ELF **ARM64** (idéntico al de `libs_64/`). Además, ningún ejecutable de 32 bits lo declara como `NEEDED` (verificado con `readelf -d`). Por eso **no se empaqueta** en `jniLibs/armeabi-v7a/`: incluirlo habría metido una librería de 64 bits en una carpeta de 32 bits y habría hecho fallar el empaquetado o la carga en dispositivos ARMv7.
+>
+> **Motivo**: el `cc1` de 32 bits se compiló **sin isl**. `build_sdcc_custom.sh` no pasa `--with-isl` ni `--without-isl`, así que `configure` lo autodetecta: si la máquina de compilación no tiene `libisl` + cabeceras, GCC se construye sin Graphite. Se ve dentro del binario: el `cc1` de 32 bits contiene el mensaje `Graphite loop optimizations cannot be used (isl is not available)` y **no** contiene la cadena `libisl.so`, mientras que el de 64 bits sí. No afecta al código generado para PIC (isl es un optimizador de bucles del *host*, que SDCC no usa); solo desactiva `-fgraphite`/`-floop-*` en el compilador de escritorio. Por eso la `libisl.so` del paquete de 32 bits es la copia de 64 bits: ese build nunca generó una.
 
 ---
 

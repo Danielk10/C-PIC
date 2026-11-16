@@ -45,6 +45,14 @@ gpasm --version
 gpasm --list-chips | head -n 5
 
 echo "=== Configurando SDCC ==="
+# Nota sobre isl: no se pasa --with-isl ni --without-isl, así que configure lo
+# autodetecta. Si la máquina de compilación no tiene libisl + cabeceras, cc1 se
+# construye sin Graphite (lleva el mensaje "isl is not available") y no enlaza
+# libisl.so; si las tiene, cc1 enlaza dinámicamente contra libisl.so (que a su
+# vez necesita libgmp.so). Por eso los paquetes de 32 y 64 bits difieren en esa
+# dependencia. No afecta al código PIC generado: isl solo habilita -fgraphite y
+# los -floop-* del compilador anfitrión, que SDCC no usa. Para forzar paridad,
+# añade --without-isl (o --with-isl si isl está instalado).
 ./configure \
   --prefix="$APP_PREFIX" \
   --enable-libgc \
