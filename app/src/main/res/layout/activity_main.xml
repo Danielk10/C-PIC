@@ -217,6 +217,122 @@
                     android:layout_marginBottom="4dp"
                     android:background="#333333" />
 
+                <!-- Anuncio Nativo Google AdMob (antes del nombre del proyecto) -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/nativeAdCard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:layout_marginBottom="4dp"
+                    android:visibility="gone"
+                    app:cardBackgroundColor="@color/surface"
+                    app:cardCornerRadius="8dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="#30363D"
+                    app:strokeWidth="1dp">
+
+                    <com.google.android.gms.ads.nativead.NativeAdView
+                        android:id="@+id/nativeAdView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:padding="6dp">
+
+                            <!-- Icono de la app/anuncio -->
+                            <ImageView
+                                android:id="@+id/ad_app_icon"
+                                android:layout_width="36dp"
+                                android:layout_height="36dp"
+                                android:layout_marginEnd="6dp"
+                                android:contentDescription="@string/ad_icon_desc"
+                                android:scaleType="fitCenter" />
+
+                            <!-- Textos e insignias -->
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center_vertical"
+                                    android:orientation="horizontal">
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginEnd="4dp"
+                                        android:background="@drawable/badge_ad"
+                                        android:paddingStart="4dp"
+                                        android:paddingEnd="4dp"
+                                        android:paddingTop="1dp"
+                                        android:paddingBottom="1dp"
+                                        android:text="@string/ad_badge"
+                                        android:textColor="@color/on_secondary"
+                                        android:textSize="9sp"
+                                        android:textStyle="bold" />
+
+                                    <TextView
+                                        android:id="@+id/ad_headline"
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="1"
+                                        android:ellipsize="end"
+                                        android:maxLines="1"
+                                        android:textColor="@color/on_surface"
+                                        android:textSize="11sp"
+                                        android:textStyle="bold" />
+                                </LinearLayout>
+
+                                <TextView
+                                    android:id="@+id/ad_body"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="1dp"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:textColor="#8B949E"
+                                    android:textSize="10sp" />
+
+                                <TextView
+                                    android:id="@+id/ad_advertiser"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:textColor="#6E7681"
+                                    android:textSize="9sp"
+                                    android:visibility="gone" />
+                            </LinearLayout>
+
+                            <!-- Botón CTA -->
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/ad_call_to_action"
+                                android:layout_width="wrap_content"
+                                android:layout_height="30dp"
+                                android:layout_marginStart="6dp"
+                                android:insetTop="0dp"
+                                android:insetBottom="0dp"
+                                android:minHeight="30dp"
+                                android:paddingStart="8dp"
+                                android:paddingEnd="8dp"
+                                android:paddingTop="0dp"
+                                android:paddingBottom="0dp"
+                                android:textColor="@color/on_primary"
+                                android:textSize="10sp"
+                                app:backgroundTint="@color/primary"
+                                app:cornerRadius="6dp" />
+                        </LinearLayout>
+                    </com.google.android.gms.ads.nativead.NativeAdView>
+                </com.google.android.material.card.MaterialCardView>
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -500,7 +616,7 @@
             android:paddingEnd="4dp"
             android:paddingTop="2dp"
             android:paddingBottom="2dp"
-            app:layout_constraintBottom_toTopOf="@+id/adView_banner"
+            app:layout_constraintBottom_toTopOf="@+id/bannerContainer"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent">
 
@@ -559,15 +675,24 @@
         </LinearLayout>
 
         <!-- Banner Ad (bottom) -->
-        <com.google.android.gms.ads.AdView
-            android:id="@+id/adView_banner"
+        <FrameLayout
+            android:id="@+id/bannerContainer"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            app:adSize="BANNER"
-            app:adUnitId="@string/ad_banner_id"
+            android:background="@color/background"
+            android:minHeight="50dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent" />
+            app:layout_constraintStart_toStartOf="parent">
+
+            <com.google.android.gms.ads.AdView
+                android:id="@+id/adView_banner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                app:adSize="BANNER"
+                app:adUnitId="@string/ad_banner_id" />
+        </FrameLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

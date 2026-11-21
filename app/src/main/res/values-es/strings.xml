@@ -9,6 +9,9 @@
     <string name="admob_app_id">ca-app-pub-5141499161332805~6823623013</string>
     <string name="ad_banner_id">ca-app-pub-5141499161332805/1220566600</string>
     <string name="ad_interstitial_id">ca-app-pub-5141499161332805/8342402367</string>
+    <string name="ad_native_id">ca-app-pub-5141499161332805/2593369042</string>
+    <string name="ad_badge">Anuncio</string>
+    <string name="ad_icon_desc">Icono de anuncio</string>
 
     <!-- activity_main.xml - Architecture & Device Selectors -->
     <string name="label_arch">ARCH:</string>

@@ -27,6 +27,7 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.PopupWindow;
 import android.widget.TextView;
@@ -37,6 +38,8 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.annotation.NonNull;
+import com.google.android.gms.ads.AdListener;
+import com.google.android.gms.ads.AdLoader;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdSize;
 import com.google.android.gms.ads.FullScreenContentCallback;
@@ -44,6 +47,9 @@ import com.google.android.gms.ads.LoadAdError;
 import com.google.android.gms.ads.MobileAds;
 import com.google.android.gms.ads.interstitial.InterstitialAd;
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback;
+import com.google.android.gms.ads.nativead.NativeAd;
+import com.google.android.gms.ads.nativead.NativeAdOptions;
+import com.google.android.gms.ads.nativead.NativeAdView;
 import androidx.core.text.HtmlCompat;
 import androidx.documentfile.provider.DocumentFile;
 
@@ -182,6 +188,8 @@ public class MainActivity extends AppCompatActivity {
     private long mInterstitialLoadedAt = 0;
     private long mLastInterstitialShownAt = 0;
     private boolean mInterstitialLoading = false;
+    private NativeAd mNativeAd;
+    private boolean mBannerLoaded = false;
     /** Un intersticial cargado se descarta pasado este tiempo. */
     private static final long INTERSTITIAL_TTL_MS = 60 * 60 * 1000L;
     /** Tiempo mínimo entre dos intersticiales. */
@@ -213,6 +221,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+        // El banner se muestra solo cuando AdMob confirma que hay inventario.
+        binding.bannerContainer.setVisibility(View.GONE);
         gestorPantalla.aplicarWindowInsetsInferior(binding.getRoot());
         gestorPantalla.ocultarBotonesVirtuales();
         setSupportActionBar(binding.toolbar);
@@ -255,8 +265,10 @@ public class MainActivity extends AppCompatActivity {
                         return;
                     }
                     if (adsRemoved) {
-                        // Ocultar banner y detener intersticiales
-                        binding.adViewBanner.setVisibility(View.GONE);
+                        // Ocultar banner, nativo y detener intersticiales
+                        binding.bannerContainer.setVisibility(View.GONE);
+                        mBannerLoaded = false;
+                        destroyNativeAd();
                         mInterstitialAd = null;
                         Toast.makeText(MainActivity.this, getString(R.string.iap_purchase_success), Toast.LENGTH_LONG).show();
                     }
@@ -282,7 +294,9 @@ public class MainActivity extends AppCompatActivity {
                     if (isFinishing() || isDestroyed()) {
                         return;
                     }
-                    binding.adViewBanner.setVisibility(View.GONE);
+                    binding.bannerContainer.setVisibility(View.GONE);
+                    mBannerLoaded = false;
+                    destroyNativeAd();
                     mInterstitialAd = null;
                     Toast.makeText(MainActivity.this, getString(R.string.iap_purchase_restored), Toast.LENGTH_SHORT).show();
                     invalidateOptionsMenu();
@@ -294,7 +308,8 @@ public class MainActivity extends AppCompatActivity {
         // El consentimiento UMP se pide en onResourcesReady(), después de
         // extraer los recursos y ocultar el overlay de carga inicial.
         if (!BillingManager.shouldShowAds(this)) {
-            binding.adViewBanner.setVisibility(View.GONE);
+            binding.bannerContainer.setVisibility(View.GONE);
+            destroyNativeAd();
         }
     }
 
@@ -310,7 +325,8 @@ public class MainActivity extends AppCompatActivity {
         consentRequested = true;
 
         if (!BillingManager.shouldShowAds(this)) {
-            binding.adViewBanner.setVisibility(View.GONE);
+            binding.bannerContainer.setVisibility(View.GONE);
+            destroyNativeAd();
             return;
         }
 
@@ -329,8 +345,10 @@ public class MainActivity extends AppCompatActivity {
             adsRequested = false;
             if (binding != null) {
                 binding.adViewBanner.pause();
-                binding.adViewBanner.setVisibility(View.GONE);
+                binding.bannerContainer.setVisibility(View.GONE);
             }
+            mBannerLoaded = false;
+            destroyNativeAd();
             mInterstitialAd = null;
             return;
         }
@@ -339,6 +357,26 @@ public class MainActivity extends AppCompatActivity {
         }
         adsRequested = true;
         binding.adViewBanner.resume();
+        binding.adViewBanner.setAdListener(new AdListener() {
+            @Override
+            public void onAdLoaded() {
+                super.onAdLoaded();
+                mBannerLoaded = true;
+                if (binding != null) {
+                    binding.bannerContainer.setVisibility(View.VISIBLE);
+                }
+            }
+
+            @Override
+            public void onAdFailedToLoad(@NonNull LoadAdError adError) {
+                super.onAdFailedToLoad(adError);
+                mBannerLoaded = false;
+                Log.w(TAG, "Banner ad failed to load: " + adError.getMessage());
+                if (binding != null) {
+                    binding.bannerContainer.setVisibility(View.GONE);
+                }
+            }
+        });
         applyAdaptiveBannerSize();
 
         MobileAds.initialize(this, initializationStatus -> postToUi(() -> {
@@ -346,6 +384,7 @@ public class MainActivity extends AppCompatActivity {
             applyAdaptiveBannerSize();
             AdRequest adRequest = new AdRequest.Builder().build();
             binding.adViewBanner.loadAd(adRequest);
+            loadNativeAd();
         }));
     }
 
@@ -371,6 +410,119 @@ public class MainActivity extends AppCompatActivity {
                     AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(this, widthDp));
         } catch (RuntimeException e) {
             Log.w(TAG, "No se pudo calcular el banner adaptativo: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Carga el anuncio nativo "NativoC" antes del campo de nombre del
+     * proyecto. Se solicita solo con consentimiento y sin compra "Quitar
+     * anuncios".
+     */
+    private void loadNativeAd() {
+        if (binding == null || isFinishing() || isDestroyed()) {
+            return;
+        }
+        if (!BillingManager.shouldShowAds(this) || !ConsentManager.canRequestAds()) {
+            return;
+        }
+
+        if (mNativeAd != null) {
+            mNativeAd.destroy();
+            mNativeAd = null;
+        }
+
+        AdLoader adLoader = new AdLoader.Builder(this, getString(R.string.ad_native_id))
+                .forNativeAd(nativeAd -> {
+                    if (isFinishing() || isDestroyed()) {
+                        nativeAd.destroy();
+                        return;
+                    }
+                    if (mNativeAd != null) {
+                        mNativeAd.destroy();
+                    }
+                    mNativeAd = nativeAd;
+                    populateNativeAdView(nativeAd, binding.nativeAdView);
+                    binding.nativeAdCard.setVisibility(View.VISIBLE);
+                })
+                .withAdListener(new AdListener() {
+                    @Override
+                    public void onAdFailedToLoad(@NonNull LoadAdError adError) {
+                        Log.w(TAG, "Native ad failed to load: code=" + adError.getCode()
+                                + ", message=" + adError.getMessage());
+                        if (binding != null) {
+                            binding.nativeAdCard.setVisibility(View.GONE);
+                        }
+                    }
+                })
+                .withNativeAdOptions(new NativeAdOptions.Builder().build())
+                .build();
+
+        adLoader.loadAd(new AdRequest.Builder().build());
+    }
+
+    private void populateNativeAdView(NativeAd nativeAd, NativeAdView adView) {
+        TextView headlineView = adView.findViewById(R.id.ad_headline);
+        TextView bodyView = adView.findViewById(R.id.ad_body);
+        TextView ctaView = adView.findViewById(R.id.ad_call_to_action);
+        ImageView iconView = adView.findViewById(R.id.ad_app_icon);
+        TextView advertiserView = adView.findViewById(R.id.ad_advertiser);
+
+        adView.setHeadlineView(headlineView);
+        adView.setBodyView(bodyView);
+        adView.setCallToActionView(ctaView);
+        adView.setIconView(iconView);
+        adView.setAdvertiserView(advertiserView);
+
+        if (headlineView != null) {
+            headlineView.setText(nativeAd.getHeadline());
+        }
+
+        if (bodyView != null) {
+            if (nativeAd.getBody() == null) {
+                bodyView.setVisibility(View.GONE);
+            } else {
+                bodyView.setVisibility(View.VISIBLE);
+                bodyView.setText(nativeAd.getBody());
+            }
+        }
+
+        if (ctaView != null) {
+            if (nativeAd.getCallToAction() == null) {
+                ctaView.setVisibility(View.INVISIBLE);
+            } else {
+                ctaView.setVisibility(View.VISIBLE);
+                ctaView.setText(nativeAd.getCallToAction());
+            }
+        }
+
+        if (iconView != null) {
+            if (nativeAd.getIcon() == null || nativeAd.getIcon().getDrawable() == null) {
+                iconView.setVisibility(View.GONE);
+            } else {
+                iconView.setImageDrawable(nativeAd.getIcon().getDrawable());
+                iconView.setVisibility(View.VISIBLE);
+            }
+        }
+
+        if (advertiserView != null) {
+            if (nativeAd.getAdvertiser() == null) {
+                advertiserView.setVisibility(View.GONE);
+            } else {
+                advertiserView.setText(nativeAd.getAdvertiser());
+                advertiserView.setVisibility(View.VISIBLE);
+            }
+        }
+
+        adView.setNativeAd(nativeAd);
+    }
+
+    private void destroyNativeAd() {
+        if (mNativeAd != null) {
+            mNativeAd.destroy();
+            mNativeAd = null;
+        }
+        if (binding != null) {
+            binding.nativeAdCard.setVisibility(View.GONE);
         }
     }
 
@@ -1393,10 +1545,10 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         if (!BillingManager.shouldShowAds(this) || !ConsentManager.canRequestAds()) {
-            binding.adViewBanner.setVisibility(View.GONE);
+            binding.bannerContainer.setVisibility(View.GONE);
             return;
         }
-        binding.adViewBanner.setVisibility(View.VISIBLE);
+        binding.bannerContainer.setVisibility(mBannerLoaded ? View.VISIBLE : View.GONE);
     }
 
     private void initResources() {
@@ -2530,7 +2682,7 @@ public class MainActivity extends AppCompatActivity {
         // El popup ocupa toda la pantalla y tapa el banner: se oculta para no
         // contar impresiones que el usuario no puede ver ni clics accidentales.
         if (binding != null) {
-            binding.adViewBanner.setVisibility(View.GONE);
+            binding.bannerContainer.setVisibility(View.GONE);
         }
         // Cargar el intersticial justo ahora: el usuario pasará unos segundos
         // leyendo el HEX y el anuncio estará listo al cerrar el visor.
@@ -3171,6 +3323,7 @@ public class MainActivity extends AppCompatActivity {
         if (billingManager != null) {
             billingManager.destroy();
         }
+        destroyNativeAd();
         if (binding != null) {
             binding.adViewBanner.destroy();
         }
