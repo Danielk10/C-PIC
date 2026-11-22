@@ -27,6 +27,7 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.PopupWindow;
@@ -42,6 +43,7 @@ import com.google.android.gms.ads.AdListener;
 import com.google.android.gms.ads.AdLoader;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdSize;
+import com.google.android.gms.ads.AdView;
 import com.google.android.gms.ads.FullScreenContentCallback;
 import com.google.android.gms.ads.LoadAdError;
 import com.google.android.gms.ads.MobileAds;
@@ -189,6 +191,7 @@ public class MainActivity extends AppCompatActivity {
     private long mLastInterstitialShownAt = 0;
     private boolean mInterstitialLoading = false;
     private NativeAd mNativeAd;
+    private AdView mBannerAdView;
     private boolean mBannerLoaded = false;
     /** Un intersticial cargado se descarta pasado este tiempo. */
     private static final long INTERSTITIAL_TTL_MS = 60 * 60 * 1000L;
@@ -344,7 +347,10 @@ public class MainActivity extends AppCompatActivity {
         if (!BillingManager.shouldShowAds(this) || !canRequestAds) {
             adsRequested = false;
             if (binding != null) {
-                binding.adViewBanner.pause();
+                if (mBannerAdView != null) {
+                    mBannerAdView.pause();
+                    mBannerAdView.setVisibility(View.GONE);
+                }
                 binding.bannerContainer.setVisibility(View.GONE);
             }
             mBannerLoaded = false;
@@ -356,61 +362,84 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         adsRequested = true;
-        binding.adViewBanner.resume();
-        binding.adViewBanner.setAdListener(new AdListener() {
-            @Override
-            public void onAdLoaded() {
-                super.onAdLoaded();
-                mBannerLoaded = true;
-                if (binding != null) {
-                    binding.bannerContainer.setVisibility(View.VISIBLE);
-                }
-            }
-
-            @Override
-            public void onAdFailedToLoad(@NonNull LoadAdError adError) {
-                super.onAdFailedToLoad(adError);
-                mBannerLoaded = false;
-                Log.w(TAG, "Banner ad failed to load: " + adError.getMessage());
-                if (binding != null) {
-                    binding.bannerContainer.setVisibility(View.GONE);
-                }
-            }
-        });
-        applyAdaptiveBannerSize();
 
         MobileAds.initialize(this, initializationStatus -> postToUi(() -> {
-            // Se recalcula por si el ancho útil cambió tras el consentimiento.
-            applyAdaptiveBannerSize();
-            AdRequest adRequest = new AdRequest.Builder().build();
-            binding.adViewBanner.loadAd(adRequest);
+            if (isFinishing() || isDestroyed()) {
+                return;
+            }
+            loadBannerAd();
             loadNativeAd();
         }));
     }
 
     /**
-     * Ajusta el banner al ancho real de la pantalla en la orientación actual.
+     * Crea el banner adaptable dentro de {@code bannerContainer}.
      *
-     * <p>El {@code app:adSize="BANNER"} del XML es fijo (320x50) y deja franjas
-     * laterales en pantallas de 360-411dp. Solo {@code setAdSize()} en código
-     * convierte el bloque en un banner adaptativo anclado de ancho completo.</p>
+     * <p>Igual que en PIC K150, Comunicador OTG, EEPROM Flasher y Flash SPI
+     * Tool, el {@code AdView} se crea en código con
+     * {@link AdSize#getCurrentOrientationAnchoredAdaptiveBannerAdSize} para
+     * ocupar todo el ancho útil. Antes el XML fijaba
+     * {@code app:adSize="BANNER"} (320x50) y en pantallas de 360-411dp se
+     * veían franjas negras a los lados del anuncio.</p>
      */
-    private void applyAdaptiveBannerSize() {
-        if (binding == null) {
+    private void loadBannerAd() {
+        if (binding == null || isFinishing() || isDestroyed()) {
             return;
         }
-        try {
-            DisplayMetrics dm = getResources().getDisplayMetrics();
-            int widthPixels = dm.widthPixels;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                widthPixels = getWindowManager().getCurrentWindowMetrics().getBounds().width();
-            }
-            int widthDp = (int) (widthPixels / dm.density);
-            binding.adViewBanner.setAdSize(
-                    AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(this, widthDp));
-        } catch (RuntimeException e) {
-            Log.w(TAG, "No se pudo calcular el banner adaptativo: " + e.getMessage());
+        if (!BillingManager.shouldShowAds(this) || !ConsentManager.canRequestAds()) {
+            binding.bannerContainer.setVisibility(View.GONE);
+            return;
         }
+
+        if (mBannerAdView == null) {
+            mBannerAdView = new AdView(this);
+            mBannerAdView.setAdUnitId(getString(R.string.ad_banner_id));
+            mBannerAdView.setAdSize(getAdaptiveBannerAdSize());
+            mBannerAdView.setAdListener(new AdListener() {
+                @Override
+                public void onAdLoaded() {
+                    super.onAdLoaded();
+                    mBannerLoaded = true;
+                    if (binding != null && !isFinishing() && !isDestroyed()) {
+                        binding.bannerContainer.setVisibility(View.VISIBLE);
+                    }
+                }
+
+                @Override
+                public void onAdFailedToLoad(@NonNull LoadAdError adError) {
+                    super.onAdFailedToLoad(adError);
+                    mBannerLoaded = false;
+                    Log.w(TAG, "Banner ad failed to load: " + adError.getMessage());
+                    if (binding != null) {
+                        binding.bannerContainer.setVisibility(View.GONE);
+                    }
+                }
+            });
+            binding.bannerContainer.removeAllViews();
+            binding.bannerContainer.addView(mBannerAdView, new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
+        } else {
+            // Recreación o cambio de orientación: recalcular el ancho.
+            mBannerAdView.setAdSize(getAdaptiveBannerAdSize());
+        }
+
+        binding.bannerContainer.setVisibility(mBannerLoaded ? View.VISIBLE : View.GONE);
+        mBannerAdView.loadAd(new AdRequest.Builder().build());
+    }
+
+    /**
+     * Calcula el banner adaptable anclado al ancho real de la ventana en la
+     * orientación actual, con el mismo criterio que las demás apps.
+     */
+    private AdSize getAdaptiveBannerAdSize() {
+        DisplayMetrics dm = getResources().getDisplayMetrics();
+        int widthPixels = dm.widthPixels;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            widthPixels = getWindowManager().getCurrentWindowMetrics().getBounds().width();
+        }
+        int widthDp = Math.max(1, (int) (widthPixels / dm.density));
+        return AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(this, widthDp);
     }
 
     /**
@@ -3301,6 +3330,22 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onPause() {
+        if (mBannerAdView != null) {
+            mBannerAdView.pause();
+        }
+        super.onPause();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (mBannerAdView != null) {
+            mBannerAdView.resume();
+        }
+    }
+
+    @Override
     protected void onDestroy() {
         // No dejar una vista enfocada al desacoplar la jerarquía: ViewRootImpl
         // puede lanzar NPE en fireAccessibilityFocusEventIfHasFocusedNode.
@@ -3324,8 +3369,9 @@ public class MainActivity extends AppCompatActivity {
             billingManager.destroy();
         }
         destroyNativeAd();
-        if (binding != null) {
-            binding.adViewBanner.destroy();
+        if (mBannerAdView != null) {
+            mBannerAdView.destroy();
+            mBannerAdView = null;
         }
 
         super.onDestroy();

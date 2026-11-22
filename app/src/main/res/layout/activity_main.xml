@@ -674,25 +674,17 @@
 
         </LinearLayout>
 
-        <!-- Banner Ad (bottom) -->
+        <!-- Banner Ad (bottom): contenedor vacío. El AdView adaptable se crea
+             en código con el ancho real de la pantalla, igual que en PIC K150,
+             Comunicador OTG, EEPROM Flasher y Flash SPI Tool. Sin fondo ni
+             altura mínima para que no aparezcan franjas negras alrededor. -->
         <FrameLayout
             android:id="@+id/bannerContainer"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:background="@color/background"
-            android:minHeight="50dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent">
-
-            <com.google.android.gms.ads.AdView
-                android:id="@+id/adView_banner"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                app:adSize="BANNER"
-                app:adUnitId="@string/ad_banner_id" />
-        </FrameLayout>
+            app:layout_constraintStart_toStartOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
