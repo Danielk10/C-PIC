@@ -462,8 +462,16 @@ public class MainActivity extends AppCompatActivity {
 
         AdLoader adLoader = new AdLoader.Builder(this, getString(R.string.ad_native_id))
                 .forNativeAd(nativeAd -> {
-                    if (isFinishing() || isDestroyed()) {
+                    if (isFinishing() || isDestroyed()
+                            || !BillingManager.shouldShowAds(this)
+                            || !ConsentManager.canRequestAds()) {
+                        // Los anuncios se desactivaron mientras cargaba (compra
+                        // "Quitar anuncios"): descartar y mantener la tarjeta
+                        // oculta.
                         nativeAd.destroy();
+                        if (binding != null) {
+                            binding.nativeAdCard.setVisibility(View.GONE);
+                        }
                         return;
                     }
                     if (mNativeAd != null) {
